@@ -1,0 +1,1064 @@
+Product Requirements Document (PRD)
+SocraticDev: AI-Powered Learning & Developer Productivity Platform
+Full-Stack Hackathon Project
+
+1. Executive Summary
+1.1 Product Vision
+Build an AI-powered coding assistant that teaches while helping - using Socratic dialogue and context-aware intelligence to make developers learn deeply rather than just copy-paste code. Leverages Google Gemini APIs to create an intelligent tutor that prioritizes understanding over speed.
+1.2 Core Philosophy
+
+Learn by Thinking: AI asks questions before giving answers
+Context is King: Understands your entire codebase, not just current file
+Two Modes: Toggle between "Learn" mode (Socratic) and "Build" mode (fast)
+Smart, Not Magic: Verify code quality, catch bugs, explain the "why"
+
+1.3 Hackathon Scope
+A working full-stack prototype demonstrating:
+
+Web-based chat interface with code editor
+VS Code extension for in-IDE assistance
+Socratic teaching methodology
+GraphRAG-powered codebase understanding
+Real-time code quality checks
+
+
+2. Problem Statement
+2.1 Current Gaps
+
+Tutorial Hell: Learners copy code without understanding
+Vibe Coding: Accepting AI code that "looks right" without verification
+Context Loss: AI doesn't understand your full project
+Productivity Paradox: Studies show devs are 19% slower with current AI tools
+No Learning Mode: Tools optimize for speed, not understanding
+
+2.2 Target Users (for demo)
+
+CS Students: Learning to code, stuck in tutorial hell
+Bootcamp Learners: Need to understand fundamentals quickly
+Junior Developers: Want to level up while building
+Senior Devs: Need context-aware assistance for large codebases
+
+
+3. Core Features (MVP - Hackathon Deliverables)
+3.1 WEB APPLICATION
+3.1.1 Main Chat Interface
+Priority: P0 (Must Have)
+Description: Primary interface for interacting with AI tutor/assistant
+Features:
+
+Split-screen layout: Chat on left, code editor on right
+Monaco Editor integration for code editing
+Syntax highlighting for 10+ languages
+File upload for context (drag & drop)
+Conversation history
+Dark mode UI
+
+Technical Stack:
+
+Frontend: React + TypeScript + Tailwind CSS
+Editor: Monaco Editor
+State: Zustand or Context API
+Styling: shadcn/ui components
+
+Acceptance Criteria:
+
+Render chat messages in <100ms
+Code editor supports Python, JavaScript, TypeScript, Java, C++
+Mobile-responsive layout
+
+
+3.1.2 Socratic Dialogue Engine
+Priority: P0 (Must Have)
+Description: AI responds with guiding questions instead of direct answers
+Features:
+
+Intent Detection: Analyze if user is learning or building
+Question-First Approach:
+
+User: "How do I implement binary search?"
+AI: "Great question! First, what property of the data makes binary search possible? What's required for it to work?"
+
+
+Scaffolding Levels:
+
+Level 1 (Learning): Only questions and hints
+Level 2 (Guided): Pseudocode + questions
+Level 3 (Building): Direct code with explanations
+
+
+Struggle Detection: After 2-3 failed attempts, provide more direct help
+Dialogue Patterns:
+
+Reflective Toss: "What do you think happens if the list is empty?"
+Assumption Challenge: "Why choose a loop over recursion here?"
+Concept Breakdown: "Let's break this into smaller steps..."
+
+
+
+Gemini Integration:
+
+Use Gemini 2.0 Flash for low-latency responses
+System prompt with Socratic constraints
+Few-shot examples of good Socratic questions
+
+Example System Prompt:
+You are SocraticDev, a coding tutor that teaches through questions.
+
+Rules:
+1. NEVER give direct code solutions immediately
+2. Ask 2-3 guiding questions first
+3. If user struggles 3 times, provide scaffolded help
+4. Always explain the "why" behind concepts
+5. Encourage active thinking over passive copying
+
+User Level: {beginner/intermediate/advanced}
+Current Context: {file_context}
+Acceptance Criteria:
+
+70% of responses include questions before code
+User survey: "Made me think harder" rating >4/5
+
+
+3.1.3 Learning Toggle
+Priority: P0 (Must Have)
+Description: Switch between Learning Mode and Build Mode
+Features:
+
+Prominent toggle button in UI (styled switch)
+Learning Mode (Socratic):
+
+Questions before answers
+Explanations required
+Step-by-step guidance
+No direct code until struggle
+
+
+Build Mode (Copilot-style):
+
+Fast code generation
+Minimal explanations
+Auto-complete suggestions
+For deadlines/boilerplate
+
+
+
+Visual Design:
+
+Green = Learning Mode (brain icon)
+Blue = Build Mode (rocket icon)
+Mode persists per session
+
+Acceptance Criteria:
+
+Toggle switches instantly (<100ms)
+Mode clearly indicated at all times
+80% of demo users understand the difference
+
+
+3.2 CODEBASE UNDERSTANDING (GraphRAG)
+3.2.1 Project Upload & Analysis
+Priority: P0 (Must Have)
+Description: Upload entire project folder, AI builds knowledge graph
+Features:
+
+Upload Methods:
+
+Drag & drop folder (web)
+Connect GitHub repo (via URL)
+Paste code snippets
+
+
+Supported Languages: Python, JavaScript/TypeScript, Java, C++
+Analysis Pipeline:
+
+Parse all files using Tree-sitter
+Extract: functions, classes, imports, calls
+Build dependency graph
+Create embeddings for semantic search
+Store in graph database
+
+
+
+Graph Schema:
+Nodes: File, Function, Class, Import
+Edges: calls, imports, inherits, defines
+Technical Implementation:
+
+Parser: Tree-sitter (multi-language AST)
+Graph DB: Neo4j (or in-memory graph for MVP)
+Vector DB: Chroma (lightweight, embeddable)
+Embeddings: Gemini Embedding API
+
+Acceptance Criteria:
+
+Parse 100 files in <30 seconds
+Correctly identify 90% of function calls
+Build graph with <5% missing edges
+
+
+3.2.2 Context-Aware Responses
+Priority: P0 (Must Have)
+Description: AI uses full project context to answer questions
+Features:
+
+Automatic Context Injection: When user asks about code, retrieve:
+
+Current file content
+Related functions (via graph)
+Imported modules
+Similar code patterns
+
+
+Hybrid Search:
+
+Vector search: Find semantically similar code
+Graph traversal: Find structurally connected code
+
+
+Smart Queries:
+
+"Where is this function called?" → Graph query
+"Show similar authentication logic" → Vector search
+"What breaks if I change this?" → Graph + impact analysis
+
+
+
+Example:
+User: "How should I refactor this login function?"
+
+AI retrieves:
+- login function code
+- All functions that call login
+- Similar auth patterns in codebase
+- Related database models
+
+AI response with full context:
+"I see this login function is called in 3 places: 
+[shows call sites]. Before refactoring, consider..."
+Acceptance Criteria:
+
+Retrieve relevant context in <2 seconds
+Include 3-5 most relevant code snippets
+Context relevance rated >4/5 by users
+
+
+3.2.3 Dependency Visualization
+Priority: P1 (Nice to Have)
+Description: Visual graph of code dependencies
+Features:
+
+Interactive graph visualization (D3.js or Cytoscape.js)
+Node types: Files, Functions, Classes
+Click to see code
+Highlight impact zones ("if I change this, what breaks?")
+
+Acceptance Criteria:
+
+Render graph for 50-file project in <5 seconds
+Interactive zoom and pan
+Visually appealing (impress judges!)
+
+
+3.3 CODE QUALITY & VERIFICATION
+3.3.1 Real-Time Code Analysis
+Priority: P0 (Must Have)
+Description: Check code quality as AI generates it
+Features:
+
+Syntax Validation: Ensure code is valid
+Linting: Run ESLint (JS) or Pylint (Python)
+Type Checking: TypeScript or mypy for Python
+Basic Security:
+
+Detect SQL injection patterns
+Warn about eval() usage
+Flag hardcoded secrets
+
+
+Confidence Scoring: AI rates its own output (0-100%)
+
+Tools Integration:
+
+ESLint (JavaScript/TypeScript)
+Pylint or Ruff (Python)
+Semgrep (security patterns)
+
+Visual Feedback:
+
+✅ Green checkmark: All checks pass
+⚠️ Yellow warning: Linting issues
+🛑 Red error: Syntax errors or security issues
+
+Acceptance Criteria:
+
+Run checks in <2 seconds
+Catch 90% of common syntax errors
+Zero false positives for security warnings in demo
+
+
+3.3.2 Explanation Mode
+Priority: P0 (Must Have)
+Description: Explain any code snippet line-by-line
+Features:
+
+Select code → Click "Explain"
+AI provides:
+
+High-level summary
+Line-by-line breakdown
+Why it's written this way
+Potential improvements
+
+
+Diff Explanations: "What changed and why?"
+
+Example:
+python# User selects this code:
+def binary_search(arr, target):
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+# AI explains:
+"This implements binary search with O(log n) complexity:
+Line 2: Initialize search boundaries...
+Line 3: Continue while search space exists...
+Line 4: Calculate middle index (// avoids float)...
+Lines 5-10: Three-way comparison narrows search...
+Line 11: Target not found returns -1"
+Acceptance Criteria:
+
+Generate explanation in <3 seconds
+Explanations rated "helpful" by 80% of test users
+
+
+3.3.3 Bug Detection & Suggestions
+Priority: P1 (Nice to Have)
+Description: Proactively spot potential bugs
+Features:
+
+Common bug patterns:
+
+Null/undefined checks missing
+Off-by-one errors in loops
+Race conditions (basic detection)
+Unreachable code
+
+
+Suggest fixes with explanations
+Show before/after comparison
+
+Acceptance Criteria:
+
+Detect 5+ common bug patterns
+False positive rate <20%
+
+
+3.4 VS CODE EXTENSION
+3.4.1 Sidebar Chat Panel
+Priority: P0 (Must Have)
+Description: Embedded chat in VS Code
+Features:
+
+Sidebar panel (like GitHub Copilot Chat)
+Auto-inject current file context
+Keyboard shortcut: Cmd+Shift+L (Learn mode)
+Send selected code to chat
+Apply code suggestions with one click
+
+Technical Stack:
+
+VS Code Extension API
+TypeScript
+Webview for chat UI
+
+Acceptance Criteria:
+
+Install from .vsix file
+Chat responds in <2 seconds
+Code insertion works correctly
+
+
+3.4.2 Inline Code Actions
+Priority: P1 (Nice to Have)
+Description: Right-click menu options
+Features:
+
+Right-click selected code:
+
+"Explain with SocraticDev"
+"Find Similar Code"
+"Check for Bugs"
+"Generate Tests" (bonus)
+
+
+Results appear in sidebar
+
+Acceptance Criteria:
+
+All actions work on first try
+Integrated into native VS Code UX
+
+
+3.5 INTELLIGENT FEATURES
+3.5.1 Simple Knowledge Tracking
+Priority: P1 (Nice to Have)
+Description: Remember what user knows/struggles with
+Features:
+
+Track topics discussed
+Identify repeated struggles (asks same question 3x)
+Adjust scaffolding level automatically
+Show progress: "You've mastered recursion! 🎉"
+
+Data Model (simple JSON):
+json{
+  "user_id": "uuid",
+  "skills": {
+    "recursion": {"score": 85, "attempts": 12},
+    "async": {"score": 40, "attempts": 5}
+  },
+  "struggle_patterns": ["null handling", "array bounds"]
+}
+```
+
+**Acceptance Criteria**:
+- Track 10+ skills per user
+- Visible progress in UI
+
+---
+
+### 3.5.2 Adaptive Parsons Problems
+**Priority**: P1 (Nice to Have)
+
+**Description**: Generate code puzzles for practice
+
+**Features**:
+- When user writes buggy code, AI offers: 
+  "Your logic is close! Want to try a Parsons Problem to practice?"
+- Drag-and-drop blocks to correct order
+- 2-3 distractor blocks (incorrect logic)
+- Instant feedback
+
+**Example**:
+```
+User struggling with binary search → AI generates:
+
+Drag these blocks into correct order:
+[ ] return -1
+[ ] left, right = 0, len(arr) - 1
+[ ] mid = (left + right) // 2
+[ ] if arr[mid] == target: return mid
+[ ] while left >= right:  ← DISTRACTOR (should be <=)
+[ ] left = mid + 1
+```
+
+**Technical**:
+- React DnD or react-beautiful-dnd
+- Gemini generates scrambled + distractors
+
+**Acceptance Criteria**:
+- Generate puzzle in <5 seconds
+- 70% of users complete successfully
+
+---
+
+## 3.6 DEMO-SPECIFIC FEATURES
+
+### 3.6.1 Example Projects
+**Priority**: P0 (Must Have)
+
+**Description**: Pre-loaded projects to demonstrate capabilities
+
+**Features**:
+- 3 sample projects:
+  1. **Todo App** (beginner): React + Node.js
+  2. **E-commerce API** (intermediate): REST API with auth
+  3. **Data Pipeline** (advanced): Python ETL with bugs
+- Quick load buttons: "Try Example Project"
+- Demonstrates GraphRAG, Socratic teaching, bug detection
+
+**Acceptance Criteria**:
+- All examples work perfectly
+- Show off key features in <5 min each
+
+---
+
+### 3.6.2 Interactive Onboarding
+**Priority**: P1 (Nice to Have)
+
+**Description**: Guided tutorial for judges/users
+
+**Features**:
+- 3-step tutorial on first visit:
+  1. "Ask me anything about coding!"
+  2. "Toggle to Learning Mode for Socratic questions"
+  3. "Upload a project to see GraphRAG in action"
+- Tooltips and highlights
+- Skip option available
+
+**Acceptance Criteria**:
+- Completable in <2 minutes
+- 90% of users understand core features
+
+---
+
+### 3.6.3 Live Metrics Dashboard
+**Priority**: P1 (Nice to Have)
+
+**Description**: Show impact in real-time during demo
+
+**Features**:
+- Simple stats card:
+  - Questions Asked: 24
+  - Code Explanations: 15
+  - Bugs Caught: 7
+  - Learning Mode Time: 45%
+- Visual graphs (recharts)
+- Resets per session for demo
+
+**Acceptance Criteria**:
+- Updates in real-time
+- Visually impressive for judges
+
+---
+
+## 4. Technical Architecture
+
+### 4.1 System Architecture
+```
+┌─────────────────────────────────────────────────────┐
+│                   Frontend Layer                     │
+├─────────────────────────────────────────────────────┤
+│  Web App (React)        │    VS Code Extension      │
+│  - Chat UI              │    - Sidebar Panel        │
+│  - Code Editor          │    - Context Menu         │
+│  - Learning Toggle      │                           │
+└─────────────────────────────────────────────────────┘
+                          │
+                    WebSocket / REST API
+                          │
+┌─────────────────────────────────────────────────────┐
+│                   Backend Layer                      │
+├─────────────────────────────────────────────────────┤
+│  API Server (FastAPI / Node.js Express)             │
+│  - Chat endpoints                                    │
+│  - Project upload                                    │
+│  - Code analysis                                     │
+└─────────────────────────────────────────────────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         │                │                │
+┌────────▼──────┐  ┌──────▼──────┐  ┌─────▼────────┐
+│  Gemini APIs  │  │  Graph DB   │  │  Vector DB   │
+│  - 2.0 Flash  │  │  (Neo4j /   │  │  (Chroma)    │
+│  - Embeddings │  │   in-memory)│  │              │
+└───────────────┘  └─────────────┘  └──────────────┘
+4.2 Tech Stack
+Frontend:
+
+Framework: React 18 + TypeScript
+Styling: Tailwind CSS + shadcn/ui
+Editor: Monaco Editor (VS Code's editor)
+State: Zustand
+Charts: Recharts
+DnD: react-beautiful-dnd (for Parsons)
+
+Backend:
+
+Language: Python (FastAPI) OR Node.js (Express)
+Why Python: Better integration with Tree-sitter, easier for code analysis
+Why Node: Faster for real-time, easier for JS developers
+
+Database:
+
+Graph: Neo4j (Docker container) OR in-memory graph (networkx for Python)
+Vector: Chroma (embedded, no separate server)
+Cache: Redis (optional, for rate limiting)
+
+AI/ML:
+
+LLM: Google Gemini 2.0 Flash (via API)
+Embeddings: Gemini Embedding API
+Code Parsing: Tree-sitter (supports 50+ languages)
+
+DevOps:
+
+Hosting: Vercel (frontend) + Railway/Render (backend)
+CI/CD: GitHub Actions
+Monitoring: Simple logging (no need for complex tools)
+
+VS Code Extension:
+
+Language: TypeScript
+APIs: VS Code Extension API, Language Server Protocol
+
+
+5. Data Models
+5.1 Conversation
+typescriptinterface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  code_blocks?: CodeBlock[];
+  timestamp: Date;
+  mode: 'learning' | 'building';
+}
+
+interface Conversation {
+  id: string;
+  user_id: string;
+  messages: Message[];
+  project_context?: ProjectContext;
+  created_at: Date;
+}
+5.2 Project Context
+typescriptinterface ProjectContext {
+  id: string;
+  name: string;
+  language: string;
+  files: FileNode[];
+  graph: DependencyGraph;
+  embeddings: number[][];
+  uploaded_at: Date;
+}
+
+interface FileNode {
+  path: string;
+  content: string;
+  functions: Function[];
+  imports: Import[];
+}
+5.3 User Profile (Simple)
+typescriptinterface UserProfile {
+  id: string;
+  name?: string;
+  skills: {
+    [topic: string]: {
+      score: number; // 0-100
+      attempts: number;
+      last_practiced: Date;
+    }
+  };
+  preferences: {
+    default_mode: 'learning' | 'building';
+    language: string;
+  };
+}
+```
+
+---
+
+## 6. API Endpoints
+
+### 6.1 Chat
+```
+POST /api/chat
+Body: {
+  message: string,
+  conversation_id?: string,
+  mode: 'learning' | 'building',
+  project_context?: string
+}
+Response: {
+  reply: string,
+  code_suggestions?: string[],
+  questions?: string[],
+  confidence: number
+}
+```
+
+### 6.2 Project Upload
+```
+POST /api/project/upload
+Body: FormData (files) OR { github_url: string }
+Response: {
+  project_id: string,
+  files_processed: number,
+  graph_nodes: number,
+  graph_edges: number
+}
+```
+
+### 6.3 Code Analysis
+```
+POST /api/code/analyze
+Body: {
+  code: string,
+  language: string,
+  project_id?: string
+}
+Response: {
+  syntax_valid: boolean,
+  linting_errors: Error[],
+  security_warnings: Warning[],
+  suggestions: string[],
+  confidence: number
+}
+```
+
+### 6.4 Code Explanation
+```
+POST /api/code/explain
+Body: {
+  code: string,
+  language: string,
+  detail_level: 'high-level' | 'line-by-line'
+}
+Response: {
+  summary: string,
+  line_explanations: { line: number, explanation: string }[],
+  key_concepts: string[]
+}
+```
+
+### 6.5 Graph Query
+```
+POST /api/graph/query
+Body: {
+  project_id: string,
+  query_type: 'find_callers' | 'find_dependencies' | 'impact_analysis',
+  target: string (function/file name)
+}
+Response: {
+  nodes: Node[],
+  edges: Edge[],
+  visualization_data: any
+}
+
+7. Implementation Phases
+Phase 1: Foundation (Days 1-2)
+Goal: Basic working prototype
+Tasks:
+
+✅ Set up React frontend with Tailwind
+✅ Implement Monaco Editor integration
+✅ Build FastAPI backend
+✅ Integrate Gemini 2.0 Flash API
+✅ Basic chat interface (no GraphRAG yet)
+✅ Learning/Build mode toggle
+✅ Deploy frontend + backend
+
+Deliverable: Chat with AI that responds in both modes
+
+Phase 2: Socratic Intelligence (Days 3-4)
+Goal: Implement teaching methodology
+Tasks:
+
+✅ Write Socratic system prompts
+✅ Implement struggle detection logic
+✅ Add few-shot examples
+✅ Build scaffolding levels
+✅ Add code explanation feature
+✅ Simple user profile (track topics discussed)
+
+Deliverable: AI that teaches through questions
+
+Phase 3: GraphRAG (Days 5-6)
+Goal: Context-aware understanding
+Tasks:
+
+✅ Integrate Tree-sitter for parsing
+✅ Build graph construction pipeline
+✅ Set up Chroma for embeddings
+✅ Implement hybrid search
+✅ Add project upload endpoint
+✅ Context injection in chat
+
+Deliverable: Upload project → AI understands full context
+
+Phase 4: Code Quality (Day 7)
+Goal: Verification and analysis
+Tasks:
+
+✅ Integrate ESLint/Pylint
+✅ Add basic security checks (Semgrep patterns)
+✅ Implement syntax validation
+✅ Build confidence scoring
+✅ Visual indicators in UI
+
+Deliverable: Real-time code quality feedback
+
+Phase 5: VS Code Extension (Days 8-9)
+Goal: IDE integration
+Tasks:
+
+✅ Create extension scaffold
+✅ Build sidebar webview
+✅ Integrate with backend API
+✅ Add context menu actions
+✅ Test and package .vsix
+
+Deliverable: Working VS Code extension
+
+Phase 6: Polish & Demo Prep (Days 10-11)
+Goal: Make it impressive
+Tasks:
+
+✅ Add example projects
+✅ Create interactive onboarding
+✅ Build metrics dashboard
+✅ Implement Parsons Problems (if time)
+✅ Graph visualization (if time)
+✅ UI polish and animations
+✅ Performance optimization
+✅ Bug fixes
+
+Deliverable: Demo-ready application
+
+Phase 7: Presentation (Day 12)
+Goal: Nail the demo
+Tasks:
+
+✅ Prepare demo script
+✅ Create slides
+✅ Record backup video
+✅ Practice presentation
+✅ Prepare for Q&A
+
+Deliverable: Winning presentation 🏆
+
+8. Success Metrics (Demo)
+8.1 Functionality
+
+✅ Chat responds in <2 seconds
+✅ GraphRAG successfully parses 100+ file project
+✅ 90% uptime during judging period
+✅ VS Code extension installs and works
+
+8.2 User Experience
+
+✅ Judges understand core concept in <2 minutes
+✅ "Wow" reaction to GraphRAG visualization
+✅ Socratic dialogue feels natural (not robotic)
+✅ Learning toggle is clear and useful
+
+8.3 Innovation
+
+✅ Unique approach (Socratic + GraphRAG)
+✅ Solves real problem (tutorial hell, vibe coding)
+✅ Technically impressive (working graph database)
+✅ Practical and useful (not just a gimmick)
+
+
+9. Risks & Mitigations
+RiskImpactMitigationGemini API rate limitsHighCache responses, implement fallback, use free tier wiselyTree-sitter parsing failsMediumFallback to regex for simple parsing, test on example projectsGraph DB too slowMediumUse in-memory graph for demo, optimize queries, limit project sizeScope creepHighStick to P0 features, cut P1 if running lateUI looks unpolishedMediumUse shadcn/ui components, focus on 3-4 key screensDemo breaks during presentationCriticalRecord backup video, test extensively, have offline mode
+
+10. What to Cut if Running Out of Time
+Priority Order (Cut from bottom up):
+
+❌ Parsons Problems
+❌ Graph visualization
+❌ Metrics dashboard
+❌ VS Code extension inline actions
+❌ Advanced security checks
+❌ User profiles/knowledge tracking
+⚠️ VS Code extension (keep if possible - strong differentiator)
+⚠️ GraphRAG (core feature - try to keep)
+✅ Socratic dialogue (MUST HAVE)
+✅ Basic chat (MUST HAVE)
+
+
+11. Judging Criteria Alignment
+Innovation (30%)
+
+✅ Socratic Method: Unique teaching approach vs all competitors
+✅ GraphRAG: Technical depth with graph database
+✅ Dual Mode: Novel learning/building toggle
+
+Technical Implementation (25%)
+
+✅ Full Stack: React + Python/Node + Graph DB + Vector DB
+✅ Gemini Integration: Proper use of API, embeddings, multimodal
+✅ Real Code Analysis: Tree-sitter, linting, security
+
+Problem Solving (20%)
+
+✅ Addresses Tutorial Hell: Backed by research
+✅ Vibe Coding Solution: Verification layer
+✅ Context Problem: GraphRAG solves it
+
+Usability (15%)
+
+✅ Clean UI: Modern, intuitive
+✅ Fast: <2s responses
+✅ VS Code Integration: Works where developers work
+
+Presentation (10%)
+
+✅ Clear Demo: 3 example scenarios
+✅ Storytelling: Problem → Solution → Impact
+✅ Visual Appeal: Graphs, animations, polished UI
+
+
+12. Tech Stack Summary
+yamlFrontend:
+  - React 18 + TypeScript
+  - Tailwind CSS + shadcn/ui
+  - Monaco Editor
+  - Zustand (state)
+  - Recharts (graphs)
+
+Backend:
+  - FastAPI (Python) or Express (Node.js)
+  - Gemini 2.0 Flash API
+  - Gemini Embedding API
+
+Data:
+  - Chroma (vector DB, embedded)
+  - Neo4j (graph DB, Docker) or networkx (in-memory)
+  - SQLite (user data, lightweight)
+
+Code Analysis:
+  - Tree-sitter (AST parsing)
+  - ESLint / Pylint (linting)
+  - Semgrep (security patterns)
+
+IDE:
+  - VS Code Extension (TypeScript)
+
+Deployment:
+  - Frontend: Vercel
+  - Backend: Railway or Render
+  - Database: Railway or Docker Compose locally
+```
+
+---
+
+## 13. File Structure
+```
+socraticdev/
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Chat.tsx
+│   │   │   ├── CodeEditor.tsx
+│   │   │   ├── ModeToggle.tsx
+│   │   │   ├── ProjectUpload.tsx
+│   │   │   └── GraphVisualization.tsx
+│   │   ├── pages/
+│   │   │   ├── Home.tsx
+│   │   │   └── Dashboard.tsx
+│   │   ├── services/
+│   │   │   └── api.ts
+│   │   ├── store/
+│   │   │   └── useStore.ts
+│   │   └── App.tsx
+│   ├── package.json
+│   └── tailwind.config.js
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── chat.py
+│   │   │   ├── project.py
+│   │   │   └── analysis.py
+│   │   ├── services/
+│   │   │   ├── gemini_service.py
+│   │   │   ├── graph_service.py
+│   │   │   ├── parser_service.py
+│   │   │   └── verification_service.py
+│   │   ├── models/
+│   │   │   └── schemas.py
+│   │   └── main.py
+│   └── requirements.txt
+│
+├── vscode-extension/
+│   ├── src/
+│   │   ├── extension.ts
+│   │   ├── sidebar.ts
+│   │   └── api-client.ts
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── examples/
+│   ├── todo-app/
+│   ├── ecommerce-api/
+│   └── data-pipeline/
+│
+└── README.md
+
+14. Demo Script (5 minutes)
+Minute 1: Problem
+"Developers today face Tutorial Hell - copying code without understanding. Current AI tools make this worse by encouraging 'vibe coding' - accepting code that looks right. Studies show devs are actually 19% SLOWER with AI assistants."
+Minute 2: Solution
+"Meet SocraticDev - an AI that teaches while helping. Instead of giving answers, it asks questions. It understands your ENTIRE codebase through GraphRAG. And you can toggle between learning and building."
+Minute 3: Demo Part 1 - Socratic Teaching
+
+Show chat: "How do I implement binary search?"
+AI asks: "What property of data makes binary search work?"
+Toggle to Build mode → instant code
+Toggle back to Learn mode → questions + explanation
+
+Minute 4: Demo Part 2 - GraphRAG
+
+Upload example project (e-commerce API)
+Ask: "Where is the payment processing function called?"
+Show graph visualization
+Ask: "If I change the API response here, what breaks?"
+AI shows impact analysis using graph
+
+Minute 5: Impact & Tech
+
+Show VS Code extension
+Display metrics: "Questions asked: 47, Bugs caught: 12"
+Technical highlights: Graph DB, Tree-sitter, Gemini 2.0
+Close: "We're not replacing developers - we're making them smarter."
+
+
+15. README Template
+markdown# SocraticDev 🧠
+
+> An AI-powered coding assistant that teaches you while helping you build.
+
+## The Problem
+
+- 😵 **Tutorial Hell**: Learners stuck copying code without understanding
+- 🤖 **Vibe Coding**: Accepting AI code that "looks right"
+- ❌ **Context Loss**: AI doesn't understand your full project
+- 📉 **Productivity Paradox**: Studies show 19% slower with current tools
+
+## Our Solution
+
+**SocraticDev** uses three breakthrough features:
+
+1. **Socratic Dialogue**: AI asks questions before giving answers
+2. **GraphRAG**: Understands your entire codebase structure
+3. **Learning Toggle**: Switch between "Learn" and "Build" modes
+
+## Features
+
+- 💬 Chat interface with code editor
+- 🧩 Context-aware responses using graph database
+- 🎓 Socratic teaching methodology
+- ✅ Real-time code quality checks
+- 🔌 VS Code extension
+- 📊 Learning analytics
+
+## Tech Stack
+
+- Frontend: React + TypeScript + Tailwind
+- Backend: FastAPI + Python
+- AI: Google Gemini 2.0 Flash
+- Graph DB: Neo4j
+- Vector DB: Chroma
+- Code Analysis: Tree-sitter
+
+## Quick Start
+
+[Installation instructions]
+
+## Demo
+
+[Link to video or live demo]
+
+## Team
+
+[Your names and roles]
