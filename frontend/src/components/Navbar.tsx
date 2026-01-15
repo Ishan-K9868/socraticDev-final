@@ -11,9 +11,17 @@ function Navbar() {
     const { mode } = useStore();
 
     useGSAP(() => {
-        gsap.from('.nav-item', {
-            opacity: 0,
-            y: -20,
+        // Only animate if elements exist
+        const navItems = containerRef.current?.querySelectorAll('.nav-item');
+        if (!navItems?.length) return;
+
+        // Set initial state for animation
+        gsap.set('.nav-item', { opacity: 0, y: -20 });
+
+        // Animate in
+        gsap.to('.nav-item', {
+            opacity: 1,
+            y: 0,
             stagger: 0.1,
             duration: 0.6,
             ease: 'power3.out',

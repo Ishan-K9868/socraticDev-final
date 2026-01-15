@@ -397,11 +397,19 @@ body {
   to {
     opacity: 1;
     visibility: visible;
+    transform: none;
   }
 }
 
+/* All GSAP-animated elements get a fallback reveal after 2s */
 .hero-content > *,
-.floating-card {
+.floating-card,
+.nav-item,
+.hero-badge,
+.hero-headline,
+.hero-subtitle,
+.hero-ctas,
+.hero-stats {
   /* Fallback: make visible after 2s if GSAP hasn't run */
   animation: gsap-fallback-reveal 0.01ms linear 2s forwards;
 }
