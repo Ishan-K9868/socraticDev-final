@@ -391,6 +391,21 @@ body {
   }
 }
 
+/* GSAP Fallback - Ensure content is visible if GSAP fails to load */
+/* Content will be shown by GSAP via autoAlpha, but this provides a fallback */
+@keyframes gsap-fallback-reveal {
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.hero-content > *,
+.floating-card {
+  /* Fallback: make visible after 2s if GSAP hasn't run */
+  animation: gsap-fallback-reveal 0.01ms linear 2s forwards;
+}
+
 /* ============================================
    SECTION SPECIFIC STYLES
    ============================================ */
