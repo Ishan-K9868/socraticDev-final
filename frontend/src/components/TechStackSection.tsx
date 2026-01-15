@@ -72,30 +72,36 @@ function TechStackSection() {
         // Set up 3D perspective
         gsap.set('.tech-stack-visual', { perspective: 1200 });
 
-        // Animate header
-        gsap.from('.tech-header', {
-            opacity: 0,
-            y: 40,
-            scrollTrigger: {
-                trigger: '.tech-header',
-                start: 'top 80%',
-            },
-        });
+        // Animate header - content always visible
+        gsap.fromTo('.tech-header',
+            { y: 25, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                scrollTrigger: {
+                    trigger: '.tech-header',
+                    start: 'top 80%',
+                },
+            }
+        );
 
-        // Animate stack layers flipping in
-        gsap.from('.stack-layer', {
-            rotationX: -90,
-            y: 50,
-            opacity: 0,
-            stagger: 0.15,
-            scrollTrigger: {
-                trigger: '.tech-stack-visual',
-                start: 'top 70%',
-                end: 'center center',
-                scrub: 1,
-            },
-            transformOrigin: 'center bottom',
-        });
+        // Animate stack layers - content always visible
+        gsap.fromTo('.stack-layer',
+            { rotationX: -45, y: 30, opacity: 0.3 },
+            {
+                rotationX: 0,
+                y: 0,
+                opacity: 1,
+                stagger: 0.15,
+                scrollTrigger: {
+                    trigger: '.tech-stack-visual',
+                    start: 'top 70%',
+                    end: 'center center',
+                    scrub: 1,
+                },
+                transformOrigin: 'center bottom',
+            }
+        );
 
         // Subtle continuous rotation
         gsap.to('.tech-stack-visual', {

@@ -39,19 +39,22 @@ function HowItWorksSection() {
     const containerRef = useRef<HTMLElement>(null);
 
     useGSAP(() => {
-        // Animate header
-        gsap.from('.how-header', {
-            opacity: 0,
-            y: 40,
-            scrollTrigger: {
-                trigger: '.how-header',
-                start: 'top 80%',
-                end: 'top 60%',
-                scrub: 1,
-            },
-        });
+        // Animate header - content always visible
+        gsap.fromTo('.how-header',
+            { y: 25, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                scrollTrigger: {
+                    trigger: '.how-header',
+                    start: 'top 80%',
+                    end: 'top 60%',
+                    scrub: 1,
+                },
+            }
+        );
 
-        // Animate each step
+        // Animate each step - content always visible
         gsap.utils.toArray<HTMLElement>('.how-step').forEach((step, i) => {
             const tl = gsap.timeline({
                 scrollTrigger: {
@@ -62,35 +65,34 @@ function HowItWorksSection() {
                 },
             });
 
-            tl.from(step.querySelector('.step-number'), {
-                scale: 0,
-                rotation: -180,
-                duration: 0.3,
-                ease: 'back.out(2)',
-            })
-                .from(step.querySelector('.step-content'), {
-                    x: i % 2 === 0 ? -60 : 60,
-                    opacity: 0,
-                    duration: 0.5,
-                }, '-=0.1')
-                .from(step.querySelector('.step-visual'), {
-                    scale: 0.8,
-                    opacity: 0,
-                    duration: 0.4,
-                }, '-=0.3');
+            tl.fromTo(step.querySelector('.step-number'),
+                { scale: 0.7, rotation: -45 },
+                { scale: 1, rotation: 0, duration: 0.3, ease: 'back.out(2)' }
+            )
+                .fromTo(step.querySelector('.step-content'),
+                    { x: i % 2 === 0 ? -30 : 30, opacity: 0.3 },
+                    { x: 0, opacity: 1, duration: 0.5 }, '-=0.1'
+                )
+                .fromTo(step.querySelector('.step-visual'),
+                    { scale: 0.9, opacity: 0.3 },
+                    { scale: 1, opacity: 1, duration: 0.4 }, '-=0.3'
+                );
         });
 
-        // Animate the connecting line
-        gsap.from('.connecting-line', {
-            scaleY: 0,
-            transformOrigin: 'top',
-            scrollTrigger: {
-                trigger: '.how-steps',
-                start: 'top 60%',
-                end: 'bottom 60%',
-                scrub: 1,
-            },
-        });
+        // Animate the connecting line - visible by default
+        gsap.fromTo('.connecting-line',
+            { scaleY: 0.3 },
+            {
+                scaleY: 1,
+                transformOrigin: 'top',
+                scrollTrigger: {
+                    trigger: '.how-steps',
+                    start: 'top 60%',
+                    end: 'bottom 60%',
+                    scrub: 1,
+                },
+            }
+        );
 
     }, { scope: containerRef });
 

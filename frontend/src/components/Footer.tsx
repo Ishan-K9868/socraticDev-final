@@ -72,17 +72,21 @@ function Footer() {
     const containerRef = useRef<HTMLElement>(null);
 
     useGSAP(() => {
-        gsap.from('.footer-section', {
-            opacity: 0,
-            y: 30,
-            stagger: 0.1,
-            duration: 0.8,
-            ease: 'power3.out',
-            scrollTrigger: {
-                trigger: containerRef.current,
-                start: 'top 90%',
-            },
-        });
+        // Content always visible - animate from slightly offset
+        gsap.fromTo('.footer-section',
+            { y: 20, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                stagger: 0.1,
+                duration: 0.8,
+                ease: 'power3.out',
+                scrollTrigger: {
+                    trigger: containerRef.current,
+                    start: 'top 90%',
+                },
+            }
+        );
     }, { scope: containerRef });
 
     return (

@@ -50,46 +50,55 @@ function SolutionSection() {
         // Set perspective for 3D effects
         gsap.set('.solution-container', { perspective: 1500 });
 
-        // Animate header
-        gsap.from('.solution-header', {
-            opacity: 0,
-            y: 40,
-            scrollTrigger: {
-                trigger: '.solution-header',
-                start: 'top 80%',
-                end: 'top 60%',
-                scrub: 1,
-            },
-        });
+        // Animate header - content always visible
+        gsap.fromTo('.solution-header',
+            { y: 25, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                scrollTrigger: {
+                    trigger: '.solution-header',
+                    start: 'top 80%',
+                    end: 'top 60%',
+                    scrub: 1,
+                },
+            }
+        );
 
-        // Animate mockup with 3D rotation
-        gsap.from('.product-mockup', {
-            rotationY: -25,
-            rotationX: 10,
-            scale: 0.8,
-            opacity: 0,
-            scrollTrigger: {
-                trigger: '.product-mockup',
-                start: 'top 70%',
-                end: 'center center',
-                scrub: 1.5,
-            },
-        });
+        // Animate mockup with 3D rotation - content always visible
+        gsap.fromTo('.product-mockup',
+            { rotationY: -15, rotationX: 5, scale: 0.9, opacity: 0.3 },
+            {
+                rotationY: 0,
+                rotationX: 0,
+                scale: 1,
+                opacity: 1,
+                scrollTrigger: {
+                    trigger: '.product-mockup',
+                    start: 'top 70%',
+                    end: 'center center',
+                    scrub: 1.5,
+                },
+            }
+        );
 
-        // Animate feature pills
-        gsap.from('.feature-pill', {
-            scale: 0,
-            opacity: 0,
-            rotation: -15,
-            stagger: 0.15,
-            scrollTrigger: {
-                trigger: '.feature-pills',
-                start: 'top 75%',
-                end: 'top 55%',
-                scrub: 1,
-            },
-            ease: 'back.out(1.7)',
-        });
+        // Animate feature pills - content always visible
+        gsap.fromTo('.feature-pill',
+            { scale: 0.8, opacity: 0.3, rotation: -8 },
+            {
+                scale: 1,
+                opacity: 1,
+                rotation: 0,
+                stagger: 0.15,
+                scrollTrigger: {
+                    trigger: '.feature-pills',
+                    start: 'top 75%',
+                    end: 'top 55%',
+                    scrub: 1,
+                },
+                ease: 'back.out(1.7)',
+            }
+        );
 
     }, { scope: containerRef });
 

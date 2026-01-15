@@ -17,18 +17,21 @@ function CTASection() {
             ease: 'none',
         });
 
-        // Animate content on scroll
-        gsap.from('.cta-content > *', {
-            opacity: 0,
-            y: 40,
-            stagger: 0.15,
-            scrollTrigger: {
-                trigger: containerRef.current,
-                start: 'top 70%',
-                end: 'top 40%',
-                scrub: 1,
-            },
-        });
+        // Animate content on scroll - content always visible
+        gsap.fromTo('.cta-content > *',
+            { y: 25, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                stagger: 0.15,
+                scrollTrigger: {
+                    trigger: containerRef.current,
+                    start: 'top 70%',
+                    end: 'top 40%',
+                    scrub: 1,
+                },
+            }
+        );
 
         // Floating shapes animation
         gsap.to('.cta-shape', {

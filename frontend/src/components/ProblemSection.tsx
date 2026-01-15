@@ -59,31 +59,37 @@ function ProblemSection() {
     const statsRef = useRef<(HTMLSpanElement | null)[]>([]);
 
     useGSAP(() => {
-        // Animate section header
-        gsap.from('.problem-header', {
-            opacity: 0,
-            y: 50,
-            scrollTrigger: {
-                trigger: '.problem-header',
-                start: 'top 80%',
-                end: 'top 50%',
-                scrub: 1,
-            },
-        });
+        // Animate section header - content always visible
+        gsap.fromTo('.problem-header',
+            { y: 30, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                scrollTrigger: {
+                    trigger: '.problem-header',
+                    start: 'top 80%',
+                    end: 'top 50%',
+                    scrub: 1,
+                },
+            }
+        );
 
         // Animate cards from alternating sides (bidirectional scroll)
-        gsap.from('.problem-card', {
-            opacity: 0,
-            x: (i) => (i % 2 === 0 ? -80 : 80),
-            rotation: (i) => (i % 2 === 0 ? -5 : 5),
-            scrollTrigger: {
-                trigger: '.problem-cards',
-                start: 'top 75%',
-                end: 'top 35%',
-                scrub: 1.5,
-            },
-            stagger: 0.1,
-        });
+        gsap.fromTo('.problem-card',
+            { x: (i) => (i % 2 === 0 ? -40 : 40), opacity: 0.3, rotation: (i) => (i % 2 === 0 ? -3 : 3) },
+            {
+                x: 0,
+                opacity: 1,
+                rotation: 0,
+                scrollTrigger: {
+                    trigger: '.problem-cards',
+                    start: 'top 75%',
+                    end: 'top 35%',
+                    scrub: 1.5,
+                },
+                stagger: 0.1,
+            }
+        );
 
         // Animate stat counters
         statsRef.current.forEach((stat, i) => {

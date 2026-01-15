@@ -80,36 +80,42 @@ function FeatureSection() {
                 const content = panel.querySelectorAll('.panel-content > *');
                 const visual = panel.querySelector('.panel-visual');
 
-                // Simple fade in for each panel's content
+                // Simple fade in for each panel's content - always visible
                 if (content.length > 0) {
-                    gsap.from(content, {
-                        opacity: 0,
-                        x: 40,
-                        stagger: 0.1,
-                        duration: 0.8,
-                        scrollTrigger: {
-                            trigger: panel,
-                            start: `left ${80 - i * 10}%`,
-                            end: `left ${50 - i * 10}%`,
-                            scrub: 1,
-                            containerAnimation: scrollTriggerInstance ? horizontalScroll : undefined,
-                        },
-                    });
+                    gsap.fromTo(content,
+                        { x: 25, opacity: 0.3 },
+                        {
+                            x: 0,
+                            opacity: 1,
+                            stagger: 0.1,
+                            duration: 0.8,
+                            scrollTrigger: {
+                                trigger: panel,
+                                start: `left ${80 - i * 10}%`,
+                                end: `left ${50 - i * 10}%`,
+                                scrub: 1,
+                                containerAnimation: scrollTriggerInstance ? horizontalScroll : undefined,
+                            },
+                        }
+                    );
                 }
 
                 if (visual) {
-                    gsap.from(visual, {
-                        scale: 0.85,
-                        opacity: 0,
-                        duration: 0.8,
-                        scrollTrigger: {
-                            trigger: panel,
-                            start: `left ${70 - i * 10}%`,
-                            end: `left ${40 - i * 10}%`,
-                            scrub: 1,
-                            containerAnimation: scrollTriggerInstance ? horizontalScroll : undefined,
-                        },
-                    });
+                    gsap.fromTo(visual,
+                        { scale: 0.9, opacity: 0.3 },
+                        {
+                            scale: 1,
+                            opacity: 1,
+                            duration: 0.8,
+                            scrollTrigger: {
+                                trigger: panel,
+                                start: `left ${70 - i * 10}%`,
+                                end: `left ${40 - i * 10}%`,
+                                scrub: 1,
+                                containerAnimation: scrollTriggerInstance ? horizontalScroll : undefined,
+                            },
+                        }
+                    );
                 }
             });
 
@@ -120,21 +126,24 @@ function FeatureSection() {
         });
 
         mm.add('(max-width: 1023px)', () => {
-            // Vertical scroll on mobile - simpler animations
+            // Vertical scroll on mobile - simpler animations - always visible
             const panels = gsap.utils.toArray<HTMLElement>('.feature-panel');
 
             panels.forEach((panel) => {
-                gsap.from(panel, {
-                    opacity: 0,
-                    y: 40,
-                    duration: 0.8,
-                    scrollTrigger: {
-                        trigger: panel,
-                        start: 'top 85%',
-                        end: 'top 60%',
-                        scrub: 1,
-                    },
-                });
+                gsap.fromTo(panel,
+                    { y: 25, opacity: 0.3 },
+                    {
+                        y: 0,
+                        opacity: 1,
+                        duration: 0.8,
+                        scrollTrigger: {
+                            trigger: panel,
+                            start: 'top 85%',
+                            end: 'top 60%',
+                            scrub: 1,
+                        },
+                    }
+                );
             });
         });
 
