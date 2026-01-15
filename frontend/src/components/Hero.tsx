@@ -10,25 +10,36 @@ function Hero() {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useGSAP(() => {
+        // Simple entrance animations - content is always visible
+        // Use fromTo to ensure we don't rely on initial hidden states
         const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-        // Set initial states for FOUC prevention
-        gsap.set('.hero-content > *', { autoAlpha: 0, y: 30 });
-        gsap.set('.floating-card', { autoAlpha: 0, x: 100, rotation: 10 });
-
-        // Main entrance timeline
-        tl.to('.hero-badge', { autoAlpha: 1, y: 0, duration: 0.8 }, 0.3)
-            .to('.hero-headline', { autoAlpha: 1, y: 0, duration: 1 }, 0.5)
-            .to('.hero-subtitle', { autoAlpha: 1, y: 0, duration: 0.8 }, 0.8)
-            .to('.hero-ctas', { autoAlpha: 1, y: 0, duration: 0.6 }, 1)
-            .to('.floating-card', {
-                autoAlpha: 1,
-                x: 0,
-                rotation: 0,
-                stagger: 0.15,
-                duration: 1,
-                ease: 'back.out(1.4)',
-            }, 0.8);
+        // Animate from offset positions (content stays visible throughout)
+        tl.fromTo('.hero-badge',
+            { y: 20, opacity: 0.3 },
+            { y: 0, opacity: 1, duration: 0.8 },
+            0.3
+        )
+            .fromTo('.hero-headline',
+                { y: 30, opacity: 0.3 },
+                { y: 0, opacity: 1, duration: 1 },
+                0.5
+            )
+            .fromTo('.hero-subtitle',
+                { y: 20, opacity: 0.3 },
+                { y: 0, opacity: 1, duration: 0.8 },
+                0.8
+            )
+            .fromTo('.hero-ctas',
+                { y: 20, opacity: 0.3 },
+                { y: 0, opacity: 1, duration: 0.6 },
+                1
+            )
+            .fromTo('.floating-card',
+                { x: 50, opacity: 0.3, rotation: 5 },
+                { x: 0, opacity: 1, rotation: 0, stagger: 0.15, duration: 1, ease: 'back.out(1.4)' },
+                0.8
+            );
 
         // Continuous floating animation for cards
         gsap.to('.floating-card', {

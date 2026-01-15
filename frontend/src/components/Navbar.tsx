@@ -11,22 +11,19 @@ function Navbar() {
     const { mode } = useStore();
 
     useGSAP(() => {
-        // Only animate if elements exist
-        const navItems = containerRef.current?.querySelectorAll('.nav-item');
-        if (!navItems?.length) return;
-
-        // Set initial state for animation
-        gsap.set('.nav-item', { opacity: 0, y: -20 });
-
-        // Animate in
-        gsap.to('.nav-item', {
-            opacity: 1,
-            y: 0,
-            stagger: 0.1,
-            duration: 0.6,
-            ease: 'power3.out',
-            delay: 0.3,
-        });
+        // Simple entrance animation - content is always visible
+        // Use fromTo to ensure we don't rely on initial hidden states
+        gsap.fromTo('.nav-item',
+            { y: -15, opacity: 0.3 },
+            {
+                y: 0,
+                opacity: 1,
+                stagger: 0.1,
+                duration: 0.6,
+                ease: 'power3.out',
+                delay: 0.3
+            }
+        );
     }, { scope: containerRef });
 
     const navLinks = [
