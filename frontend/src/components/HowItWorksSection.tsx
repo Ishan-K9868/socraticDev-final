@@ -1,256 +1,194 @@
-import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import Badge from '../ui/Badge';
-import Card from '../ui/Card';
+
+// Floating how-it-works elements
+const FloatingSteps = () => (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Gradient blobs */}
+        <div className="absolute -top-20 left-1/4 w-[400px] h-[400px] bg-gradient-to-br from-primary-500/10 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 right-1/4 w-[350px] h-[350px] bg-gradient-to-tl from-accent-500/10 via-transparent to-transparent rounded-full blur-3xl" />
+
+        {/* Floating step numbers */}
+        <svg className="absolute top-[20%] left-[5%] w-12 h-12 text-primary-500/10 animate-float" viewBox="0 0 48 48" fill="currentColor">
+            <circle cx="24" cy="24" r="22" />
+            <text x="24" y="30" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">1</text>
+        </svg>
+
+        <svg className="absolute top-[40%] right-[8%] w-10 h-10 text-secondary-500/10 animate-float" style={{ animationDelay: '1.5s' }} viewBox="0 0 40 40" fill="currentColor">
+            <circle cx="20" cy="20" r="18" />
+            <text x="20" y="26" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">2</text>
+        </svg>
+
+        <svg className="absolute bottom-[30%] left-[8%] w-14 h-14 text-accent-500/10 animate-float" style={{ animationDelay: '2.5s' }} viewBox="0 0 56 56" fill="currentColor">
+            <circle cx="28" cy="28" r="26" />
+            <text x="28" y="35" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold">3</text>
+        </svg>
+
+        {/* Decorative arrows */}
+        <svg className="absolute top-[35%] left-[20%] w-16 h-8 text-[color:var(--color-border)]" viewBox="0 0 64 32" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 16 L48 16 M40 8 L52 16 L40 24" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+
+        <svg className="absolute bottom-[45%] right-[25%] w-16 h-8 text-[color:var(--color-border)]" viewBox="0 0 64 32" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 16 L48 16 M40 8 L52 16 L40 24" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    </div>
+);
+
+// Section divider
+const SectionDivider = () => (
+    <div className="absolute bottom-0 left-0 right-0 overflow-hidden">
+        <svg className="relative block w-full h-12" viewBox="0 0 1200 120" preserveAspectRatio="none">
+            <polygon points="0,0 1200,120 0,120" className="fill-[color:var(--color-bg-secondary)]" />
+        </svg>
+    </div>
+);
 
 const steps = [
     {
         number: '01',
-        title: 'Ask a Question',
-        description: 'Start by asking anything about coding. Whether you\'re learning a new concept or debugging existing code.',
-        visual: 'ask',
+        title: 'Upload Your Codebase',
+        description: 'Drop in your project files or connect your GitHub repository. Our system scans and understands your entire codebase structure.',
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+        ),
         color: 'primary',
     },
     {
         number: '02',
-        title: 'AI Responds with Questions',
-        description: 'Instead of giving you the answer, SocraticDev asks guiding questions to help you think through the problem.',
-        visual: 'respond',
-        color: 'accent',
-    },
-    {
-        number: '03',
-        title: 'You Think & Learn',
-        description: 'Work through the questions with scaffolded support. If you struggle, the AI provides more direct guidance.',
-        visual: 'think',
+        title: 'GraphRAG Builds Understanding',
+        description: 'AI analyzes relationships between files, functions, and components to build a comprehensive knowledge graph of your project.',
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+        ),
         color: 'secondary',
     },
     {
+        number: '03',
+        title: 'Ask Questions, Get Guidance',
+        description: 'Chat with the AI about your code. It asks clarifying questions that help you discover solutions rather than just giving answers.',
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        ),
+        color: 'accent',
+    },
+    {
         number: '04',
-        title: 'Build with Confidence',
-        description: 'When you understand the concept, you can toggle to Build Mode for fast code generation - now you actually know what you\'re building.',
-        visual: 'build',
-        color: 'success',
+        title: 'Practice & Master',
+        description: 'Reinforce your learning with interactive challenges in The Dojo. Spaced repetition ensures concepts stick long-term.',
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+        ),
+        color: 'primary',
     },
 ];
 
 function HowItWorksSection() {
-    const containerRef = useRef<HTMLElement>(null);
-
-    useGSAP(() => {
-        // Animate header - content always visible
-        gsap.fromTo('.how-header',
-            { y: 25, opacity: 0.3 },
-            {
-                y: 0,
-                opacity: 1,
-                scrollTrigger: {
-                    trigger: '.how-header',
-                    start: 'top 80%',
-                    end: 'top 60%',
-                    scrub: 1,
-                },
-            }
-        );
-
-        // Animate each step - content always visible
-        gsap.utils.toArray<HTMLElement>('.how-step').forEach((step, i) => {
-            const tl = gsap.timeline({
-                scrollTrigger: {
-                    trigger: step,
-                    start: 'top 70%',
-                    end: 'center center',
-                    scrub: 1,
-                },
-            });
-
-            tl.fromTo(step.querySelector('.step-number'),
-                { scale: 0.7, rotation: -45 },
-                { scale: 1, rotation: 0, duration: 0.3, ease: 'back.out(2)' }
-            )
-                .fromTo(step.querySelector('.step-content'),
-                    { x: i % 2 === 0 ? -30 : 30, opacity: 0.3 },
-                    { x: 0, opacity: 1, duration: 0.5 }, '-=0.1'
-                )
-                .fromTo(step.querySelector('.step-visual'),
-                    { scale: 0.9, opacity: 0.3 },
-                    { scale: 1, opacity: 1, duration: 0.4 }, '-=0.3'
-                );
-        });
-
-        // Animate the connecting line - visible by default
-        gsap.fromTo('.connecting-line',
-            { scaleY: 0.3 },
-            {
-                scaleY: 1,
-                transformOrigin: 'top',
-                scrollTrigger: {
-                    trigger: '.how-steps',
-                    start: 'top 60%',
-                    end: 'bottom 60%',
-                    scrub: 1,
-                },
-            }
-        );
-
-    }, { scope: containerRef });
-
-    const renderVisual = (visual: string) => {
-        switch (visual) {
-            case 'ask':
-                return (
-                    <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/30">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center">
-                                <span className="text-sm">👤</span>
-                            </div>
-                            <div className="flex-1 h-2 bg-primary-500/30 rounded animate-pulse" />
-                        </div>
-                        <p className="text-sm font-mono bg-[color:var(--color-bg-muted)] p-3 rounded-lg">
-                            "How do I implement a debounce function?"
-                        </p>
-                    </div>
-                );
-
-            case 'respond':
-                return (
-                    <div className="space-y-3">
-                        <div className="p-4 rounded-xl bg-accent-500/10 border border-accent-500/30">
-                            <p className="text-sm font-medium text-accent-600 dark:text-accent-400 mb-2">
-                                💡 SocraticDev asks:
-                            </p>
-                            <ul className="text-sm space-y-2">
-                                <li>1. When should debounce trigger - immediately or after waiting?</li>
-                                <li>2. What happens to multiple rapid calls?</li>
-                            </ul>
-                        </div>
-                    </div>
-                );
-
-            case 'think':
-                return (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse" />
-                            <span>Scaffolding Level 2</span>
-                        </div>
-                        <div className="p-4 rounded-xl bg-[color:var(--color-bg-muted)]">
-                            <p className="text-sm mb-2">Here's the pseudocode to guide you:</p>
-                            <pre className="text-xs font-mono text-[color:var(--color-text-secondary)]">
-                                {`function debounce(fn, delay):
-  timer = null
-  return function(...args):
-    // What should happen here?
-    // Hint: cancel + reschedule`}
-                            </pre>
-                        </div>
-                    </div>
-                );
-
-            case 'build':
-                return (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Badge variant="success">Build Mode Active</Badge>
-                            <span className="text-success text-xl">🚀</span>
-                        </div>
-                        <div className="p-4 rounded-xl bg-[color:var(--color-bg-muted)]">
-                            <pre className="text-xs font-mono text-[color:var(--color-text-secondary)]">
-                                {`function debounce(fn, delay) {
-  let timer = null;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      fn.apply(this, args);
-    }, delay);
-  };
-}`}
-                            </pre>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-success">
-                            <span>✓</span>
-                            <span>You understand this code!</span>
-                        </div>
-                    </div>
-                );
-
-            default:
-                return null;
-        }
-    };
-
     return (
         <section
-            ref={containerRef}
             id="how-it-works"
-            className="section-padding relative overflow-hidden"
+            className="section-padding relative overflow-hidden bg-[color:var(--color-bg-primary)]"
         >
-            <div className="container-custom">
+            {/* Top border */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color:var(--color-border)] to-transparent" />
+
+            {/* Floating elements */}
+            <FloatingSteps />
+
+            <div className="container-custom relative z-10">
                 {/* Header */}
-                <div className="how-header text-center max-w-3xl mx-auto mb-20">
-                    <Badge variant="secondary" className="mb-4">
+                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                    {/* Decorative process line */}
+                    <svg className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-8 text-secondary-500/20" viewBox="0 0 128 32" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="16" cy="16" r="6" fill="currentColor" />
+                        <line x1="24" y1="16" x2="40" y2="16" strokeDasharray="4 4" />
+                        <circle cx="48" cy="16" r="4" />
+                        <line x1="54" y1="16" x2="70" y2="16" strokeDasharray="4 4" />
+                        <circle cx="80" cy="16" r="4" />
+                        <line x1="86" y1="16" x2="102" y2="16" strokeDasharray="4 4" />
+                        <circle cx="112" cy="16" r="6" fill="currentColor" />
+                    </svg>
+
+                    <Badge variant="secondary" className="mb-4 mt-8">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         How It Works
                     </Badge>
 
                     <h2 className="font-display text-display-md font-bold mb-6">
-                        Four steps to{' '}
-                        <span className="text-gradient-primary">deeper understanding</span>
+                        From codebase to{' '}
+                        <span className="text-gradient-primary">mastery</span>
                     </h2>
 
                     <p className="text-lg text-[color:var(--color-text-secondary)]">
-                        A simple process that transforms how you learn and write code.
+                        A simple four-step process that transforms how you learn and build.
                     </p>
                 </div>
 
                 {/* Steps */}
-                <div className="how-steps relative">
-                    {/* Connecting Line */}
-                    <div className="connecting-line absolute left-8 lg:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary-500 via-accent-500 to-success -translate-x-1/2 hidden md:block" />
+                <div className="max-w-4xl mx-auto">
+                    {steps.map((step, index) => (
+                        <div key={step.number} className="relative">
+                            {/* Connector line */}
+                            {index < steps.length - 1 && (
+                                <div className="absolute left-[39px] top-24 w-0.5 h-16 bg-gradient-to-b from-[color:var(--color-border)] to-transparent hidden md:block" />
+                            )}
 
-                    <div className="space-y-12 lg:space-y-24">
-                        {steps.map((step, index) => (
-                            <div
-                                key={step.number}
-                                className={`how-step grid lg:grid-cols-2 gap-8 lg:gap-16 items-center ${index % 2 === 1 ? 'lg:text-right' : ''
-                                    }`}
-                            >
+                            <div className={`flex flex-col md:flex-row gap-6 mb-8 md:mb-12 group ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+                                {/* Step number and icon */}
+                                <div className="flex-shrink-0 flex items-start gap-4">
+                                    <div className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110
+                                        ${step.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}
+                                        ${step.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
+                                        ${step.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}`}>
+                                        {step.icon}
+                                        {/* Glow effect */}
+                                        <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl
+                                            ${step.color === 'primary' ? 'bg-primary-500/20' : ''}
+                                            ${step.color === 'secondary' ? 'bg-secondary-500/20' : ''}
+                                            ${step.color === 'accent' ? 'bg-accent-500/20' : ''}`}
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* Content */}
-                                <div className={`step-content ${index % 2 === 1 ? 'lg:order-2 lg:text-left' : ''}`}>
-                                    <div className={`flex items-center gap-4 mb-4 ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
-                                        <div
-                                            className={`step-number w-16 h-16 rounded-2xl flex items-center justify-center font-display font-bold text-xl text-white
-                                ${step.color === 'primary' ? 'bg-primary-500' : ''}
-                                ${step.color === 'accent' ? 'bg-accent-500' : ''}
-                                ${step.color === 'secondary' ? 'bg-secondary-500' : ''}
-                                ${step.color === 'success' ? 'bg-success' : ''}`}
-                                        >
+                                <div className={`flex-1 p-6 rounded-2xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] group-hover:border-${step.color}-500/30 transition-colors`}>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <span className={`text-3xl font-display font-bold opacity-30
+                                            ${step.color === 'primary' ? 'text-primary-500' : ''}
+                                            ${step.color === 'secondary' ? 'text-secondary-500' : ''}
+                                            ${step.color === 'accent' ? 'text-accent-500' : ''}`}>
                                             {step.number}
-                                        </div>
-                                        <h3 className="font-display text-xl lg:text-2xl font-bold">
+                                        </span>
+                                        <h3 className="font-display text-xl font-semibold">
                                             {step.title}
                                         </h3>
                                     </div>
-                                    <p className="text-[color:var(--color-text-secondary)] lg:text-lg leading-relaxed max-w-md">
+                                    <p className="text-[color:var(--color-text-secondary)]">
                                         {step.description}
                                     </p>
                                 </div>
-
-                                {/* Visual */}
-                                <div className={`step-visual ${index % 2 === 1 ? 'lg:order-1' : ''}`}>
-                                    <Card padding="lg">
-                                        {renderVisual(step.visual)}
-                                    </Card>
-                                </div>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    ))}
                 </div>
             </div>
+
+            {/* Section divider */}
+            <SectionDivider />
         </section>
     );
 }

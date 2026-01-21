@@ -638,10 +638,12 @@ const javascriptParsons: ParsonsExample[] = [
 ];
 
 // Export all parsons examples
+// Note: TypeScript reuses JavaScript (very similar syntax)
+// Java/C++/Go/Rust use Python as fallback - proper examples coming soon
 export const PARSONS_EXAMPLES: Record<string, ParsonsExample[]> = {
     python: pythonParsons,
     javascript: javascriptParsons,
-    typescript: pythonParsons.map(e => ({ ...e, language: 'typescript' })),
+    typescript: javascriptParsons.map(e => ({ ...e, language: 'typescript' })),
     java: pythonParsons.map(e => ({ ...e, language: 'java' })),
     cpp: pythonParsons.map(e => ({ ...e, language: 'cpp' })),
     go: pythonParsons.map(e => ({ ...e, language: 'go' })),
