@@ -323,7 +323,8 @@ body {
    ============================================ */
 
 .cursor-custom {
-  @apply fixed pointer-events-none z-50 mix-blend-difference;
+  @apply fixed pointer-events-none mix-blend-difference;
+  z-index: 9999;
   width: 40px;
   height: 40px;
   border: 2px solid white;
@@ -332,7 +333,8 @@ body {
 }
 
 .cursor-dot {
-  @apply fixed pointer-events-none z-50;
+  @apply fixed pointer-events-none;
+  z-index: 9999;
   width: 8px;
   height: 8px;
   background: white;

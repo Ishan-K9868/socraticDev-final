@@ -53,7 +53,7 @@ function App() {
             {/* Noise overlay for texture */}
             <div className="noise-overlay" aria-hidden="true" />
 
-            {/* Custom cursor (desktop only) */}
+            {/* Custom cursor - renders above modals with z-9999 */}
             <CustomCursor />
 
             {/* Loading screen */}
