@@ -1,5 +1,9 @@
+import { motion, useInView } from 'framer-motion';
+import { useRef, useState } from 'react';
 import Badge from '../ui/Badge';
 import Card from '../ui/Card';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { staggerContainer } from '../utils/animationVariants';
 
 // Floating feature elements
 const FloatingFeatures = () => (
@@ -150,6 +154,10 @@ const features = [
 ];
 
 function FeatureSection() {
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <section
             id="features"
@@ -163,7 +171,17 @@ function FeatureSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="text-center max-w-3xl mx-auto mb-16 relative"
+                >
                     {/* Decorative brackets */}
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
                         <svg className="w-6 h-8 text-primary-500/30" viewBox="0 0 24 32" fill="none" stroke="currentColor" strokeWidth="2">
@@ -191,15 +209,63 @@ function FeatureSection() {
                     <p className="text-lg text-[color:var(--color-text-secondary)]">
                         Built on learning science principles, not just engineering convenience.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Feature Grid */}
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                    {features.map((feature, index) => (
-                        <Card
+                <motion.div 
+                    variants={staggerContainer}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.1, margin: "0px 0px -100px 0px" }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
+                >
+                    {features.map((feature, index) => {
+                        const [rotateX, setRotateX] = useState(0);
+                        const [rotateY, setRotateY] = useState(0);
+                        
+                        const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+                            if (prefersReducedMotion) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = (e.clientX - rect.left) / rect.width - 0.5;
+                            const y = (e.clientY - rect.top) / rect.height - 0.5;
+                            setRotateX(y * 15);
+                            setRotateY(x * -15);
+                        };
+                        
+                        const handleMouseLeave = () => {
+                            setRotateX(0);
+                            setRotateY(0);
+                        };
+                        
+                        return (
+                        <motion.div
                             key={feature.title}
-                            className={`group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2`}
+                            variants={{
+                                hidden: {
+                                    opacity: 0,
+                                    rotateY: prefersReducedMotion ? 0 : -90,
+                                    scale: prefersReducedMotion ? 1 : 0.8
+                                },
+                                visible: {
+                                    opacity: 1,
+                                    rotateY: 0,
+                                    scale: 1,
+                                    transition: {
+                                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                                        delay: index * 0.08,
+                                        type: "tween",
+                                        ease: [0.25, 0.1, 0.25, 1]
+                                    }
+                                }
+                            }}
+                            animate={{ rotateX, rotateY }}
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={handleMouseLeave}
+                            style={{ transformStyle: "preserve-3d", perspective: 1000 }}
                         >
+                            <Card
+                                className={`group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 h-full`}
+                            >
                             {/* Gradient background on hover */}
                             <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
 
@@ -210,12 +276,26 @@ function FeatureSection() {
 
                             <div className="relative">
                                 {/* Icon */}
-                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110
+                                <motion.div 
+                                    initial={{ scale: 0, rotate: 0 }}
+                                    whileInView={{
+                                        scale: 1,
+                                        rotate: prefersReducedMotion ? 0 : 360
+                                    }}
+                                    viewport={{ once: true }}
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 200,
+                                        damping: 15,
+                                        delay: 0.2 + index * 0.05
+                                    }}
+                                    className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110
                                     ${feature.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}
                                     ${feature.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
-                                    ${feature.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}`}>
+                                    ${feature.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}`}
+                                >
                                     {feature.icon}
-                                </div>
+                                </motion.div>
 
                                 {/* Content */}
                                 <h3 className="font-display text-lg font-semibold mb-2">
@@ -236,8 +316,10 @@ function FeatureSection() {
                                 </div>
                             </div>
                         </Card>
-                    ))}
-                </div>
+                        </motion.div>
+                    );
+                    })}
+                </motion.div>
             </div>
 
             {/* Wave divider to next section */}

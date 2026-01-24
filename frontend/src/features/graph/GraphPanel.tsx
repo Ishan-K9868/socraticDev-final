@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import DependencyGraph, { GraphNode, GraphEdge } from './DependencyGraph';
 import { useStore } from '../../store/useStore';
+import { graphragAPI } from '../../services';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
 
@@ -31,11 +32,73 @@ function GraphPanel({ projectName }: GraphPanelProps) {
     const { dependencyGraph, projectContext } = useStore();
     const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
     const [impactedNodes, setImpactedNodes] = useState<string[]>([]);
+    const [realNodes, setRealNodes] = useState<GraphNode[]>([]);
+    const [realEdges, setRealEdges] = useState<GraphEdge[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch real graph data from backend when project context changes
+    useEffect(() => {
+        const fetchGraphData = async () => {
+            if (!projectContext?.id) return;
+            
+            setLoading(true);
+            try {
+                const response = await graphragAPI.getGraphVisualization({
+                    project_id: projectContext.id,
+                });
+                
+                // Convert backend format to frontend format
+                const nodes: GraphNode[] = response.nodes.map(node => ({
+                    id: node.id,
+                    label: node.label,
+                    type: node.type.toLowerCase() as GraphNode['type'],
+                    x: 0,
+                    y: 0,
+                    dependencies: [],
+                    dependents: [],
+                    metadata: {
+                        language: node.file_path ? node.file_path.split('.').pop() : undefined,
+                    }
+                }));
+                
+                // Build dependency/dependent relationships from edges
+                const edges: GraphEdge[] = response.edges.map(edge => ({
+                    source: edge.source,
+                    target: edge.target,
+                    type: edge.type.toLowerCase() as GraphEdge['type'],
+                }));
+                
+                // Populate dependencies and dependents
+                edges.forEach(edge => {
+                    const sourceNode = nodes.find(n => n.id === edge.source);
+                    const targetNode = nodes.find(n => n.id === edge.target);
+                    
+                    if (sourceNode && targetNode) {
+                        if (!sourceNode.dependencies.includes(edge.target)) {
+                            sourceNode.dependencies.push(edge.target);
+                        }
+                        if (!targetNode.dependents.includes(edge.source)) {
+                            targetNode.dependents.push(edge.source);
+                        }
+                    }
+                });
+                
+                setRealNodes(nodes);
+                setRealEdges(edges);
+            } catch (error) {
+                console.error('Failed to fetch graph data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchGraphData();
+    }, [projectContext?.id]);
 
     // Use real data if available, otherwise sample
-    const hasRealData = dependencyGraph && dependencyGraph.nodes.length > 0;
-    const nodes = hasRealData ? (dependencyGraph.nodes as GraphNode[]) : SAMPLE_NODES;
-    const edges = hasRealData ? (dependencyGraph.edges as GraphEdge[]) : SAMPLE_EDGES;
+    const hasRealData = realNodes.length > 0;
+    const nodes = hasRealData ? realNodes : SAMPLE_NODES;
+    const edges = hasRealData ? realEdges : SAMPLE_EDGES;
 
     // Calculate impact when a node is selected
     const calculateImpact = useCallback((node: GraphNode) => {
@@ -110,13 +173,25 @@ function GraphPanel({ projectName }: GraphPanelProps) {
             <div className="flex-1 flex">
                 {/* Graph */}
                 <div className="flex-1 p-4">
-                    <DependencyGraph
-                        nodes={nodes}
-                        edges={edges}
-                        onNodeClick={handleNodeClick}
-                        selectedNodeId={selectedNode?.id}
-                        highlightedNodeIds={impactedNodes}
-                    />
+                    {loading ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <div className="text-center">
+                                <svg className="w-12 h-12 mx-auto text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                                <p className="mt-4 text-[color:var(--color-text-muted)]">Loading graph...</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <DependencyGraph
+                            nodes={nodes}
+                            edges={edges}
+                            onNodeClick={handleNodeClick}
+                            selectedNodeId={selectedNode?.id}
+                            highlightedNodeIds={impactedNodes}
+                        />
+                    )}
                 </div>
 
                 {/* Side panel */}

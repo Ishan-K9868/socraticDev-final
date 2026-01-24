@@ -1,4 +1,7 @@
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import Badge from '../ui/Badge';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import Card from '../ui/Card';
 
 // Floating solution elements
@@ -79,6 +82,12 @@ const features = [
 ];
 
 function SolutionSection() {
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    const mockupRef = useRef(null);
+    const mockupInView = useInView(mockupRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <section
             id="solution"
@@ -93,7 +102,17 @@ function SolutionSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header with decorative elements */}
-                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="text-center max-w-3xl mx-auto mb-16 relative"
+                >
                     {/* Decorative arc above header */}
                     <svg className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-12 text-accent-500/20" viewBox="0 0 192 48" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M8 40 Q96 8 184 40" strokeLinecap="round" />
@@ -123,7 +142,7 @@ function SolutionSection() {
                         An AI coding assistant that prioritizes understanding over speed.
                         Teaching you to think, not just to copy.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Product Showcase */}
                 <div className="relative max-w-5xl mx-auto">
@@ -138,8 +157,22 @@ function SolutionSection() {
                             const pos = positions[index];
 
                             return (
-                                <div
+                                <motion.div
                                     key={feature.id}
+                                    initial={{
+                                        opacity: 0,
+                                        x: index % 2 === 0 ? (prefersReducedMotion ? -20 : -60) : (prefersReducedMotion ? 20 : 60)
+                                    }}
+                                    animate={mockupInView ? {
+                                        opacity: 1,
+                                        x: 0
+                                    } : {}}
+                                    transition={{
+                                        duration: prefersReducedMotion ? 0.4 : 0.5,
+                                        delay: index * 0.08,
+                                        type: "tween",
+                                        ease: [0.25, 0.1, 0.25, 1]
+                                    }}
                                     className={`absolute pointer-events-auto hidden lg:block animate-float ${pos.left ? 'left-0' : ''} ${pos.right ? 'right-0' : ''}`}
                                     style={{
                                         top: pos.top,
@@ -169,13 +202,23 @@ function SolutionSection() {
                                             </p>
                                         </div>
                                     </Card>
-                                </div>
+                                </motion.div>
                             );
                         })}
                     </div>
 
                     {/* Main Product Mockup with enhanced styling */}
-                    <div className="relative">
+                    <motion.div 
+                        ref={mockupRef}
+                        initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95, y: prefersReducedMotion ? 20 : 30 }}
+                        animate={mockupInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                        transition={{ 
+                            duration: prefersReducedMotion ? 0.4 : 0.6,
+                            type: "tween",
+                            ease: [0.25, 0.1, 0.25, 1]
+                        }}
+                        className="relative"
+                    >
                         {/* Decorative shapes behind mockup */}
                         <div className="absolute -inset-4 bg-gradient-to-br from-primary-500/5 via-transparent to-secondary-500/5 rounded-3xl" />
                         <div className="absolute -bottom-2 -right-2 w-40 h-40 bg-accent-500/5 rounded-full blur-2xl" />
@@ -276,7 +319,7 @@ def binary_search(arr, target):
                                 </div>
                             </div>
                         </Card>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </section>

@@ -1,4 +1,8 @@
 import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { staggerContainer } from '../utils/animationVariants';
 
 interface FooterLink {
     label: string;
@@ -89,6 +93,10 @@ const socialLinks = [
 ];
 
 function Footer() {
+    const prefersReducedMotion = useReducedMotion();
+    const footerRef = useRef(null);
+    const footerInView = useInView(footerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <footer className="relative overflow-hidden bg-[color:var(--color-bg-secondary)] border-t border-[color:var(--color-border)]">
             {/* Decorative top gradient */}
@@ -111,9 +119,29 @@ function Footer() {
 
             <div className="container-custom relative z-10 py-16">
                 {/* Main Footer Content */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-12 mb-12">
+                <motion.div 
+                    ref={footerRef}
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate={footerInView ? "visible" : "hidden"}
+                    className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-12 mb-12"
+                >
                     {/* Brand Column */}
-                    <div className="col-span-2">
+                    <motion.div 
+                        variants={{
+                            hidden: { opacity: 0, y: prefersReducedMotion ? 10 : 20 },
+                            visible: {
+                                opacity: 1,
+                                y: 0,
+                                transition: { 
+                                    duration: prefersReducedMotion ? 0.3 : 0.5,
+                                    type: "tween",
+                                    ease: [0.25, 0.1, 0.25, 1]
+                                }
+                            }
+                        }}
+                        className="col-span-2"
+                    >
                         <Link to="/" className="flex items-center gap-2.5 mb-4 group">
                             {/* Logo */}
                             <div className="relative">
@@ -144,24 +172,49 @@ function Footer() {
 
                         {/* Social Links */}
                         <div className="flex items-center gap-3">
-                            {socialLinks.map((social) => (
-                                <a
+                            {socialLinks.map((social, index) => (
+                                <motion.a
                                     key={social.name}
                                     href={social.href}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    initial={{ opacity: 0, scale: 0 }}
+                                    animate={footerInView ? { opacity: 1, scale: 1 } : {}}
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 300,
+                                        damping: 15,
+                                        delay: 0.2 + index * 0.08
+                                    }}
+                                    whileHover={{ scale: 1.2, rotate: 5 }}
+                                    whileTap={{ scale: 0.9 }}
                                     className="w-10 h-10 rounded-lg bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] flex items-center justify-center text-[color:var(--color-text-muted)] hover:text-primary-500 hover:border-primary-500/30 transition-colors"
                                     aria-label={social.name}
                                 >
                                     {social.icon}
-                                </a>
+                                </motion.a>
                             ))}
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Link Columns */}
-                    {footerSections.map((section) => (
-                        <div key={section.title}>
+                    {footerSections.map((section, index) => (
+                        <motion.div 
+                            key={section.title}
+                            variants={{
+                                hidden: { opacity: 0, y: prefersReducedMotion ? 10 : 20 },
+                                visible: {
+                                    opacity: 1,
+                                    y: 0,
+                                    transition: {
+                                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                                        delay: (index + 1) * 0.08,
+                                        type: "tween",
+                                        ease: [0.25, 0.1, 0.25, 1]
+                                    }
+                                }
+                            }}
+                        >
                             <h4 className="font-display font-semibold mb-4 text-sm uppercase tracking-wider text-[color:var(--color-text-muted)]">
                                 {section.title}
                             </h4>
@@ -192,12 +245,22 @@ function Footer() {
                                     </li>
                                 ))}
                             </ul>
-                        </div>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
 
                 {/* Newsletter */}
-                <div className="p-6 rounded-2xl bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-secondary-500/5 border border-[color:var(--color-border)] mb-12">
+                <motion.div 
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 20 }}
+                    animate={footerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        delay: 0.3,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="p-6 rounded-2xl bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-secondary-500/5 border border-[color:var(--color-border)] mb-12"
+                >
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div>
                             <h4 className="font-display font-semibold mb-1">Stay in the loop</h4>
@@ -216,7 +279,7 @@ function Footer() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Bottom Bar */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[color:var(--color-border)]">

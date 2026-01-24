@@ -1,4 +1,8 @@
+import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
+import { useRef, useEffect } from 'react';
 import Badge from '../ui/Badge';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { fadeInUp, staggerContainer, staggerItem } from '../utils/animationVariants';
 
 // Floating warning icons for problem section
 const FloatingWarnings = () => (
@@ -111,7 +115,28 @@ const problems = [
     },
 ];
 
+// Animated stat counter component
+const AnimatedStat = ({ value, isInView }: { value: string; isInView: boolean }) => {
+    const count = useMotionValue(0);
+    const rounded = useTransform(count, (latest) => Math.round(latest));
+    const displayValue = useTransform(rounded, (latest) => `${latest}%`);
+    
+    useEffect(() => {
+        if (isInView) {
+            const targetValue = parseInt(value);
+            const controls = animate(count, targetValue, { duration: 1.5, ease: 'easeOut' });
+            return controls.stop;
+        }
+    }, [isInView, value, count]);
+    
+    return <motion.span>{displayValue}</motion.span>;
+};
+
 function ProblemSection() {
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.3 });
+    
     return (
         <section
             id="problem"
@@ -125,7 +150,13 @@ function ProblemSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header with decorative elements */}
-                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 40 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: prefersReducedMotion ? 0.3 : 0.8 }}
+                    className="text-center max-w-3xl mx-auto mb-16 relative"
+                >
                     {/* Decorative lines behind header */}
                     <svg className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-8 text-error/20" viewBox="0 0 128 32" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M0 16 L40 16 M88 16 L128 16" strokeLinecap="round" />
@@ -155,17 +186,42 @@ function ProblemSection() {
                         Despite the hype, AI coding assistants are creating new problems instead of solving them.
                         The focus on speed over understanding is hurting developer growth.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Problem Cards with enhanced visuals */}
-                <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
-                    {problems.map((problem) => (
-                        <div
+                <motion.div 
+                    variants={staggerContainer}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.1, margin: "0px 0px -100px 0px" }}
+                    className="grid md:grid-cols-2 gap-6 lg:gap-8"
+                >
+                    {problems.map((problem, index) => {
+                        const cardRef = useRef(null);
+                        const cardInView = useInView(cardRef, { once: true, amount: 0.3 });
+                        
+                        return (
+                        <motion.div
                             key={problem.title}
+                            ref={cardRef}
+                            initial={{ opacity: 0, y: prefersReducedMotion ? 20 : 60, scale: prefersReducedMotion ? 1 : 0.9 }}
+                            animate={cardInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+                            transition={{ 
+                                duration: prefersReducedMotion ? 0.4 : 0.8, 
+                                delay: index * 0.15,
+                                ease: [0.22, 1, 0.36, 1]
+                            }}
+                            whileHover={prefersReducedMotion ? {} : {
+                                scale: 1.05,
+                                rotateX: 5,
+                                rotateY: 5,
+                                transition: { type: "spring", stiffness: 300, damping: 20 }
+                            }}
+                            style={{ transformStyle: "preserve-3d" }}
                             className={`group relative p-6 lg:p-8 rounded-2xl border 
                          bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]
                          hover:border-${problem.color === 'error' ? 'red' : problem.color}-500/50
-                         transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}
+                         transition-all duration-300 hover:shadow-xl`}
                         >
                             {/* Card decoration */}
                             {problem.decoration}
@@ -181,13 +237,20 @@ function ProblemSection() {
 
                             {/* Icon & Stat */}
                             <div className="flex items-start justify-between mb-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110
+                                <motion.div 
+                                    initial={{ rotate: 0 }}
+                                    animate={cardInView && !prefersReducedMotion ? { 
+                                        rotate: [0, -5, 5, -5, 5, 0] 
+                                    } : {}}
+                                    transition={{ duration: 0.6, delay: 0.3 + index * 0.15 }}
+                                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110
                               ${problem.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}
                               ${problem.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
                               ${problem.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}
-                              ${problem.color === 'error' ? 'bg-error/10 text-error' : ''}`}>
+                              ${problem.color === 'error' ? 'bg-error/10 text-error' : ''}`}
+                                >
                                     {problem.icon}
-                                </div>
+                                </motion.div>
                                 <span
                                     className={`font-display text-4xl lg:text-5xl font-bold opacity-20 group-hover:opacity-30 transition-opacity
                             ${problem.color === 'primary' ? 'text-primary-500' : ''}
@@ -195,7 +258,7 @@ function ProblemSection() {
                             ${problem.color === 'accent' ? 'text-accent-500' : ''}
                             ${problem.color === 'error' ? 'text-error' : ''}`}
                                 >
-                                    {problem.stat}
+                                    {prefersReducedMotion ? problem.stat : <AnimatedStat value={problem.stat} isInView={cardInView} />}
                                 </span>
                             </div>
 
@@ -215,12 +278,19 @@ function ProblemSection() {
                              ${problem.color === 'accent' ? 'bg-gradient-to-r from-accent-500 to-accent-400' : ''}
                              ${problem.color === 'error' ? 'bg-gradient-to-r from-error to-red-400' : ''}`}
                             />
-                        </div>
-                    ))}
-                </div>
+                        </motion.div>
+                    );
+                    })}
+                </motion.div>
 
                 {/* Bottom callout with enhanced styling */}
-                <div className="mt-12 p-6 lg:p-8 rounded-2xl bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] text-center relative overflow-hidden">
+                <motion.div 
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.3, margin: "0px 0px -150px 0px" }}
+                    transition={{ duration: prefersReducedMotion ? 0.3 : 0.6, delay: 0.2 }}
+                    className="mt-12 p-6 lg:p-8 rounded-2xl bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] text-center relative overflow-hidden"
+                >
                     {/* Quote marks decoration */}
                     <svg className="absolute top-4 left-6 w-12 h-12 text-[color:var(--color-border)]" viewBox="0 0 48 48" fill="currentColor">
                         <path d="M14 24c-4 0-7-3-7-7s3-7 7-7c1 0 2 0 3 1l-1 3c-1 0-2-1-2-1-2 0-4 2-4 4s2 4 4 4v3zm18 0c-4 0-7-3-7-7s3-7 7-7c1 0 2 0 3 1l-1 3c-1 0-2-1-2-1-2 0-4 2-4 4s2 4 4 4v3z" opacity="0.3" />
@@ -235,7 +305,7 @@ function ProblemSection() {
 
                     {/* Decorative gradient */}
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-error/30 to-transparent" />
-                </div>
+                </motion.div>
             </div>
         </section>
     );

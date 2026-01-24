@@ -1,4 +1,7 @@
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import Badge from '../ui/Badge';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Floating tech elements
 const FloatingTechElements = () => (
@@ -84,6 +87,10 @@ const layers = [
 ];
 
 function TechStackSection() {
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <section
             id="tech"
@@ -97,7 +104,17 @@ function TechStackSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header with decorative elements */}
-                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="text-center max-w-3xl mx-auto mb-16 relative"
+                >
                     {/* Decorative gear/cog */}
                     <svg className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 text-secondary-500/10" viewBox="0 0 64 64" fill="currentColor">
                         <path d="M32 20a12 12 0 100 24 12 12 0 000-24zm0 20a8 8 0 110-16 8 8 0 010 16z" />
@@ -122,18 +139,31 @@ function TechStackSection() {
                     <p className="text-lg text-[color:var(--color-text-secondary)]">
                         A carefully selected stack optimized for AI-powered learning experiences.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Tech Stack Layers with enhanced visuals */}
                 <div className="max-w-4xl mx-auto space-y-6">
-                    {layers.map((layer, index) => (
-                        <div
+                    {layers.map((layer, index) => {
+                        const layerRef = useRef(null);
+                        const layerInView = useInView(layerRef, { once: true, amount: 0.2, margin: "0px 0px -200px 0px" });
+                        
+                        return (
+                        <motion.div
                             key={layer.name}
+                            ref={layerRef}
+                            initial={{ opacity: 0, y: prefersReducedMotion ? 20 : 40 }}
+                            animate={layerInView ? { opacity: 1, y: 0 } : {}}
+                            transition={{
+                                duration: prefersReducedMotion ? 0.3 : 0.5,
+                                delay: index * 0.1,
+                                type: "tween",
+                                ease: [0.25, 0.1, 0.25, 1]
+                            }}
                             className={`group relative p-6 rounded-2xl border transition-all duration-300 hover:shadow-xl hover:-translate-y-1
-                                ${layer.color === 'primary' ? 'bg-primary-500/5 border-primary-500/20 hover:border-primary-500/40' : ''}
-                                ${layer.color === 'accent' ? 'bg-accent-500/5 border-accent-500/20 hover:border-accent-500/40' : ''}
-                                ${layer.color === 'secondary' ? 'bg-secondary-500/5 border-secondary-500/20 hover:border-secondary-500/40' : ''}
-                                ${layer.color === 'neutral' ? 'bg-[color:var(--color-bg-muted)] border-[color:var(--color-border)] hover:border-[color:var(--color-border-hover)]' : ''}`}
+                                ${layer.color === 'primary' ? 'bg-primary-500/5 border-primary-500/20 hover:border-primary-500/40 hover:bg-primary-500/10' : ''}
+                                ${layer.color === 'accent' ? 'bg-accent-500/5 border-accent-500/20 hover:border-accent-500/40 hover:bg-accent-500/10' : ''}
+                                ${layer.color === 'secondary' ? 'bg-secondary-500/5 border-secondary-500/20 hover:border-secondary-500/40 hover:bg-secondary-500/10' : ''}
+                                ${layer.color === 'neutral' ? 'bg-[color:var(--color-bg-muted)] border-[color:var(--color-border)] hover:border-[color:var(--color-border-hover)] hover:bg-[color:var(--color-bg-secondary)]' : ''}`}
                         >
                             {/* Layer number indicator */}
                             <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[color:var(--color-bg-primary)] border border-[color:var(--color-border)] flex items-center justify-center text-xs font-bold">
@@ -177,16 +207,9 @@ function TechStackSection() {
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Hover glow effect */}
-                            <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
-                                ${layer.color === 'primary' ? 'bg-primary-500/5' : ''}
-                                ${layer.color === 'accent' ? 'bg-accent-500/5' : ''}
-                                ${layer.color === 'secondary' ? 'bg-secondary-500/5' : ''}
-                                ${layer.color === 'neutral' ? 'bg-[color:var(--color-bg-muted)]' : ''}`}
-                            />
-                        </div>
-                    ))}
+                        </motion.div>
+                        );
+                    })}
                 </div>
 
                 {/* Bottom CTA with enhanced styling */}

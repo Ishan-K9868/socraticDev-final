@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import Button from '../ui/Button';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Floating CTA elements
 const FloatingCTA = () => (
@@ -45,6 +48,10 @@ const FloatingCTA = () => (
 );
 
 function CTASection() {
+    const prefersReducedMotion = useReducedMotion();
+    const ctaRef = useRef(null);
+    const ctaInView = useInView(ctaRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <section className="section-padding relative overflow-hidden bg-gradient-to-b from-[color:var(--color-bg-primary)] to-[color:var(--color-bg-secondary)]">
             {/* Top border with gradient */}
@@ -55,7 +62,17 @@ function CTASection() {
 
             <div className="container-custom relative z-10">
                 {/* Main CTA Card */}
-                <div className="max-w-4xl mx-auto relative">
+                <motion.div 
+                    ref={ctaRef}
+                    initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95, y: prefersReducedMotion ? 20 : 30 }}
+                    animate={ctaInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.4 : 0.6,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="max-w-4xl mx-auto relative"
+                >
                     {/* Glow behind card */}
                     <div className="absolute -inset-4 bg-gradient-to-r from-primary-500/20 via-accent-500/20 to-secondary-500/20 blur-2xl rounded-3xl" />
 
@@ -139,10 +156,20 @@ function CTASection() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Social proof stats */}
-                <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
+                <motion.div 
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 20 }}
+                    animate={ctaInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        delay: 0.2,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8"
+                >
                     {[
                         { value: '50,000+', label: 'Developers' },
                         { value: '1M+', label: 'Questions Answered' },
@@ -158,7 +185,7 @@ function CTASection() {
                             </div>
                         </div>
                     ))}
-                </div>
+                </motion.div>
             </div>
         </section>
     );

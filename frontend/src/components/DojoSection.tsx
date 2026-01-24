@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
 import Button from '../ui/Button';
 import { ChallengeIcons, DojoIcon } from '../features/dojo/ChallengeIcons';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface Challenge {
     id: keyof typeof ChallengeIcons;
@@ -110,6 +112,11 @@ const SectionDivider = () => (
 
 function DojoSection() {
     const [activeChallenge, setActiveChallenge] = useState(0);
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    const featuredRef = useRef(null);
+    const featuredInView = useInView(featuredRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
 
     // Auto-rotate featured challenge
     useEffect(() => {
@@ -134,7 +141,17 @@ function DojoSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <div className="text-center max-w-4xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="text-center max-w-4xl mx-auto mb-16 relative"
+                >
                     {/* Decorative icon background */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
                         <div className="relative">
@@ -157,10 +174,20 @@ function DojoSection() {
                             Interactive exercises that build real coding intuition.
                         </p>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Featured Challenge Showcase */}
-                <div className="max-w-3xl mx-auto mb-16">
+                <motion.div 
+                    ref={featuredRef}
+                    initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95, y: prefersReducedMotion ? 20 : 30 }}
+                    animate={featuredInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.4 : 0.6,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="max-w-3xl mx-auto mb-16"
+                >
                     <div className={`relative p-8 rounded-3xl border-2 transition-all duration-500 ${CHALLENGES[activeChallenge].bgColor} ${CHALLENGES[activeChallenge].borderColor}`}>
                         {/* Glow effect */}
                         <div className={`absolute -inset-1 rounded-3xl blur-xl opacity-30 ${CHALLENGES[activeChallenge].bgColor}`} />
@@ -210,7 +237,7 @@ function DojoSection() {
                             ))}
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Challenge Grid */}
                 <div className="mb-16">

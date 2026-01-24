@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Card from '../ui/Card';
@@ -62,10 +63,53 @@ const CodeDecoration = () => (
 );
 
 function Hero() {
+    // Animation variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+                delayChildren: 0.2
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                duration: 0.6,
+                ease: [0.22, 1, 0.36, 1] as const
+            }
+        }
+    };
+
+    const cardVariants = {
+        hidden: { opacity: 0, scale: 0.8, y: 50 },
+        visible: (custom: number) => ({
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transition: {
+                duration: 0.8,
+                delay: custom * 0.2,
+                ease: [0.22, 1, 0.36, 1] as const
+            }
+        })
+    };
+
     return (
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
             {/* Background Elements */}
-            <div className="absolute inset-0 hero-gradient" />
+            <motion.div 
+                className="absolute inset-0 hero-gradient"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1 }}
+            />
             <div className="absolute inset-0 grid-pattern" />
 
             {/* Floating decorative elements */}
@@ -74,10 +118,29 @@ function Hero() {
             <div className="container-custom relative z-10">
                 <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
                     {/* Left Content */}
-                    <div className="hero-content text-center lg:text-left">
+                    <motion.div 
+                        className="hero-content text-center lg:text-left"
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                    >
                         {/* Badge with glow */}
-                        <div className="inline-block mb-6 relative">
-                            <div className="absolute inset-0 bg-primary-500/20 blur-xl rounded-full" />
+                        <motion.div 
+                            className="inline-block mb-6 relative"
+                            variants={itemVariants}
+                        >
+                            <motion.div 
+                                className="absolute inset-0 bg-primary-500/20 blur-xl rounded-full"
+                                animate={{
+                                    scale: [1, 1.2, 1],
+                                    opacity: [0.3, 0.5, 0.3]
+                                }}
+                                transition={{
+                                    duration: 3,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }}
+                            />
                             <Badge variant="primary" icon={
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -86,75 +149,156 @@ function Hero() {
                             }>
                                 AI + Socratic Method
                             </Badge>
-                        </div>
+                        </motion.div>
 
                         {/* Headline with gradient underline */}
                         <h1 className="font-display text-display-xl font-bold mb-6 relative">
-                            Stop Copying Code.{' '}
-                            <span className="text-gradient-primary relative">
-                                Start Understanding It.
-                                <svg className="absolute -bottom-2 left-0 w-full h-3 text-primary-500/30" viewBox="0 0 200 12" preserveAspectRatio="none">
-                                    <path d="M0 6 Q50 0, 100 6 T200 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                                </svg>
+                            <motion.span
+                                className="inline-block"
+                                initial={{ opacity: 1, y: 0 }}
+                                animate={{ opacity: 1, y: 0 }}
+                            >
+                                Stop Copying Code.{' '}
+                            </motion.span>
+                            <span className="text-gradient-primary relative inline-block">
+                                <span className="inline-block">
+                                    Start Understanding It.
+                                </span>
+                                <motion.svg 
+                                    className="absolute -bottom-2 left-0 w-full h-3 text-primary-500/30" 
+                                    viewBox="0 0 200 12" 
+                                    preserveAspectRatio="none"
+                                    initial={{ pathLength: 0, opacity: 0 }}
+                                    animate={{ pathLength: 1, opacity: 1 }}
+                                    transition={{ duration: 1, delay: 0.8, ease: "easeInOut" }}
+                                >
+                                    <motion.path 
+                                        d="M0 6 Q50 0, 100 6 T200 6" 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        strokeWidth="3" 
+                                        strokeLinecap="round"
+                                    />
+                                </motion.svg>
                             </span>
                         </h1>
 
                         {/* Subtitle */}
-                        <p className="text-lg lg:text-xl text-[color:var(--color-text-secondary)] mb-8 max-w-xl mx-auto lg:mx-0">
+                        <motion.p 
+                            className="text-lg lg:text-xl text-[color:var(--color-text-secondary)] mb-8 max-w-xl mx-auto lg:mx-0"
+                            variants={itemVariants}
+                        >
                             The AI coding assistant that teaches you through questions,
                             understands your entire codebase, and catches bugs before they ship.
-                        </p>
+                        </motion.p>
 
                         {/* CTAs with decoration */}
-                        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start relative">
+                        <motion.div 
+                            className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start relative"
+                            variants={itemVariants}
+                        >
                             <Link to="/app">
-                                <Button size="lg" className="group relative overflow-hidden">
-                                    <span className="relative z-10 flex items-center gap-2">
-                                        Start Learning
-                                        <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                        </svg>
-                                    </span>
-                                </Button>
+                                <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    <Button size="lg" className="group relative overflow-hidden">
+                                        <span className="relative z-10 flex items-center gap-2">
+                                            Start Learning
+                                            <motion.svg 
+                                                className="w-5 h-5" 
+                                                fill="none" 
+                                                viewBox="0 0 24 24" 
+                                                stroke="currentColor"
+                                                animate={{ x: [0, 5, 0] }}
+                                                transition={{ duration: 1.5, repeat: Infinity }}
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            </motion.svg>
+                                        </span>
+                                    </Button>
+                                </motion.div>
                             </Link>
-                            <Button variant="secondary" size="lg" className="group">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Watch Demo
-                            </Button>
-                        </div>
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                <Button variant="secondary" size="lg" className="group">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Watch Demo
+                                </Button>
+                            </motion.div>
+                        </motion.div>
 
                         {/* Stats with visual enhancement */}
-                        <div className="mt-12 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0">
+                        <motion.div 
+                            className="mt-12 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0"
+                            variants={containerVariants}
+                        >
                             {[
                                 { value: '10x', label: 'Faster Learning', color: 'primary' },
                                 { value: '90%', label: 'Bug Detection', color: 'secondary' },
                                 { value: '50k+', label: 'Developers', color: 'accent' },
-                            ].map((stat) => (
-                                <div key={stat.label} className="text-center lg:text-left relative group">
-                                    <div className={`absolute -inset-2 rounded-lg bg-${stat.color}-500/5 opacity-0 group-hover:opacity-100 transition-opacity`} />
-                                    <div className={`font-display text-2xl lg:text-3xl font-bold text-${stat.color}-500`}>
+                            ].map((stat, index) => (
+                                <motion.div 
+                                    key={stat.label} 
+                                    className="text-center lg:text-left relative group"
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.1 }}
+                                    transition={{ type: "spring", stiffness: 300 }}
+                                >
+                                    <div className={`absolute -inset-2 rounded-lg bg-${stat.color}-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                                    <motion.div 
+                                        className={`font-display text-2xl lg:text-3xl font-bold text-${stat.color}-500 relative`}
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ 
+                                            type: "spring",
+                                            stiffness: 200,
+                                            delay: 1 + index * 0.1
+                                        }}
+                                    >
                                         {stat.value}
-                                    </div>
-                                    <div className="text-sm text-[color:var(--color-text-muted)]">
+                                    </motion.div>
+                                    <div className="text-sm text-[color:var(--color-text-muted)] relative">
                                         {stat.label}
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
 
                     {/* Right - Enhanced Floating Cards */}
                     <div className="relative hidden lg:block h-[600px]">
                         {/* Background glow for cards */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-primary-500/10 via-secondary-500/5 to-transparent rounded-full blur-2xl" />
+                        <motion.div 
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-primary-500/10 via-secondary-500/5 to-transparent rounded-full blur-2xl"
+                            animate={{
+                                scale: [1, 1.2, 1],
+                                opacity: [0.3, 0.6, 0.3]
+                            }}
+                            transition={{
+                                duration: 4,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                        />
 
                         {/* Code Card with decoration */}
-                        <div className="absolute top-0 right-0 w-80 animate-float">
+                        <motion.div 
+                            className="absolute top-0 right-0 w-80"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={0}
+                            whileHover={{ scale: 1.05, rotate: 2 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                        >
                             <CodeDecoration />
                             <Card variant="terminal" padding="none" className="relative">
                                 <Card.TerminalHeader title="binary_search.py" />
@@ -174,11 +318,30 @@ function Hero() {
                                     </pre>
                                 </div>
                             </Card>
-                        </div>
+                        </motion.div>
 
                         {/* Question Card with pulse ring */}
-                        <div className="absolute top-40 left-0 w-72 animate-float" style={{ animationDelay: '1s' }}>
-                            <div className="absolute -inset-1 bg-accent-500/20 rounded-2xl blur-md" />
+                        <motion.div 
+                            className="absolute top-40 left-0 w-72"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={1}
+                            whileHover={{ scale: 1.05, rotate: -2 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                        >
+                            <motion.div 
+                                className="absolute -inset-1 bg-accent-500/20 rounded-2xl blur-md"
+                                animate={{
+                                    scale: [1, 1.1, 1],
+                                    opacity: [0.3, 0.6, 0.3]
+                                }}
+                                transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }}
+                            />
                             <Card className="bg-accent-500/10 border-accent-500/30 relative">
                                 <div className="flex items-start gap-3">
                                     <div className="relative">
@@ -198,10 +361,18 @@ function Hero() {
                                     </div>
                                 </div>
                             </Card>
-                        </div>
+                        </motion.div>
 
                         {/* Graph Card with animated connections */}
-                        <div className="absolute bottom-20 right-20 w-64 animate-float" style={{ animationDelay: '2s' }}>
+                        <motion.div 
+                            className="absolute bottom-20 right-20 w-64"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={2}
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                        >
                             <Card className="bg-secondary-500/10 border-secondary-500/30">
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="w-8 h-8 rounded-full bg-secondary-500/20 flex items-center justify-center">
@@ -238,10 +409,18 @@ function Hero() {
                                     </svg>
                                 </div>
                             </Card>
-                        </div>
+                        </motion.div>
 
                         {/* Mode Toggle Card */}
-                        <div className="absolute bottom-0 left-10 w-56 animate-float" style={{ animationDelay: '3s' }}>
+                        <motion.div 
+                            className="absolute bottom-0 left-10 w-56"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={3}
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                        >
                             <Card>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -258,10 +437,18 @@ function Hero() {
                                     </div>
                                 </div>
                             </Card>
-                        </div>
+                        </motion.div>
 
                         {/* Extra floating code snippet */}
-                        <div className="absolute top-[45%] right-[60%] w-48 animate-float" style={{ animationDelay: '1.5s' }}>
+                        <motion.div 
+                            className="absolute top-[45%] right-[60%] w-48"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={1.5}
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                        >
                             <div className="p-3 rounded-lg bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] shadow-lg">
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-2 h-2 rounded-full bg-success" />
@@ -271,18 +458,31 @@ function Hero() {
                                     O(log n) complexity
                                 </code>
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </div>
 
             {/* Scroll Indicator */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+            <motion.div 
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.5, duration: 0.6 }}
+            >
                 <span className="text-xs text-[color:var(--color-text-muted)]">Scroll to explore</span>
                 <div className="w-6 h-10 rounded-full border-2 border-[color:var(--color-border)] flex justify-center pt-2">
-                    <div className="w-1.5 h-3 rounded-full bg-primary-500 animate-bounce" />
+                    <motion.div 
+                        className="w-1.5 h-3 rounded-full bg-primary-500"
+                        animate={{ y: [0, 12, 0] }}
+                        transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    />
                 </div>
-            </div>
+            </motion.div>
 
             {/* Wave divider to next section */}
             <div className="absolute bottom-0 left-0 right-0 overflow-hidden">

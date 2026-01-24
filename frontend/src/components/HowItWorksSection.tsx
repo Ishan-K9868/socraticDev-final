@@ -1,4 +1,7 @@
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import Badge from '../ui/Badge';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Floating how-it-works elements
 const FloatingSteps = () => (
@@ -95,6 +98,10 @@ const steps = [
 ];
 
 function HowItWorksSection() {
+    const prefersReducedMotion = useReducedMotion();
+    const headerRef = useRef(null);
+    const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
+    
     return (
         <section
             id="how-it-works"
@@ -108,7 +115,17 @@ function HowItWorksSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <div className="text-center max-w-3xl mx-auto mb-16 relative">
+                <motion.div 
+                    ref={headerRef}
+                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
+                    animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ 
+                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                        type: "tween",
+                        ease: [0.25, 0.1, 0.25, 1]
+                    }}
+                    className="text-center max-w-3xl mx-auto mb-16 relative"
+                >
                     {/* Decorative process line */}
                     <svg className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-8 text-secondary-500/20" viewBox="0 0 128 32" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="16" cy="16" r="6" fill="currentColor" />
@@ -136,32 +153,78 @@ function HowItWorksSection() {
                     <p className="text-lg text-[color:var(--color-text-secondary)]">
                         A simple four-step process that transforms how you learn and build.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Steps */}
                 <div className="max-w-4xl mx-auto">
-                    {steps.map((step, index) => (
-                        <div key={step.number} className="relative">
+                    {steps.map((step, index) => {
+                        const stepRef = useRef(null);
+                        const stepInView = useInView(stepRef, { once: true, amount: 0.2, margin: "0px 0px -200px 0px" });
+                        
+                        return (
+                        <div key={step.number} className="relative" ref={stepRef}>
                             {/* Connector line */}
                             {index < steps.length - 1 && (
-                                <div className="absolute left-[39px] top-24 w-0.5 h-16 bg-gradient-to-b from-[color:var(--color-border)] to-transparent hidden md:block" />
+                                <motion.div 
+                                    initial={{ scaleY: 0 }}
+                                    animate={stepInView ? { scaleY: 1 } : {}}
+                                    transition={{ 
+                                        duration: 0.4,
+                                        delay: 0.2,
+                                        type: "tween",
+                                        ease: [0.25, 0.1, 0.25, 1]
+                                    }}
+                                    style={{ originY: 0 }}
+                                    className="absolute left-[39px] top-24 w-0.5 h-16 bg-gradient-to-b from-[color:var(--color-border)] to-transparent hidden md:block"
+                                />
                             )}
 
-                            <div className={`flex flex-col md:flex-row gap-6 mb-8 md:mb-12 group ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+                            <motion.div 
+                                initial={{ opacity: 0, x: prefersReducedMotion ? 0 : (index % 2 === 0 ? -40 : 40) }}
+                                animate={stepInView ? { opacity: 1, x: 0 } : {}}
+                                transition={{ 
+                                    duration: prefersReducedMotion ? 0.3 : 0.5,
+                                    delay: index * 0.1,
+                                    type: "tween",
+                                    ease: [0.25, 0.1, 0.25, 1]
+                                }}
+                                className={`flex flex-col md:flex-row gap-6 mb-8 md:mb-12 group ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
+                            >
                                 {/* Step number and icon */}
                                 <div className="flex-shrink-0 flex items-start gap-4">
-                                    <div className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110
+                                    <motion.div 
+                                        initial={{ scale: 0, opacity: 0 }}
+                                        animate={stepInView ? { scale: 1, opacity: 1 } : {}}
+                                        transition={{
+                                            type: "spring",
+                                            stiffness: 200,
+                                            damping: 15,
+                                            delay: index * 0.1 + 0.1
+                                        }}
+                                        className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110
                                         ${step.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}
                                         ${step.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
-                                        ${step.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}`}>
-                                        {step.icon}
+                                        ${step.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}`}
+                                    >
+                                        <motion.div
+                                            initial={{ opacity: 0, rotate: 0, scale: 0.8 }}
+                                            animate={stepInView ? { opacity: 1, rotate: prefersReducedMotion ? 0 : 360, scale: 1 } : {}}
+                                            transition={{
+                                                duration: prefersReducedMotion ? 0.3 : 0.5,
+                                                delay: index * 0.1 + 0.15,
+                                                type: "tween",
+                                                ease: [0.25, 0.1, 0.25, 1]
+                                            }}
+                                        >
+                                            {step.icon}
+                                        </motion.div>
                                         {/* Glow effect */}
                                         <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl
                                             ${step.color === 'primary' ? 'bg-primary-500/20' : ''}
                                             ${step.color === 'secondary' ? 'bg-secondary-500/20' : ''}
                                             ${step.color === 'accent' ? 'bg-accent-500/20' : ''}`}
                                         />
-                                    </div>
+                                    </motion.div>
                                 </div>
 
                                 {/* Content */}
@@ -181,9 +244,10 @@ function HowItWorksSection() {
                                         {step.description}
                                     </p>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 

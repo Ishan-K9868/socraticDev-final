@@ -7,12 +7,17 @@ import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import ProblemSection from '../components/ProblemSection';
 import SolutionSection from '../components/SolutionSection';
+import SocraticDemoSection from '../components/SocraticDemoSection';
+import ComparisonSection from '../components/ComparisonSection';
 import FeatureSection from '../components/FeatureSection';
 import DojoSection from '../components/DojoSection';
 import HowItWorksSection from '../components/HowItWorksSection';
 import TechStackSection from '../components/TechStackSection';
 import CTASection from '../components/CTASection';
 import Footer from '../components/Footer';
+import CustomCursor from '../components/CustomCursor';
+import ScrollProgress from '../components/ScrollProgress';
+import SectionIndicators from '../components/SectionIndicators';
 
 function LandingPage() {
     const mainRef = useRef<HTMLElement>(null);
@@ -39,6 +44,15 @@ function LandingPage() {
 
     return (
         <main ref={mainRef} className="relative">
+            {/* Scroll Progress Bar */}
+            <ScrollProgress />
+
+            {/* Custom Cursor (Desktop Only) */}
+            <CustomCursor />
+
+            {/* Section Indicators */}
+            <SectionIndicators />
+
             {/* Navigation */}
             <Navbar />
 
@@ -50,6 +64,16 @@ function LandingPage() {
 
             {/* Solution Section */}
             <SolutionSection />
+
+            {/* Socratic Demo Section - Interactive Dialogue */}
+            <section id="socratic-demo">
+                <SocraticDemoSection />
+            </section>
+
+            {/* Comparison Section - Before/After */}
+            <section id="comparison">
+                <ComparisonSection />
+            </section>
 
             {/* Features Section */}
             <FeatureSection />
@@ -64,7 +88,9 @@ function LandingPage() {
             <TechStackSection />
 
             {/* CTA Section */}
-            <CTASection />
+            <section id="cta">
+                <CTASection />
+            </section>
 
             {/* Footer */}
             <Footer />

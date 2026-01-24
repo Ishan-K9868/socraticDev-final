@@ -1,112 +1,109 @@
-import { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { useDeviceType } from '../hooks/useDeviceType';
 
-function CustomCursor() {
-    const cursorRef = useRef<HTMLDivElement>(null);
-    const dotRef = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
-    const [, setIsHovering] = useState(false);
+export const CustomCursor = () => {
+    const { isMobile } = useDeviceType();
+    const [isHovering, setIsHovering] = useState(false);
+    const cursorX = useMotionValue(-100);
+    const cursorY = useMotionValue(-100);
 
-    useEffect(() => {
-        // Only show on desktop
-        const mediaQuery = window.matchMedia('(min-width: 1024px) and (hover: hover)');
-        setIsVisible(mediaQuery.matches);
-
-        const handleChange = (e: MediaQueryListEvent) => setIsVisible(e.matches);
-        mediaQuery.addEventListener('change', handleChange);
-
-        return () => mediaQuery.removeEventListener('change', handleChange);
-    }, []);
+    const springConfig = { damping: 25, stiffness: 700 };
+    const cursorXSpring = useSpring(cursorX, springConfig);
+    const cursorYSpring = useSpring(cursorY, springConfig);
 
     useEffect(() => {
-        if (!isVisible || !cursorRef.current || !dotRef.current) return;
+        // Don't show custom cursor on mobile/tablet
+        if (isMobile) return;
 
-        const cursor = cursorRef.current;
-        const dot = dotRef.current;
-
-        // Hide default cursor
-        document.body.style.cursor = 'none';
-
-        const handleMouseMove = (e: MouseEvent) => {
-            gsap.to(cursor, {
-                x: e.clientX,
-                y: e.clientY,
-                duration: 0.5,
-                ease: 'power2.out',
-            });
-            gsap.to(dot, {
-                x: e.clientX,
-                y: e.clientY,
-                duration: 0.1,
-            });
+        const moveCursor = (e: MouseEvent) => {
+            cursorX.set(e.clientX - 16);
+            cursorY.set(e.clientY - 16);
         };
 
-        const handleMouseEnter = () => {
-            gsap.to([cursor, dot], { opacity: 1, duration: 0.3 });
+        const handleMouseOver = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (
+                target.tagName === 'BUTTON' ||
+                target.tagName === 'A' ||
+                target.closest('button') ||
+                target.closest('a')
+            ) {
+                setIsHovering(true);
+            }
         };
 
-        const handleMouseLeave = () => {
-            gsap.to([cursor, dot], { opacity: 0, duration: 0.3 });
-        };
+        const handleMouseOut = () => setIsHovering(false);
 
-        // Interactive element hover effects
-        const interactiveElements = document.querySelectorAll('a, button, [data-cursor-hover]');
-
-        const handleElementEnter = () => {
-            setIsHovering(true);
-            gsap.to(cursor, { scale: 2, duration: 0.3, ease: 'power2.out' });
-        };
-
-        const handleElementLeave = () => {
-            setIsHovering(false);
-            gsap.to(cursor, { scale: 1, duration: 0.3, ease: 'power2.out' });
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseenter', handleMouseEnter);
-        document.addEventListener('mouseleave', handleMouseLeave);
-
-        interactiveElements.forEach((el) => {
-            el.addEventListener('mouseenter', handleElementEnter);
-            el.addEventListener('mouseleave', handleElementLeave);
-        });
-
-        // Initial position off-screen
-        gsap.set([cursor, dot], { x: -100, y: -100, opacity: 0 });
+        window.addEventListener('mousemove', moveCursor);
+        document.addEventListener('mouseover', handleMouseOver);
+        document.addEventListener('mouseout', handleMouseOut);
 
         return () => {
-            document.body.style.cursor = 'auto';
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseenter', handleMouseEnter);
-            document.removeEventListener('mouseleave', handleMouseLeave);
-
-            interactiveElements.forEach((el) => {
-                el.removeEventListener('mouseenter', handleElementEnter);
-                el.removeEventListener('mouseleave', handleElementLeave);
-            });
+            window.removeEventListener('mousemove', moveCursor);
+            document.removeEventListener('mouseover', handleMouseOver);
+            document.removeEventListener('mouseout', handleMouseOut);
         };
-    }, [isVisible]);
+    }, [cursorX, cursorY, isMobile]);
 
-    if (!isVisible) return null;
+    // Don't render on mobile
+    if (isMobile) return null;
 
     return (
         <>
-            <div
-                ref={cursorRef}
-                className="cursor-custom"
+            {/* Main cursor */}
+            <motion.div
+                className="custom-cursor"
                 style={{
-                    opacity: 0,
+                    x: cursorXSpring,
+                    y: cursorYSpring,
+                    position: 'fixed',
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(var(--color-primary-rgb), 0.5)',
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                    mixBlendMode: 'difference',
                 }}
-            />
-            <div
-                ref={dotRef}
-                className="cursor-dot"
-                style={{
-                    opacity: 0,
+                animate={{
+                    scale: isHovering ? 2 : 1,
+                    backgroundColor: isHovering
+                        ? 'rgba(var(--color-accent-rgb), 0.5)'
+                        : 'rgba(var(--color-primary-rgb), 0.5)',
                 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             />
+
+            {/* Cursor trail particles */}
+            {[...Array(3)].map((_, i) => (
+                <motion.div
+                    key={i}
+                    style={{
+                        x: cursorXSpring,
+                        y: cursorYSpring,
+                        position: 'fixed',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(var(--color-primary-rgb), 0.3)',
+                        pointerEvents: 'none',
+                        zIndex: 9998,
+                    }}
+                    animate={{
+                        scale: [1, 0],
+                        opacity: [0.5, 0],
+                    }}
+                    transition={{
+                        duration: 0.6,
+                        delay: i * 0.1,
+                        repeat: Infinity,
+                        ease: 'easeOut',
+                    }}
+                />
+            ))}
         </>
     );
-}
+};
 
 export default CustomCursor;
