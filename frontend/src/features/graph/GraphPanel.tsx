@@ -29,7 +29,7 @@ interface GraphPanelProps {
 }
 
 function GraphPanel({ projectName }: GraphPanelProps) {
-    const { dependencyGraph, projectContext } = useStore();
+    const { projectContext } = useStore();
     const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
     const [impactedNodes, setImpactedNodes] = useState<string[]>([]);
     const [realNodes, setRealNodes] = useState<GraphNode[]>([]);

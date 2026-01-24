@@ -2,7 +2,7 @@ import { motion, useInView, useMotionValue, useTransform, animate } from 'framer
 import { useRef, useEffect } from 'react';
 import Badge from '../ui/Badge';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { fadeInUp, staggerContainer, staggerItem } from '../utils/animationVariants';
+import { staggerContainer } from '../utils/animationVariants';
 
 // Floating warning icons for problem section
 const FloatingWarnings = () => (

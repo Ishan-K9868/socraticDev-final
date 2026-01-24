@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
-import { graphragAPI, Entity, ContextResponse } from '../../services';
+import { graphragAPI, ContextResponse } from '../../services';
 import Button from '../../ui/Button';
 import Card from '../../ui/Card';
 import Badge from '../../ui/Badge';

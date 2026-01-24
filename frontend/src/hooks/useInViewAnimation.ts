@@ -1,18 +1,12 @@
-import { useInView } from 'framer-motion';
+import { useInView, type UseInViewOptions } from 'framer-motion';
 import { useRef } from 'react';
-
-interface UseInViewAnimationOptions {
-  once?: boolean;
-  amount?: number | 'some' | 'all';
-  margin?: string;
-}
 
 /**
  * Simplified hook for scroll-triggered animations with viewport detection
  * @param options - Configuration options for intersection observer
  * @returns Object with ref to attach to element and isInView boolean
  */
-export const useInViewAnimation = (options: UseInViewAnimationOptions = {}) => {
+export const useInViewAnimation = (options: UseInViewOptions = {}) => {
   const ref = useRef(null);
   const isInView = useInView(ref, {
     once: true,

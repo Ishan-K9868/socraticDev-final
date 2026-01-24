@@ -17,7 +17,7 @@ function SemanticSearch({ projectId, onResultSelect }: SemanticSearchProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedResult, setSelectedResult] = useState<Entity | null>(null);
-    const [limit, setLimit] = useState(20);
+    const [limit] = useState(20);
 
     // Query suggestions based on common patterns
     const suggestions = [
