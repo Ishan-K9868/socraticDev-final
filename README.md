@@ -5,18 +5,6 @@
 
 ---
 
-## Documentation Plan
-
-**Analysis Approach:**
-1. **First files inspected:** `frontend/package.json`, `backend/requirements.txt`, `backend/src/main.py`, `frontend/src/App.tsx`
-2. **First diagram generated:** Layered System Architecture
-3. **Pass order:**
-   - Package dependencies & environment configuration (frontend + backend)
-   - Backend API routes and GraphRAG services (Neo4j, Chroma, Gemini)
-   - Frontend routes, features, and state management
-   - Component library, utilities, and styling
-
-**Files scanned:** 52 frontend files + 45 backend files = **97 total files**
 
 ---
 
