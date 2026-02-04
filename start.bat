@@ -49,13 +49,17 @@ if %errorlevel% equ 0 (
     exit /b 1
 )
 
-REM Install essential Python dependencies
+REM Install Python dependencies from requirements.txt
 echo [3.5/7] Installing backend Python dependencies...
-pip install fastapi uvicorn python-dotenv celery redis --quiet --user
-if !errorlevel! equ 0 (
-    echo [OK] Backend dependencies installed
+if exist "requirements.txt" (
+    pip install -r requirements.txt --quiet
+    if !errorlevel! equ 0 (
+        echo [OK] Backend dependencies installed
+    ) else (
+        echo [WARNING] Some dependencies may have failed, continuing anyway...
+    )
 ) else (
-    echo [WARNING] Some dependencies may have failed, continuing anyway...
+    echo [WARNING] requirements.txt not found, skipping dependency installation
 )
 cd ..
 
