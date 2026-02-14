@@ -52,13 +52,15 @@ function SortableLine({ line, isCorrect }: SortableLineProps) {
                 px-4 py-3 rounded-lg border-2 font-mono text-sm cursor-grab active:cursor-grabbing
                 transition-all duration-200
                 ${isDragging
-                    ? 'shadow-xl scale-105 z-50 bg-primary-500/20 border-primary-500'
+                    ? 'shadow-xl scale-105 z-50 bg-primary-500/20 border-primary-500 text-neutral-50'
                     : 'bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]'
                 }
+                ${isCorrect !== null && isCorrect !== undefined ? 'text-neutral-100' : 'text-[color:var(--color-text-primary)]'}
                 ${isCorrect === true && 'border-green-500 bg-green-500/10'}
                 ${isCorrect === false && 'border-red-500 bg-red-500/10'}
                 ${line.isDistractor && isCorrect === false && 'line-through opacity-60'}
-                hover:border-primary-400 hover:bg-[color:var(--color-bg-muted)]
+                hover:border-primary-400
+                ${isCorrect !== null && isCorrect !== undefined ? 'hover:bg-neutral-800/80' : 'hover:bg-[color:var(--color-bg-muted)]'}
             `}
         >
             <code className="whitespace-pre">{line.content}</code>
