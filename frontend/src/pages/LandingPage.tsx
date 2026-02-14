@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
 import { useStore } from '../store/useStore';
 
 // Components
@@ -24,16 +24,28 @@ function LandingPage() {
     const { isLoading } = useStore();
 
     useEffect(() => {
-        // Refresh ScrollTrigger after content loads
-        if (!isLoading) {
-            setTimeout(() => {
-                ScrollTrigger.refresh();
-            }, 100);
-        }
+        if (isLoading) return;
 
-        // Cleanup ScrollTriggers on unmount
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) return;
+
+        const lenis = new Lenis({
+            duration: 1.1,
+            smoothWheel: true,
+            wheelMultiplier: 0.9,
+            touchMultiplier: 1.15,
+        });
+
+        let rafId = 0;
+        const raf = (time: number) => {
+            lenis.raf(time);
+            rafId = window.requestAnimationFrame(raf);
+        };
+        rafId = window.requestAnimationFrame(raf);
+
         return () => {
-            ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+            window.cancelAnimationFrame(rafId);
+            lenis.destroy();
         };
     }, [isLoading]);
 
