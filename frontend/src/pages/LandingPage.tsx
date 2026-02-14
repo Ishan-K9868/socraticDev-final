@@ -26,26 +26,27 @@ function LandingPage() {
     useEffect(() => {
         if (isLoading) return;
 
+        const root = document.documentElement;
+        const previousScrollBehavior = root.style.scrollBehavior;
+
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion) return;
 
+        // Prevent browser smooth-scroll from fighting Lenis interpolation.
+        root.style.scrollBehavior = 'auto';
+
         const lenis = new Lenis({
-            duration: 1.1,
+            autoRaf: true,
+            lerp: 0.085,
             smoothWheel: true,
-            wheelMultiplier: 0.9,
-            touchMultiplier: 1.15,
+            wheelMultiplier: 0.95,
+            touchMultiplier: 1,
+            anchors: true,
         });
 
-        let rafId = 0;
-        const raf = (time: number) => {
-            lenis.raf(time);
-            rafId = window.requestAnimationFrame(raf);
-        };
-        rafId = window.requestAnimationFrame(raf);
-
         return () => {
-            window.cancelAnimationFrame(rafId);
             lenis.destroy();
+            root.style.scrollBehavior = previousScrollBehavior;
         };
     }, [isLoading]);
 

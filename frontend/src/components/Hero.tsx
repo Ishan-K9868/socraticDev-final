@@ -102,7 +102,7 @@ function Hero() {
     };
 
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+        <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
             {/* Background Elements */}
             <motion.div 
                 className="absolute inset-0 hero-gradient"
@@ -219,7 +219,10 @@ function Hero() {
                                     </Button>
                                 </motion.div>
                             </Link>
-                            <motion.div
+                            <motion.a
+                                href="https://www.youtube.com/watch?v=RUr-bRbWn4c"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                             >
@@ -232,7 +235,7 @@ function Hero() {
                                     </svg>
                                     Watch Demo
                                 </Button>
-                            </motion.div>
+                            </motion.a>
                         </motion.div>
 
                         {/* Stats with visual enhancement */}

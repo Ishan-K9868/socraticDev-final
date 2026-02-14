@@ -136,38 +136,65 @@ export const SectionIndicators = () => {
     const [activeSection, setActiveSection] = useState(0);
 
     useEffect(() => {
-        const observers = sections.map((section, index) => {
-            const element = document.getElementById(section.id);
-            if (!element) return null;
+        let ticking = false;
 
-            const observer = new IntersectionObserver(
-                ([entry]) => {
-                    if (entry.isIntersecting) {
-                        setActiveSection(index);
-                    }
-                },
-                { threshold: 0.3 }
-            );
+        const updateActiveSection = () => {
+            const sectionPositions = sections
+                .map((section, index) => {
+                    const element = document.getElementById(section.id);
+                    if (!element) return null;
+                    return { index, top: element.offsetTop };
+                })
+                .filter((item): item is { index: number; top: number } => item !== null)
+                .sort((a, b) => a.top - b.top);
 
-            observer.observe(element);
-            return observer;
-        });
+            if (sectionPositions.length === 0) return;
+
+            // Offset accounts for fixed navbar height and gives earlier activation.
+            const scrollPosition = window.scrollY + 140;
+            let currentIndex = sectionPositions[0].index;
+
+            for (const section of sectionPositions) {
+                if (scrollPosition >= section.top) {
+                    currentIndex = section.index;
+                } else {
+                    break;
+                }
+            }
+
+            setActiveSection(currentIndex);
+        };
+
+        const onScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    updateActiveSection();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        updateActiveSection();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', updateActiveSection);
 
         return () => {
-            observers.forEach((observer) => observer?.disconnect());
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', updateActiveSection);
         };
     }, []);
 
     const scrollToSection = (sectionId: string) => {
+        const navbarOffset = 96;
         const element = document.getElementById(sectionId);
-        if (element) {
-            // For hero section, scroll to top of page
-            if (sectionId === 'hero') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                element.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
+        if (!element && sectionId !== 'hero') return;
+
+        const targetTop = sectionId === 'hero'
+            ? Math.max(0, (element?.offsetTop ?? 0) - navbarOffset)
+            : Math.max(0, element!.offsetTop - navbarOffset);
+
+        window.scrollTo({ top: targetTop, behavior: 'smooth' });
     };
 
     return (

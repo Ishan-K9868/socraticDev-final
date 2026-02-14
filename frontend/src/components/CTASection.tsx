@@ -120,7 +120,7 @@ function CTASection() {
                                         </span>
                                     </Button>
                                 </Link>
-                                <Link to="/demo">
+                                <a href="https://www.youtube.com/watch?v=RUr-bRbWn4c" target="_blank" rel="noopener noreferrer">
                                     <Button variant="secondary" size="lg" className="group">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -130,7 +130,7 @@ function CTASection() {
                                         </svg>
                                         Watch Demo
                                     </Button>
-                                </Link>
+                                </a>
                             </div>
 
                             {/* Trust badges */}
@@ -158,34 +158,6 @@ function CTASection() {
                     </div>
                 </motion.div>
 
-                {/* Social proof stats */}
-                <motion.div 
-                    initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 20 }}
-                    animate={ctaInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ 
-                        duration: prefersReducedMotion ? 0.3 : 0.5,
-                        delay: 0.2,
-                        type: "tween",
-                        ease: [0.25, 0.1, 0.25, 1]
-                    }}
-                    className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8"
-                >
-                    {[
-                        { value: '50,000+', label: 'Developers' },
-                        { value: '1M+', label: 'Questions Answered' },
-                        { value: '4.9/5', label: 'Average Rating' },
-                        { value: '95%', label: 'Would Recommend' },
-                    ].map((stat) => (
-                        <div key={stat.label} className="text-center group">
-                            <div className="font-display text-3xl lg:text-4xl font-bold text-gradient-primary mb-1">
-                                {stat.value}
-                            </div>
-                            <div className="text-sm text-[color:var(--color-text-muted)] group-hover:text-[color:var(--color-text-secondary)] transition-colors">
-                                {stat.label}
-                            </div>
-                        </div>
-                    ))}
-                </motion.div>
             </div>
         </section>
     );
