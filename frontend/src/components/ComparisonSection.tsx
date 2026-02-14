@@ -74,7 +74,7 @@ export default function ComparisonSection() {
         >
           <div
             ref={containerRef}
-            className="relative h-[500px] rounded-2xl overflow-hidden shadow-elevated cursor-col-resize select-none"
+            className="relative h-[500px] rounded-2xl overflow-hidden border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] shadow-elevated cursor-col-resize select-none dark:bg-neutral-950"
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
@@ -89,7 +89,7 @@ export default function ComparisonSection() {
             aria-valuenow={sliderPosition}
           >
             {/* Before (Traditional) - Left Side */}
-            <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-[#211315] dark:to-[#2b171a]">
               <div className="p-8 h-full flex flex-col">
                 <div className="inline-block mb-4">
                   <span className="px-3 py-1 bg-red-500/20 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
@@ -105,18 +105,18 @@ export default function ComparisonSection() {
 
                 {/* Example conversation */}
                 <div className="space-y-4 mb-8 flex-1">
-                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-white/65 dark:bg-neutral-900/90 rounded-lg p-4 border border-transparent dark:border-white/5">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Student:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">"How do I remove duplicates from an array?"</p>
                   </div>
-                  <div className="bg-red-100/50 dark:bg-red-900/30 rounded-lg p-4">
+                  <div className="bg-red-100/60 dark:bg-red-900/35 rounded-lg p-4 border border-transparent dark:border-red-400/10">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tutorial:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">"Use this code:"</p>
                     <code className="text-xs bg-gray-900 text-green-400 px-2 py-1 rounded block">
                       [...new Set(array)]
                     </code>
                   </div>
-                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-white/65 dark:bg-neutral-900/90 rounded-lg p-4 border border-transparent dark:border-white/5">
                     <p className="text-sm italic text-gray-500 dark:text-gray-400">
                       💭 "I copied it... but why does it work?"
                     </p>
@@ -144,7 +144,7 @@ export default function ComparisonSection() {
 
             {/* After (Socratic) - Right Side */}
             <div
-              className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20"
+              className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-[#112019] dark:to-[#152a21]"
               style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
             >
               <div className="p-8 h-full flex flex-col">
@@ -162,19 +162,19 @@ export default function ComparisonSection() {
 
                 {/* Example conversation */}
                 <div className="space-y-4 mb-8 flex-1">
-                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-white/65 dark:bg-neutral-900/90 rounded-lg p-4 border border-transparent dark:border-white/5">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Student:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">"How do I remove duplicates from an array?"</p>
                   </div>
-                  <div className="bg-green-100/50 dark:bg-green-900/30 rounded-lg p-4">
+                  <div className="bg-green-100/60 dark:bg-green-900/35 rounded-lg p-4 border border-transparent dark:border-green-400/10">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AI Guide:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">"What data structure only stores unique values?"</p>
                   </div>
-                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-white/65 dark:bg-neutral-900/90 rounded-lg p-4 border border-transparent dark:border-white/5">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Student:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">"A Set! So I can use new Set(array)!"</p>
                   </div>
-                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-white/65 dark:bg-neutral-900/90 rounded-lg p-4 border border-transparent dark:border-white/5">
                     <p className="text-sm italic text-gray-500 dark:text-gray-400">
                       💡 "I understand WHY it works now!"
                     </p>
@@ -202,10 +202,10 @@ export default function ComparisonSection() {
 
             {/* Slider Handle */}
             <div
-              className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
+              className="absolute top-0 bottom-0 w-1 bg-white/90 dark:bg-white/70 shadow-lg"
               style={{ left: `${sliderPosition}%`, transform: 'translateX(-50%)' }}
             >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center border-4 border-primary-500">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white dark:bg-neutral-100 rounded-full shadow-xl flex items-center justify-center border-4 border-primary-500">
                 <svg className="w-6 h-6 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
                 </svg>
