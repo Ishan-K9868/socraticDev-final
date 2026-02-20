@@ -37,10 +37,13 @@ function LandingPage() {
 
         const lenis = new Lenis({
             autoRaf: true,
-            lerp: 0.085,
+            lerp: 0.1,
             smoothWheel: true,
-            wheelMultiplier: 0.95,
-            touchMultiplier: 1,
+            wheelMultiplier: 0.9,
+            touchMultiplier: 1.5,
+            syncTouch: true,
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
             anchors: true,
         });
 

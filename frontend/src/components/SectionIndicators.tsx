@@ -212,21 +212,22 @@ export const SectionIndicators = () => {
                                 whileHover={{ scale: 1.15 }}
                                 whileTap={{ scale: 0.95 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                                className={`relative p-2 rounded-xl transition-all duration-300 ${
-                                    isActive
-                                        ? `${getSectionBgColor(section.icon)}/10 shadow-md`
-                                        : 'hover:bg-[color:var(--color-bg-muted)]'
-                                }`}
+                                className={`relative p-2 rounded-xl transition-colors duration-200 ${isActive
+                                    ? `${getSectionBgColor(section.icon)}/10 shadow-md`
+                                    : 'hover:bg-[color:var(--color-bg-muted)]'
+                                    }`}
                                 aria-label={`Go to ${section.label} section`}
                             >
                                 <SectionIcon type={section.icon} isActive={isActive} />
-                                
-                                {/* Active indicator line - perfectly centered */}
+
+                                {/* Active indicator line */}
                                 {isActive && (
                                     <motion.div
-                                        layoutId="activeIndicator"
-                                        className={`absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 ${getSectionBgColor(section.icon)} rounded-full`}
-                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                        className={`absolute -left-3 w-1 h-6 ${getSectionBgColor(section.icon)} rounded-full`}
+                                        style={{ top: '50%', y: '-50%' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.2 }}
                                     />
                                 )}
                             </motion.button>

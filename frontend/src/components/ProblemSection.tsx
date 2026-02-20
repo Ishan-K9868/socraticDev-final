@@ -120,7 +120,7 @@ const AnimatedStat = ({ value, isInView }: { value: string; isInView: boolean })
     const count = useMotionValue(0);
     const rounded = useTransform(count, (latest) => Math.round(latest));
     const displayValue = useTransform(rounded, (latest) => `${latest}%`);
-    
+
     useEffect(() => {
         if (isInView) {
             const targetValue = parseInt(value);
@@ -128,7 +128,7 @@ const AnimatedStat = ({ value, isInView }: { value: string; isInView: boolean })
             return controls.stop;
         }
     }, [isInView, value, count]);
-    
+
     return <motion.span>{displayValue}</motion.span>;
 };
 
@@ -136,7 +136,7 @@ function ProblemSection() {
     const prefersReducedMotion = useReducedMotion();
     const headerRef = useRef(null);
     const headerInView = useInView(headerRef, { once: true, amount: 0.3 });
-    
+
     return (
         <section
             id="problem"
@@ -150,7 +150,7 @@ function ProblemSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header with decorative elements */}
-                <motion.div 
+                <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 40 }}
                     animate={headerInView ? { opacity: 1, y: 0 } : {}}
@@ -189,7 +189,7 @@ function ProblemSection() {
                 </motion.div>
 
                 {/* Problem Cards with enhanced visuals */}
-                <motion.div 
+                <motion.div
                     variants={staggerContainer}
                     initial="hidden"
                     whileInView="visible"
@@ -199,92 +199,88 @@ function ProblemSection() {
                     {problems.map((problem, index) => {
                         const cardRef = useRef(null);
                         const cardInView = useInView(cardRef, { once: true, amount: 0.3 });
-                        
-                        return (
-                        <motion.div
-                            key={problem.title}
-                            ref={cardRef}
-                            initial={{ opacity: 0, y: prefersReducedMotion ? 20 : 60, scale: prefersReducedMotion ? 1 : 0.9 }}
-                            animate={cardInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-                            transition={{ 
-                                duration: prefersReducedMotion ? 0.4 : 0.8, 
-                                delay: index * 0.15,
-                                ease: [0.22, 1, 0.36, 1]
-                            }}
-                            whileHover={prefersReducedMotion ? {} : {
-                                scale: 1.05,
-                                rotateX: 5,
-                                rotateY: 5,
-                                transition: { type: "spring", stiffness: 300, damping: 20 }
-                            }}
-                            style={{ transformStyle: "preserve-3d" }}
-                            className={`group relative p-6 lg:p-8 rounded-2xl border 
-                         bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]
-                         hover:border-${problem.color === 'error' ? 'red' : problem.color}-500/50
-                         transition-all duration-300 hover:shadow-xl`}
-                        >
-                            {/* Card decoration */}
-                            {problem.decoration}
 
-                            {/* Corner accent */}
-                            <div className={`absolute top-0 right-0 w-20 h-20 opacity-0 group-hover:opacity-100 transition-opacity
+                        return (
+                            <motion.div
+                                key={problem.title}
+                                ref={cardRef}
+                                initial={{ opacity: 0, y: prefersReducedMotion ? 20 : 60, scale: prefersReducedMotion ? 1 : 0.9 }}
+                                animate={cardInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+                                transition={{
+                                    duration: prefersReducedMotion ? 0.4 : 0.8,
+                                    delay: index * 0.15,
+                                    ease: [0.22, 1, 0.36, 1]
+                                }}
+                                whileHover={prefersReducedMotion ? {} : {
+                                    scale: 1.03,
+                                    y: -4,
+                                    transition: { type: "spring", stiffness: 200, damping: 25 }
+                                }}
+                                className={`group relative p-6 lg:p-8 rounded-2xl border transition-none
+                         bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]`}
+                            >
+                                {/* Card decoration */}
+                                {problem.decoration}
+
+                                {/* Corner accent */}
+                                <div className={`absolute top-0 right-0 w-20 h-20 opacity-0 group-hover:opacity-100 transition-opacity
                                 ${problem.color === 'primary' ? 'bg-gradient-to-bl from-primary-500/10' : ''}
                                 ${problem.color === 'secondary' ? 'bg-gradient-to-bl from-secondary-500/10' : ''}
                                 ${problem.color === 'accent' ? 'bg-gradient-to-bl from-accent-500/10' : ''}
                                 ${problem.color === 'error' ? 'bg-gradient-to-bl from-error/10' : ''}
                                 rounded-tr-2xl to-transparent`}
-                            />
+                                />
 
-                            {/* Icon & Stat */}
-                            <div className="flex items-start justify-between mb-4">
-                                <motion.div 
-                                    initial={{ rotate: 0 }}
-                                    animate={cardInView && !prefersReducedMotion ? { 
-                                        rotate: [0, -5, 5, -5, 5, 0] 
-                                    } : {}}
-                                    transition={{ duration: 0.6, delay: 0.3 + index * 0.15 }}
-                                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110
+                                {/* Icon & Stat */}
+                                <div className="flex items-start justify-between mb-4">
+                                    <motion.div
+                                        initial={{ rotate: 0 }}
+                                        animate={cardInView && !prefersReducedMotion ? {
+                                            rotate: [0, -5, 5, -5, 5, 0]
+                                        } : {}}
+                                        transition={{ duration: 0.6, delay: 0.3 + index * 0.15 }}
+                                        className={`w-12 h-12 rounded-xl flex items-center justify-center
                               ${problem.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}
                               ${problem.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
                               ${problem.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}
                               ${problem.color === 'error' ? 'bg-error/10 text-error' : ''}`}
-                                >
-                                    {problem.icon}
-                                </motion.div>
-                                <span
-                                    className={`font-display text-4xl lg:text-5xl font-bold opacity-20 group-hover:opacity-30 transition-opacity
+                                    >
+                                        {problem.icon}
+                                    </motion.div>
+                                    <span
+                                        className={`font-display text-4xl lg:text-5xl font-bold opacity-20
                             ${problem.color === 'primary' ? 'text-primary-500' : ''}
                             ${problem.color === 'secondary' ? 'text-secondary-500' : ''}
                             ${problem.color === 'accent' ? 'text-accent-500' : ''}
                             ${problem.color === 'error' ? 'text-error' : ''}`}
-                                >
-                                    {prefersReducedMotion ? problem.stat : <AnimatedStat value={problem.stat} isInView={cardInView} />}
-                                </span>
-                            </div>
+                                    >
+                                        {prefersReducedMotion ? problem.stat : <AnimatedStat value={problem.stat} isInView={cardInView} />}
+                                    </span>
+                                </div>
 
-                            {/* Content */}
-                            <h3 className="font-display text-xl font-semibold mb-2">
-                                {problem.title}
-                            </h3>
-                            <p className="text-[color:var(--color-text-secondary)]">
-                                {problem.description}
-                            </p>
+                                {/* Content */}
+                                <h3 className="font-display text-xl font-semibold mb-2">
+                                    {problem.title}
+                                </h3>
+                                <p className="text-[color:var(--color-text-secondary)]">
+                                    {problem.description}
+                                </p>
 
-                            {/* Animated bottom line */}
-                            <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl 
-                             transition-all duration-300 origin-left scale-x-0 group-hover:scale-x-100
+                                {/* Animated bottom line */}
+                                <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl 
+                             transition-transform duration-300 origin-left scale-x-0 group-hover:scale-x-100
                              ${problem.color === 'primary' ? 'bg-gradient-to-r from-primary-500 to-primary-400' : ''}
                              ${problem.color === 'secondary' ? 'bg-gradient-to-r from-secondary-500 to-secondary-400' : ''}
                              ${problem.color === 'accent' ? 'bg-gradient-to-r from-accent-500 to-accent-400' : ''}
                              ${problem.color === 'error' ? 'bg-gradient-to-r from-error to-red-400' : ''}`}
-                            />
-                        </motion.div>
-                    );
+                                />
+                            </motion.div>
+                        );
                     })}
                 </motion.div>
 
                 {/* Bottom callout with enhanced styling */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.3, margin: "0px 0px -150px 0px" }}

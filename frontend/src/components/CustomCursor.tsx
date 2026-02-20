@@ -74,34 +74,6 @@ export const CustomCursor = () => {
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             />
-
-            {/* Cursor trail particles */}
-            {[...Array(3)].map((_, i) => (
-                <motion.div
-                    key={i}
-                    style={{
-                        x: cursorXSpring,
-                        y: cursorYSpring,
-                        position: 'fixed',
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(var(--color-primary-rgb), 0.3)',
-                        pointerEvents: 'none',
-                        zIndex: 9998,
-                    }}
-                    animate={{
-                        scale: [1, 0],
-                        opacity: [0.5, 0],
-                    }}
-                    transition={{
-                        duration: 0.6,
-                        delay: i * 0.1,
-                        repeat: Infinity,
-                        ease: 'easeOut',
-                    }}
-                />
-            ))}
         </>
     );
 };

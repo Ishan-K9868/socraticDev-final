@@ -75,7 +75,8 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* Lenis handles smooth scrolling — CSS scroll-behavior fights it */
+  scroll-behavior: auto;
 }
 
 body {
@@ -168,9 +169,10 @@ body {
 
 .glass-strong {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
   border: 1px solid var(--glass-border);
+  will-change: transform;
 }
 
 /* ============================================

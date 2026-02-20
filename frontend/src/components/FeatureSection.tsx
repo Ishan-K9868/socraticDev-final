@@ -1,5 +1,5 @@
-import { motion, useInView } from 'framer-motion';
-import { useRef, useState } from 'react';
+import { motion, useInView, useMotionValue } from 'framer-motion';
+import { useRef } from 'react';
 import Badge from '../ui/Badge';
 import Card from '../ui/Card';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -157,7 +157,7 @@ function FeatureSection() {
     const prefersReducedMotion = useReducedMotion();
     const headerRef = useRef(null);
     const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
-    
+
     return (
         <section
             id="features"
@@ -171,11 +171,11 @@ function FeatureSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <motion.div 
+                <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
                     animate={headerInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ 
+                    transition={{
                         duration: prefersReducedMotion ? 0.3 : 0.5,
                         type: "tween",
                         ease: [0.25, 0.1, 0.25, 1]
@@ -212,7 +212,7 @@ function FeatureSection() {
                 </motion.div>
 
                 {/* Feature Grid */}
-                <motion.div 
+                <motion.div
                     variants={staggerContainer}
                     initial="hidden"
                     whileInView="visible"
@@ -220,104 +220,104 @@ function FeatureSection() {
                     className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
                 >
                     {features.map((feature, index) => {
-                        const [rotateX, setRotateX] = useState(0);
-                        const [rotateY, setRotateY] = useState(0);
-                        
+                        const cardRotateX = useMotionValue(0);
+                        const cardRotateY = useMotionValue(0);
+
                         const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
                             if (prefersReducedMotion) return;
                             const rect = e.currentTarget.getBoundingClientRect();
                             const x = (e.clientX - rect.left) / rect.width - 0.5;
                             const y = (e.clientY - rect.top) / rect.height - 0.5;
-                            setRotateX(y * 15);
-                            setRotateY(x * -15);
+                            cardRotateX.set(y * 10);
+                            cardRotateY.set(x * -10);
                         };
-                        
+
                         const handleMouseLeave = () => {
-                            setRotateX(0);
-                            setRotateY(0);
+                            cardRotateX.set(0);
+                            cardRotateY.set(0);
                         };
-                        
+
                         return (
-                        <motion.div
-                            key={feature.title}
-                            variants={{
-                                hidden: {
-                                    opacity: 0,
-                                    rotateY: prefersReducedMotion ? 0 : -90,
-                                    scale: prefersReducedMotion ? 1 : 0.8
-                                },
-                                visible: {
-                                    opacity: 1,
-                                    rotateY: 0,
-                                    scale: 1,
-                                    transition: {
-                                        duration: prefersReducedMotion ? 0.3 : 0.5,
-                                        delay: index * 0.08,
-                                        type: "tween",
-                                        ease: [0.25, 0.1, 0.25, 1]
-                                    }
-                                }
-                            }}
-                            animate={{ rotateX, rotateY }}
-                            onMouseMove={handleMouseMove}
-                            onMouseLeave={handleMouseLeave}
-                            style={{ transformStyle: "preserve-3d", perspective: 1000 }}
-                        >
-                            <Card
-                                className={`group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 h-full`}
-                            >
-                            {/* Gradient background on hover */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
-
-                            {/* Feature number */}
-                            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[color:var(--color-bg-muted)] flex items-center justify-center text-xs font-bold text-[color:var(--color-text-muted)]">
-                                {String(index + 1).padStart(2, '0')}
-                            </div>
-
-                            <div className="relative">
-                                {/* Icon */}
-                                <motion.div 
-                                    initial={{ scale: 0, rotate: 0 }}
-                                    whileInView={{
+                            <motion.div
+                                key={feature.title}
+                                variants={{
+                                    hidden: {
+                                        opacity: 0,
+                                        rotateY: prefersReducedMotion ? 0 : -90,
+                                        scale: prefersReducedMotion ? 1 : 0.8
+                                    },
+                                    visible: {
+                                        opacity: 1,
+                                        rotateY: 0,
                                         scale: 1,
-                                        rotate: prefersReducedMotion ? 0 : 360
-                                    }}
-                                    viewport={{ once: true }}
-                                    transition={{
-                                        type: "spring",
-                                        stiffness: 200,
-                                        damping: 15,
-                                        delay: 0.2 + index * 0.05
-                                    }}
-                                    className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110
+                                        transition: {
+                                            duration: prefersReducedMotion ? 0.3 : 0.5,
+                                            delay: index * 0.08,
+                                            type: "tween",
+                                            ease: [0.25, 0.1, 0.25, 1]
+                                        }
+                                    }
+                                }}
+                                style={{ transformStyle: "preserve-3d", perspective: 1000, rotateX: cardRotateX, rotateY: cardRotateY }}
+                                onMouseMove={handleMouseMove}
+                                onMouseLeave={handleMouseLeave}
+                                whileHover={{ y: -8, transition: { type: "spring", stiffness: 200, damping: 25 } }}
+                            >
+                                <Card
+                                    className={`group relative overflow-hidden transition-shadow duration-300 hover:shadow-xl h-full`}
+                                >
+                                    {/* Gradient background on hover */}
+                                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
+
+                                    {/* Feature number */}
+                                    <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[color:var(--color-bg-muted)] flex items-center justify-center text-xs font-bold text-[color:var(--color-text-muted)]">
+                                        {String(index + 1).padStart(2, '0')}
+                                    </div>
+
+                                    <div className="relative">
+                                        {/* Icon */}
+                                        <motion.div
+                                            initial={{ scale: 0, rotate: 0 }}
+                                            whileInView={{
+                                                scale: 1,
+                                                rotate: prefersReducedMotion ? 0 : 360
+                                            }}
+                                            viewport={{ once: true }}
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 200,
+                                                damping: 15,
+                                                delay: 0.2 + index * 0.05
+                                            }}
+                                            className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4
                                     ${feature.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}
                                     ${feature.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
                                     ${feature.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}`}
-                                >
-                                    {feature.icon}
-                                </motion.div>
+                                        >
+                                            {feature.icon}
+                                        </motion.div>
 
-                                {/* Content */}
-                                <h3 className="font-display text-lg font-semibold mb-2">
-                                    {feature.title}
-                                </h3>
-                                <p className="text-[color:var(--color-text-secondary)] text-sm">
-                                    {feature.description}
-                                </p>
+                                        {/* Content */}
+                                        <h3 className="font-display text-lg font-semibold mb-2">
+                                            {feature.title}
+                                        </h3>
+                                        <p className="text-[color:var(--color-text-secondary)] text-sm">
+                                            {feature.description}
+                                        </p>
 
-                                {/* Learn more link */}
-                                <div className="mt-4 flex items-center gap-2 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className={`${feature.color === 'accent' ? 'text-accent-500' : ''} ${feature.color === 'secondary' ? 'text-secondary-500' : ''} ${feature.color === 'primary' ? 'text-primary-500' : ''}`}>
-                                        Learn more
-                                    </span>
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </Card>
-                        </motion.div>
-                    );
+                                        {/* Learn more link */}
+                                        <div className="mt-4 flex items-center gap-2 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className={`${feature.color === 'accent' ? 'text-accent-500' : ''} ${feature.color === 'secondary' ? 'text-secondary-500' : ''} ${feature.color === 'primary' ? 'text-primary-500' : ''}`}>
+                                                Learn more
+                                            </span>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </motion.div>
+                        );
                     })}
                 </motion.div>
             </div>
