@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_prefix: str = "/api"
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
     
     # Neo4j settings
     neo4j_uri: str = "bolt://localhost:7687"

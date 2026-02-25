@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+backend/upload_sessions/
 
 # Virtual environments
 venv/

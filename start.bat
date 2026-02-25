@@ -1,119 +1,593 @@
 @echo off
-setlocal enabledelayedexpansion
-REM GraphRAG System Startup Script (Windows CMD)
-REM This script starts both backend and frontend services
+setlocal EnableExtensions EnableDelayedExpansion
+REM GraphRAG/SocraticDev startup script for Windows
+REM Goal: first-run bootstrap with minimal manual setup
+
+set "ROOT_DIR=%~dp0"
+if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
+set "BACKEND_DIR=%ROOT_DIR%\backend"
+set "FRONTEND_DIR=%ROOT_DIR%\frontend"
+set "BACKEND_ENV=%BACKEND_DIR%\.env"
+set "BACKEND_ENV_EXAMPLE=%BACKEND_DIR%\.env.example"
+set "FRONTEND_ENV=%FRONTEND_DIR%\.env.local"
+set "FRONTEND_ENV_EXAMPLE=%FRONTEND_DIR%\.env.example"
+set "BACKEND_REQ=%BACKEND_DIR%\requirements.txt"
+set "BACKEND_DEPS_MARKER=%BACKEND_DIR%\.deps_installed"
+set "VENV_DIR=%BACKEND_DIR%\.venv"
+set "BACKEND_PYTHON=%VENV_DIR%\Scripts\python.exe"
+set "SYSTEM_PYTHON="
+set "COMPOSE_CMD="
 
 echo ========================================
-echo   GraphRAG System - Starting Up
+echo   SocraticDev - Full Startup Bootstrap
 echo ========================================
 echo.
 
-REM Clear Python cache
-echo [0/6] Clearing Python cache...
-cd backend
-for /d /r %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d" 2>nul
-del /s /q *.pyc 2>nul
-cd ..
-echo [OK] Cache cleared
-
-REM Check if Docker is running
-echo [1/7] Checking Docker...
-docker ps >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [OK] Docker is running
-) else (
-    echo [ERROR] Docker is not running. Please start Docker Desktop first.
+if not exist "%BACKEND_DIR%" (
+    call :fail "Backend directory not found: %BACKEND_DIR%"
+    exit /b 1
+)
+if not exist "%FRONTEND_DIR%" (
+    call :fail "Frontend directory not found: %FRONTEND_DIR%"
     exit /b 1
 )
 
-REM Check if Node.js is installed
-echo [2/7] Checking Node.js...
-node --version >nul 2>&1
-if %errorlevel% equ 0 (
-    for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
-    echo [OK] Node.js is installed: !NODE_VERSION!
-) else (
-    echo [ERROR] Node.js is not installed. Please install Node.js 16+ first.
+call :refresh_path_hints
+
+echo [1/11] Checking Python...
+call :resolve_python
+if errorlevel 1 call :attempt_python_install
+call :resolve_python
+if errorlevel 1 (
+    call :fail "Python 3.10+ is required."
     exit /b 1
 )
-
-REM Start backend services
-echo [3/7] Starting backend services...
-cd backend
-docker-compose up -d
-if %errorlevel% equ 0 (
-    echo [OK] Backend services started
-) else (
-    echo [ERROR] Failed to start backend services
-    cd ..
-    exit /b 1
-)
-
-REM Install Python dependencies from requirements.txt
-echo [3.5/7] Installing backend Python dependencies...
-if exist "requirements.txt" (
-    pip install -r requirements.txt --quiet
-    if !errorlevel! equ 0 (
-        echo [OK] Backend dependencies installed
-    ) else (
-        echo [WARNING] Some dependencies may have failed, continuing anyway...
+call :validate_python_version
+if errorlevel 1 (
+    echo [INFO] Existing Python is below 3.10. Attempting upgrade...
+    call :attempt_python_install
+    call :resolve_python
+    if errorlevel 1 (
+        call :fail "Python executable was not found after installation."
+        exit /b 1
     )
-) else (
-    echo [WARNING] requirements.txt not found, skipping dependency installation
+    call :validate_python_version
+    if errorlevel 1 (
+        call :fail "Python 3.10+ is required."
+        exit /b 1
+    )
 )
-cd ..
+echo [OK] Python detected: %SYSTEM_PYTHON%
 
-REM Wait for services to be ready
-echo [4/7] Waiting for services to initialize (30 seconds)...
-timeout /t 30 /nobreak >nul
-echo [OK] Services should be ready
+echo [2/11] Checking Node.js + npm...
+call :ensure_node
+if errorlevel 1 call :attempt_node_install
+call :ensure_node
+if errorlevel 1 (
+    call :fail "Node.js 18+ is required."
+    exit /b 1
+)
+call :ensure_npm
+if errorlevel 1 (
+    call :fail "npm is required and should ship with Node.js."
+    exit /b 1
+)
+echo [OK] Node.js and npm are available
 
-REM Install frontend dependencies if needed
-echo [5/7] Checking frontend dependencies...
-cd frontend
+echo [3/11] Checking Docker...
+call :ensure_docker_cli
+if errorlevel 1 call :attempt_docker_install
+call :ensure_docker_cli
+if errorlevel 1 (
+    call :fail "Docker is required (Docker Desktop)."
+    exit /b 1
+)
+call :ensure_compose_command
+if errorlevel 1 (
+    echo [INFO] Docker Compose not found. Attempting Docker Desktop install/update...
+    call :attempt_docker_install
+    call :ensure_compose_command
+    if errorlevel 1 (
+        call :fail "Docker Compose is required (docker compose or docker-compose)."
+        exit /b 1
+    )
+)
+call :ensure_docker_daemon
+if errorlevel 1 (
+    call :fail "Docker daemon is not running."
+    exit /b 1
+)
+echo [OK] Docker is running
+
+echo [4/11] Preparing environment files...
+call :ensure_env_file "%BACKEND_ENV%" "%BACKEND_ENV_EXAMPLE%"
+if errorlevel 1 (
+    call :fail "Backend environment bootstrap failed."
+    exit /b 1
+)
+call :ensure_env_file "%FRONTEND_ENV%" "%FRONTEND_ENV_EXAMPLE%"
+if errorlevel 1 (
+    call :fail "Frontend environment bootstrap failed."
+    exit /b 1
+)
+call :ensure_frontend_api_base_url
+if errorlevel 1 (
+    call :fail "Failed to ensure VITE_API_BASE_URL in frontend .env.local."
+    exit /b 1
+)
+call :warn_if_placeholder_keys
+echo [OK] Environment files are ready
+
+echo [5/11] Clearing Python cache...
+call :clear_python_cache
+echo [OK] Python cache cleared
+
+echo [6/11] Preparing backend virtual environment...
+if not exist "%BACKEND_PYTHON%" (
+    "%SYSTEM_PYTHON%" -m venv "%VENV_DIR%"
+    if errorlevel 1 (
+        call :fail "Failed to create backend virtual environment."
+        exit /b 1
+    )
+)
+echo [OK] Virtual environment ready
+
+echo [7/11] Installing backend dependencies...
+call :backend_deps_up_to_date
+if errorlevel 1 (
+    "%BACKEND_PYTHON%" -m pip install --upgrade pip --disable-pip-version-check >nul
+    if errorlevel 1 (
+        call :fail "Failed to upgrade pip in backend virtual environment."
+        exit /b 1
+    )
+    "%BACKEND_PYTHON%" -m pip install -r "%BACKEND_REQ%" --disable-pip-version-check
+    if errorlevel 1 (
+        del /q "%BACKEND_DEPS_MARKER%" >nul 2>&1
+        call :fail "Failed to install backend dependencies."
+        exit /b 1
+    )
+    >"%BACKEND_DEPS_MARKER%" echo ok
+) else (
+    echo [INFO] Backend dependencies already up to date
+)
+echo [OK] Backend dependencies installed
+
+echo [8/11] Installing frontend dependencies...
+cd /d "%FRONTEND_DIR%"
 if not exist "node_modules\" (
-    echo Installing frontend dependencies ^(this may take a few minutes^)...
-    call npm install
-    if !errorlevel! equ 0 (
-        echo [OK] Frontend dependencies installed
-    ) else (
-        echo [ERROR] Failed to install frontend dependencies
-        cd ..
+    call npm install --no-audit --no-fund
+    if errorlevel 1 (
+        call :fail "Failed to install frontend dependencies."
         exit /b 1
     )
 ) else (
-    echo [OK] Frontend dependencies already installed
+    echo [INFO] node_modules already exists, skipping npm install
+)
+echo [OK] Frontend dependencies ready
+
+echo [9/11] Starting Docker infrastructure...
+cd /d "%BACKEND_DIR%"
+call %COMPOSE_CMD% up -d --remove-orphans
+if errorlevel 1 (
+    call :fail "Failed to start Docker services."
+    exit /b 1
+)
+echo [9.5/11] Validating Docker services...
+call :wait_for_docker_health 120
+if errorlevel 1 (
+    echo [WARNING] Initial Docker service validation failed. Attempting auto-recovery...
+    call :recover_docker_infra
+    if errorlevel 1 (
+        call :fail "Docker services did not become healthy in time."
+        exit /b 1
+    )
+)
+echo [OK] Docker services started
+
+echo [10/11] Starting backend API + Celery worker...
+call :start_backend_processes
+if errorlevel 1 (
+    call :fail "Failed to start backend processes."
+    exit /b 1
+)
+call :wait_for_api "http://localhost:8000/health" 90
+if errorlevel 1 (
+    echo [WARNING] Backend health endpoint did not become ready in time.
+    echo [WARNING] Check API/Celery windows for errors.
+) else (
+    echo [OK] Backend API is responding
 )
 
-REM Start backend API and Celery
-echo [6/7] Starting backend API and Celery worker...
-cd ..\backend
-start /B python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-timeout /t 3 /nobreak >nul
-start /B python -m celery -A src.celery_app worker --loglevel=info --pool=solo
-echo [OK] Backend API and Celery worker started
-cd ..\frontend
-
-REM Start frontend
-echo [7/7] Starting frontend...
+echo [11/11] Starting frontend dev server...
 echo.
 echo ========================================
-echo   GraphRAG System is Running!
+echo   SocraticDev is running
 echo ========================================
+echo API:         http://localhost:8000
+echo API Docs:    http://localhost:8000/docs
+echo Frontend:    http://localhost:5173
+echo Neo4j:       http://localhost:7474  (neo4j/password)
+echo RabbitMQ:    http://localhost:15672 (guest/guest)
 echo.
-echo Backend API:  http://localhost:8000
-echo API Docs:     http://localhost:8000/docs
-echo Frontend:     http://localhost:5173
+echo Press Ctrl+C in this window to stop frontend.
+echo Use stop.bat to stop Docker + backend Python workers.
 echo.
-echo Neo4j Browser: http://localhost:7474
-echo RabbitMQ:      http://localhost:15672
-echo.
-echo Press Ctrl+C to stop the frontend
-echo To stop all: taskkill /F /IM python.exe ^&^& cd backend ^&^& docker-compose down
-echo.
-
-REM Start frontend dev server (this will block)
+cd /d "%FRONTEND_DIR%"
 call npm run dev
+exit /b 0
 
-REM Cleanup on exit
-cd ..
+:refresh_path_hints
+if exist "%ProgramFiles%\Docker\Docker\resources\bin\docker.exe" (
+    set "PATH=%ProgramFiles%\Docker\Docker\resources\bin;%PATH%"
+)
+if exist "%ProgramFiles%\nodejs\node.exe" (
+    set "PATH=%ProgramFiles%\nodejs;%PATH%"
+)
+if exist "%LocalAppData%\Programs\Python\Python311\python.exe" (
+    set "PATH=%LocalAppData%\Programs\Python\Python311;%LocalAppData%\Programs\Python\Python311\Scripts;%PATH%"
+)
+if exist "%LocalAppData%\Programs\Python\Python310\python.exe" (
+    set "PATH=%LocalAppData%\Programs\Python\Python310;%LocalAppData%\Programs\Python\Python310\Scripts;%PATH%"
+)
+if exist "%ProgramFiles%\Python311\python.exe" (
+    set "PATH=%ProgramFiles%\Python311;%ProgramFiles%\Python311\Scripts;%PATH%"
+)
+if exist "%ProgramFiles%\Python310\python.exe" (
+    set "PATH=%ProgramFiles%\Python310;%ProgramFiles%\Python310\Scripts;%PATH%"
+)
+if exist "%ProgramFiles(x86)%\Python311\python.exe" (
+    set "PATH=%ProgramFiles(x86)%\Python311;%ProgramFiles(x86)%\Python311\Scripts;%PATH%"
+)
+if exist "%ProgramFiles(x86)%\Python310\python.exe" (
+    set "PATH=%ProgramFiles(x86)%\Python310;%ProgramFiles(x86)%\Python310\Scripts;%PATH%"
+)
+exit /b 0
+
+:resolve_python
+set "SYSTEM_PYTHON="
+for %%V in (3.12 3.11 3.10) do (
+    for /f "usebackq delims=" %%P in (`py -%%V -c "import sys; print(sys.executable)" 2^>nul`) do (
+        set "SYSTEM_PYTHON=%%P"
+    )
+    if defined SYSTEM_PYTHON goto :resolve_python_done
+)
+for /f "usebackq delims=" %%P in (`py -3 -c "import sys; print(sys.executable)" 2^>nul`) do (
+    set "SYSTEM_PYTHON=%%P"
+)
+if defined SYSTEM_PYTHON goto :resolve_python_done
+for /f "usebackq delims=" %%P in (`python -c "import sys; print(sys.executable)" 2^>nul`) do (
+    set "SYSTEM_PYTHON=%%P"
+)
+if defined SYSTEM_PYTHON goto :resolve_python_done
+
+for %%P in (
+    "%LocalAppData%\Programs\Python\Python312\python.exe"
+    "%LocalAppData%\Programs\Python\Python311\python.exe"
+    "%LocalAppData%\Programs\Python\Python310\python.exe"
+    "%ProgramFiles%\Python312\python.exe"
+    "%ProgramFiles%\Python311\python.exe"
+    "%ProgramFiles%\Python310\python.exe"
+    "%ProgramFiles(x86)%\Python312\python.exe"
+    "%ProgramFiles(x86)%\Python311\python.exe"
+    "%ProgramFiles(x86)%\Python310\python.exe"
+) do (
+    if exist %%~P set "SYSTEM_PYTHON=%%~P"
+    if defined SYSTEM_PYTHON goto :resolve_python_done
+)
+:resolve_python_done
+if defined SYSTEM_PYTHON (exit /b 0) else (exit /b 1)
+
+:validate_python_version
+if not defined SYSTEM_PYTHON exit /b 1
+"%SYSTEM_PYTHON%" -c "import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)" >nul 2>&1
+exit /b %errorlevel%
+
+:ensure_node
+where node >nul 2>&1 || exit /b 1
+set "NODE_MAJOR="
+set "NODE_VERSION_RAW="
+for /f "tokens=1 delims=." %%V in ('node -v 2^>nul') do set "NODE_VERSION_RAW=%%V"
+if defined NODE_VERSION_RAW set "NODE_MAJOR=%NODE_VERSION_RAW:v=%"
+if not defined NODE_MAJOR exit /b 1
+if %NODE_MAJOR% LSS 18 exit /b 1
+exit /b 0
+
+:ensure_npm
+where npm >nul 2>&1
+exit /b %errorlevel%
+
+:ensure_docker_cli
+where docker >nul 2>&1
+exit /b %errorlevel%
+
+:ensure_compose_command
+set "COMPOSE_CMD="
+docker compose version >nul 2>&1
+if %errorlevel% EQU 0 (
+    set "COMPOSE_CMD=docker compose"
+    exit /b 0
+)
+where docker-compose >nul 2>&1
+if %errorlevel% EQU 0 (
+    set "COMPOSE_CMD=docker-compose"
+    exit /b 0
+)
+exit /b 1
+
+:ensure_docker_daemon
+docker info >nul 2>&1
+if %errorlevel% EQU 0 exit /b 0
+
+echo [INFO] Docker Desktop is not running. Attempting to start it...
+if exist "%ProgramFiles%\Docker\Docker\Docker Desktop.exe" (
+    start "" "%ProgramFiles%\Docker\Docker\Docker Desktop.exe"
+) else if exist "%LocalAppData%\Programs\Docker\Docker\Docker Desktop.exe" (
+    start "" "%LocalAppData%\Programs\Docker\Docker\Docker Desktop.exe"
+)
+
+for /l %%I in (1,1,120) do (
+    docker info >nul 2>&1
+    if !errorlevel! EQU 0 exit /b 0
+    timeout /t 1 /nobreak >nul
+)
+exit /b 1
+
+:attempt_python_install
+echo [INFO] Python not found. Attempting automatic install via winget...
+where winget >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] winget is not available. Install "Python 3.11" manually, then rerun start.bat.
+    exit /b 1
+)
+winget install -e --id Python.Python.3.11 --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+    echo [ERROR] Failed to install Python 3.11 automatically.
+    exit /b 1
+)
+echo [OK] Installed Python 3.11
+call :refresh_path_hints
+exit /b 0
+
+:attempt_node_install
+echo [INFO] Node.js 18+ not found. Attempting automatic install via winget...
+where winget >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] winget is not available. Install "Node.js LTS" manually, then rerun start.bat.
+    exit /b 1
+)
+winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+    echo [ERROR] Failed to install Node.js LTS automatically.
+    exit /b 1
+)
+echo [OK] Installed Node.js LTS
+call :refresh_path_hints
+exit /b 0
+
+:attempt_docker_install
+echo [INFO] Docker not found. Attempting automatic install via winget...
+where winget >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] winget is not available. Install "Docker Desktop" manually, then rerun start.bat.
+    exit /b 1
+)
+winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+    echo [ERROR] Failed to install Docker Desktop automatically.
+    exit /b 1
+)
+echo [OK] Installed Docker Desktop
+call :refresh_path_hints
+exit /b 0
+
+:ensure_env_file
+set "TARGET_FILE=%~1"
+set "SOURCE_FILE=%~2"
+if exist "%TARGET_FILE%" exit /b 0
+if not exist "%SOURCE_FILE%" (
+    echo [ERROR] Missing template: %SOURCE_FILE%
+    exit /b 1
+)
+copy "%SOURCE_FILE%" "%TARGET_FILE%" >nul
+if errorlevel 1 (
+    echo [ERROR] Failed to create %TARGET_FILE%
+    exit /b 1
+)
+echo [INFO] Created %TARGET_FILE% from template
+exit /b 0
+
+:ensure_frontend_api_base_url
+findstr /b /c:"VITE_API_BASE_URL=" "%FRONTEND_ENV%" >nul 2>&1
+if %errorlevel% EQU 0 exit /b 0
+>>"%FRONTEND_ENV%" echo VITE_API_BASE_URL=http://localhost:8000
+exit /b 0
+
+:warn_if_placeholder_keys
+findstr /c:"VITE_GEMINI_API_KEY=your_gemini_api_key_here" "%FRONTEND_ENV%" >nul 2>&1
+if %errorlevel% EQU 0 (
+    echo [WARNING] frontend\.env.local still has a placeholder Gemini key.
+)
+findstr /c:"GEMINI_API_KEY=your-api-key-here" "%BACKEND_ENV%" >nul 2>&1
+if %errorlevel% EQU 0 (
+    echo [WARNING] backend\.env still has a placeholder Gemini key.
+)
+exit /b 0
+
+:clear_python_cache
+cd /d "%BACKEND_DIR%"
+for /d /r %%D in (__pycache__) do @if exist "%%D" rd /s /q "%%D" 2>nul
+del /s /q *.pyc 2>nul
+cd /d "%ROOT_DIR%"
+exit /b 0
+
+:start_backend_processes
+cd /d "%BACKEND_DIR%"
+call :ensure_log_dir
+
+call :check_http_url "http://localhost:8000/health" 2
+if %errorlevel% NEQ 0 (
+    del /q "%BACKEND_DIR%\logs\api.pid" >nul 2>&1
+    powershell -NoProfile -Command "$p = Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload' -WorkingDirectory '%BACKEND_DIR%' -PassThru -RedirectStandardOutput '%BACKEND_DIR%\logs\api.out.log' -RedirectStandardError '%BACKEND_DIR%\logs\api.err.log'; Set-Content -Path '%BACKEND_DIR%\logs\api.pid' -Value $p.Id"
+    if errorlevel 1 (
+        echo [ERROR] Failed to launch API process.
+        exit /b 1
+    )
+    timeout /t 2 /nobreak >nul
+) else (
+    echo [INFO] API is already healthy on port 8000, skipping launch
+)
+
+call :is_pid_file_process_running "%BACKEND_DIR%\logs\celery.pid"
+if %errorlevel% NEQ 0 (
+    del /q "%BACKEND_DIR%\logs\celery.pid" >nul 2>&1
+    powershell -NoProfile -Command "$p = Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m celery -A src.celery_app worker --loglevel=info --pool=solo' -WorkingDirectory '%BACKEND_DIR%' -PassThru -RedirectStandardOutput '%BACKEND_DIR%\logs\celery.out.log' -RedirectStandardError '%BACKEND_DIR%\logs\celery.err.log'; Set-Content -Path '%BACKEND_DIR%\logs\celery.pid' -Value $p.Id"
+    if errorlevel 1 (
+        echo [ERROR] Failed to launch Celery process.
+        exit /b 1
+    )
+) else (
+    echo [INFO] Celery worker already running, skipping launch
+)
+
+call :wait_for_api "http://localhost:8000/health" 40
+if errorlevel 1 (
+    echo [ERROR] API process did not become healthy.
+    call :print_log_excerpt "%BACKEND_DIR%\logs\api.out.log" 30 "API stdout"
+    call :print_log_excerpt "%BACKEND_DIR%\logs\api.err.log" 30 "API stderr"
+    exit /b 1
+)
+call :wait_for_pid_file_process "%BACKEND_DIR%\logs\celery.pid" "Celery worker" 20
+if errorlevel 1 exit /b 1
+
+cd /d "%ROOT_DIR%"
+exit /b 0
+
+:wait_for_pid_file_process
+set "PID_FILE=%~1"
+set "PROCESS_LABEL=%~2"
+set "WAIT_SECONDS=%~3"
+if not defined WAIT_SECONDS set "WAIT_SECONDS=20"
+for /l %%I in (1,1,%WAIT_SECONDS%) do (
+    call :is_pid_file_process_running "%PID_FILE%"
+    if !errorlevel! EQU 0 exit /b 0
+    timeout /t 1 /nobreak >nul
+)
+if not defined PROCESS_LABEL set "PROCESS_LABEL=Process"
+echo [ERROR] %PROCESS_LABEL% did not start successfully
+if /I "%PROCESS_LABEL%"=="Celery worker" (
+    call :print_log_excerpt "%BACKEND_DIR%\logs\celery.out.log" 30 "Celery stdout"
+    call :print_log_excerpt "%BACKEND_DIR%\logs\celery.err.log" 30 "Celery stderr"
+)
+exit /b 1
+
+:is_pid_file_process_running
+set "PID_FILE=%~1"
+if not exist "%PID_FILE%" exit /b 1
+set "PROCESS_PID="
+for /f "usebackq delims=" %%P in ("%PID_FILE%") do (
+    set "PROCESS_PID=%%P"
+    goto :is_pid_loaded
+)
+:is_pid_loaded
+if not defined PROCESS_PID exit /b 1
+powershell -NoProfile -Command "if(Get-Process -Id %PROCESS_PID% -ErrorAction SilentlyContinue){ exit 0 } else { exit 1 }" >nul 2>&1
+exit /b %errorlevel%
+
+:wait_for_api
+set "WAIT_URL=%~1"
+set "WAIT_SECONDS=%~2"
+if not defined WAIT_SECONDS set "WAIT_SECONDS=60"
+
+for /l %%I in (1,1,%WAIT_SECONDS%) do (
+    call :check_http_url "%WAIT_URL%" 2
+    if !errorlevel! EQU 0 exit /b 0
+    timeout /t 1 /nobreak >nul
+)
+exit /b 1
+
+:ensure_log_dir
+if not exist "%BACKEND_DIR%\logs\" mkdir "%BACKEND_DIR%\logs" >nul 2>&1
+exit /b 0
+
+:print_log_excerpt
+set "LOG_FILE=%~1"
+set "LOG_LINES=%~2"
+set "LOG_LABEL=%~3"
+if not defined LOG_LINES set "LOG_LINES=25"
+if not defined LOG_LABEL set "LOG_LABEL=Log"
+if not exist "%LOG_FILE%" (
+    echo [INFO] %LOG_LABEL% log file not found yet: %LOG_FILE%
+    exit /b 0
+)
+echo [INFO] Last %LOG_LINES% lines from %LOG_LABEL% log:
+powershell -NoProfile -Command "Get-Content -Path '%LOG_FILE%' -Tail %LOG_LINES% -ErrorAction SilentlyContinue"
+exit /b 0
+
+:wait_for_docker_health
+set "WAIT_SECONDS=%~1"
+if not defined WAIT_SECONDS set "WAIT_SECONDS=180"
+
+for /l %%I in (1,1,%WAIT_SECONDS%) do (
+    set "SERVICES_OK=1"
+    call :is_container_running "graphrag-neo4j"
+    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
+    call :is_container_running "graphrag-postgres"
+    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
+    call :is_container_running "graphrag-redis"
+    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
+    call :is_container_running "graphrag-rabbitmq"
+    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
+    call :check_http_url "http://localhost:8001/api/v1/heartbeat" 2
+    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
+    if "!SERVICES_OK!"=="1" exit /b 0
+    timeout /t 1 /nobreak >nul
+)
+exit /b 1
+
+:is_container_running
+set "CONTAINER_NAME=%~1"
+set "RUNNING_STATE="
+for /f "usebackq delims=" %%S in (`docker inspect -f "{{.State.Running}}" %CONTAINER_NAME% 2^>nul`) do set "RUNNING_STATE=%%S"
+if /i "%RUNNING_STATE%"=="true" exit /b 0
+exit /b 1
+
+:check_http_url
+set "CHECK_URL=%~1"
+set "CHECK_TIMEOUT=%~2"
+if not defined CHECK_TIMEOUT set "CHECK_TIMEOUT=2"
+where curl.exe >nul 2>&1
+if %errorlevel% EQU 0 (
+    curl.exe -fsS --max-time %CHECK_TIMEOUT% "%CHECK_URL%" >nul 2>&1
+    exit /b %errorlevel%
+)
+"%BACKEND_PYTHON%" -c "import sys,urllib.request;u=r'%CHECK_URL%';t=%CHECK_TIMEOUT%;exec('try:\\n r=urllib.request.urlopen(u,timeout=t);c=r.getcode();sys.exit(0 if 200<=c<300 else 1)\\nexcept Exception:\\n sys.exit(1)')" >nul 2>&1
+exit /b %errorlevel%
+
+:recover_docker_infra
+echo [INFO] Recovery step 1: restarting infrastructure containers...
+call %COMPOSE_CMD% down --remove-orphans
+call %COMPOSE_CMD% up -d --remove-orphans
+if errorlevel 1 exit /b 1
+call :wait_for_docker_health 90
+if !errorlevel! EQU 0 exit /b 0
+
+echo [WARNING] Recovery step 2: resetting Docker volumes for a clean state...
+echo [WARNING] This clears local Neo4j/Chroma/Redis/Postgres/RabbitMQ data.
+call %COMPOSE_CMD% down -v --remove-orphans
+call %COMPOSE_CMD% up -d --remove-orphans
+if errorlevel 1 exit /b 1
+call :wait_for_docker_health 180
+exit /b %errorlevel%
+
+:backend_deps_up_to_date
+if not exist "%BACKEND_DEPS_MARKER%" exit /b 1
+if not exist "%BACKEND_REQ%" exit /b 1
+powershell -NoProfile -Command "$m = Get-Item '%BACKEND_DEPS_MARKER%'; $r = Get-Item '%BACKEND_REQ%'; if($m.LastWriteTimeUtc -ge $r.LastWriteTimeUtc){ exit 0 } else { exit 1 }" >nul 2>&1
+exit /b %errorlevel%
+
+:fail
+echo.
+echo [ERROR] %~1
+echo.
+pause
+exit /b 1
