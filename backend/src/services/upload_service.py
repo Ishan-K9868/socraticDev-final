@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 from pathlib import Path
+import threading
 
 from ..models.base import UploadSession, Project, ParseResult
 from ..config.settings import settings
@@ -25,6 +26,56 @@ class UploadService:
     def __init__(self):
         """Initialize the upload service."""
         logger.info("Initialized Upload Service with file-based session storage")
+
+    def _has_active_celery_workers(self) -> bool:
+        """Return True when at least one Celery worker is reachable."""
+        try:
+            from ..celery_app import celery_app
+
+            inspector = celery_app.control.inspect(timeout=1)
+            ping_result = inspector.ping() if inspector else None
+            return bool(ping_result)
+        except Exception as e:
+            logger.warning(f"Could not inspect Celery workers: {e}")
+            return False
+
+    def _start_local_processing(
+        self,
+        session_id: str,
+        project_id: str,
+        project_name: str,
+        files: List[tuple],
+        user_id: str,
+    ) -> None:
+        """Fallback processing path when Celery workers are unavailable."""
+
+        def _runner():
+            try:
+                from ..tasks.upload_tasks import _process_project_upload_async
+
+                asyncio.run(
+                    _process_project_upload_async(
+                        session_id=session_id,
+                        project_id=project_id,
+                        project_name=project_name,
+                        files=files,
+                        user_id=user_id,
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Local upload processing failed for {session_id}: {e}", exc_info=True)
+                self.update_session_status(
+                    session_id=session_id,
+                    status="failed",
+                    errors=[f"Processing failed: {str(e)}"],
+                )
+
+        worker_thread = threading.Thread(
+            target=_runner,
+            daemon=True,
+            name=f"upload-local-{session_id}",
+        )
+        worker_thread.start()
     
     def _get_session_file(self, session_id: str) -> Path:
         """Get the file path for a session."""
@@ -126,16 +177,35 @@ class UploadService:
             # Reset file pointer
             file.file.seek(0)
         
-        # Trigger async processing
-        logger.info(f"Queueing Celery task for session {session_id}")
-        task = process_project_upload.delay(
-            session_id=session_id,
-            project_id=project_id,
-            project_name=project_name,
-            files=file_data,
-            user_id=user_id
-        )
-        logger.info(f"Celery task queued with ID: {task.id}")
+        # Trigger async processing, with local fallback when no worker is available.
+        queued_with_celery = False
+        if self._has_active_celery_workers():
+            try:
+                logger.info(f"Queueing Celery task for session {session_id}")
+                task = process_project_upload.delay(
+                    session_id=session_id,
+                    project_id=project_id,
+                    project_name=project_name,
+                    files=file_data,
+                    user_id=user_id
+                )
+                logger.info(f"Celery task queued with ID: {task.id}")
+                queued_with_celery = True
+            except Exception as e:
+                logger.warning(f"Celery dispatch failed for session {session_id}: {e}")
+
+        if not queued_with_celery:
+            logger.warning(
+                f"No active Celery worker for session {session_id}; using local background processing fallback"
+            )
+            self.update_session_status(session_id=session_id, status="processing", progress=0.0)
+            self._start_local_processing(
+                session_id=session_id,
+                project_id=project_id,
+                project_name=project_name,
+                files=file_data,
+                user_id=user_id,
+            )
         
         return session
     

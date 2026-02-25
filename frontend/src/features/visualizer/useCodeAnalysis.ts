@@ -1,84 +1,103 @@
 import { useState, useCallback } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CallGraph, ExecutionTrace, GraphNode, GraphEdge, ExecutionStep } from './types';
+import { graphragAPI } from '../../services/graphrag-api';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
+const DEFAULT_MAX_STEPS = 1000;
+const DEFAULT_TIMEOUT_MS = 3000;
 
-function getGenAI(): GoogleGenerativeAI {
-    if (!GEMINI_API_KEY) {
-        throw new Error('Gemini API key not configured');
-    }
-    return new GoogleGenerativeAI(GEMINI_API_KEY);
+function toPositiveInt(value: unknown, fallback = 1): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
-const CALL_GRAPH_PROMPT = `Analyze the following {language} code and extract its structure as a call graph.
-Return ONLY valid JSON with this exact structure:
-{
-  "nodes": [
-    {"id": "unique_id", "name": "function_or_class_name", "type": "function|class|method|variable", "line": 1}
-  ],
-  "edges": [
-    {"from": "caller_id", "to": "callee_id", "type": "calls|imports|extends|uses"}
-  ]
+function sanitizeGraph(raw: any): CallGraph {
+    const rawNodes = Array.isArray(raw?.nodes) ? raw.nodes : [];
+    const rawEdges = Array.isArray(raw?.edges) ? raw.edges : [];
+
+    const validTypes = new Set(['function', 'class', 'method', 'variable', 'module']);
+    const nodes: GraphNode[] = [];
+    const seen = new Set<string>();
+
+    for (const item of rawNodes) {
+        const id = typeof item?.id === 'string' ? item.id.trim() : '';
+        const name = typeof item?.name === 'string' ? item.name.trim() : '';
+        if (!id || !name || seen.has(id)) continue;
+
+        const type = typeof item?.type === 'string' && validTypes.has(item.type) ? item.type : 'function';
+        nodes.push({
+            id,
+            name,
+            type,
+            line: toPositiveInt(item?.line, 1),
+        });
+        seen.add(id);
+    }
+
+    const validEdgeTypes = new Set(['calls', 'imports', 'extends', 'uses']);
+    const edges: GraphEdge[] = [];
+    for (const item of rawEdges) {
+        const from = typeof item?.from === 'string' ? item.from.trim() : '';
+        const to = typeof item?.to === 'string' ? item.to.trim() : '';
+        if (!from || !to || !seen.has(from) || !seen.has(to)) continue;
+        const type = typeof item?.type === 'string' && validEdgeTypes.has(item.type) ? item.type : 'calls';
+        edges.push({ from, to, type });
+    }
+
+    const meta = raw?.meta && typeof raw.meta === 'object'
+        ? {
+            engine: String(raw.meta.engine || 'python_deterministic'),
+            truncated: Boolean(raw.meta.truncated),
+            limits: {
+                max_steps: toPositiveInt(raw.meta?.limits?.max_steps, DEFAULT_MAX_STEPS),
+                timeout_ms: toPositiveInt(raw.meta?.limits?.timeout_ms, DEFAULT_TIMEOUT_MS),
+            },
+            duration_ms: Math.max(0, Number(raw.meta.duration_ms) || 0),
+        }
+        : undefined;
+
+    return { nodes, edges, meta };
 }
 
-Rules:
-- Include all functions, classes, and methods
-- Create edges for function calls, imports, and class inheritance
-- Use unique IDs based on the name
-- Include the starting line number for each node
+function sanitizeTrace(raw: any): ExecutionTrace {
+    const rawSteps = Array.isArray(raw?.steps) ? raw.steps : [];
+    const validActions = new Set(['execute', 'call', 'return', 'assign', 'condition', 'loop']);
 
-Code:
-\`\`\`{language}
-{code}
-\`\`\``;
+    const steps: ExecutionStep[] = rawSteps
+        .map((item: any) => {
+            const line = toPositiveInt(item?.line, 0);
+            const description = typeof item?.description === 'string' ? item.description.trim() : '';
+            if (!line || !description) return null;
 
-const EXECUTION_TRACE_PROMPT = `Trace the step-by-step execution of this {language} code.
-Return ONLY valid JSON with this exact structure:
-{
-  "steps": [
-    {
-      "line": 1,
-      "action": "execute|call|return|assign|condition|loop",
-      "description": "Brief explanation of what happens",
-      "variables": {"var_name": "value"},
-      "callStack": ["function_names"],
-      "output": "any printed output"
-    }
-  ],
-  "finalOutput": "complete program output"
-}
+            const action = typeof item?.action === 'string' && validActions.has(item.action)
+                ? item.action
+                : 'execute';
 
-Rules:
-- Trace every significant step
-- Show variable values at each step
-- Track the call stack for function calls
-- Include any console/print output
-- Maximum 50 steps for complex code
+            const variables = item?.variables && typeof item.variables === 'object' ? item.variables : {};
+            const callStack = Array.isArray(item?.callStack) ? item.callStack.map((v: unknown) => String(v)) : [];
+            const output = item?.output == null ? undefined : String(item.output);
 
-Code:
-\`\`\`{language}
-{code}
-\`\`\``;
+            return { line, action, description, variables, callStack, output } as ExecutionStep;
+        })
+        .filter((s: ExecutionStep | null): s is ExecutionStep => s !== null);
 
-function parseJSONSafely<T>(text: string): T | null {
-    try {
-        // Try to extract JSON from markdown code blocks
-        const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-        const jsonStr = jsonMatch ? jsonMatch[1] : text;
+    const meta = raw?.meta && typeof raw.meta === 'object'
+        ? {
+            engine: String(raw.meta.engine || 'python_deterministic'),
+            truncated: Boolean(raw.meta.truncated),
+            limits: {
+                max_steps: toPositiveInt(raw.meta?.limits?.max_steps, DEFAULT_MAX_STEPS),
+                timeout_ms: toPositiveInt(raw.meta?.limits?.timeout_ms, DEFAULT_TIMEOUT_MS),
+            },
+            duration_ms: Math.max(0, Number(raw.meta.duration_ms) || 0),
+        }
+        : undefined;
 
-        // Clean up common issues
-        const cleaned = jsonStr
-            .replace(/,\s*}/g, '}')
-            .replace(/,\s*]/g, ']')
-            .trim();
-
-        return JSON.parse(cleaned);
-    } catch (e) {
-        console.error('JSON parse error:', e);
-        return null;
-    }
+    return {
+        steps,
+        finalOutput: typeof raw?.finalOutput === 'string' ? raw.finalOutput : '',
+        error: typeof raw?.error === 'string' ? raw.error : undefined,
+        meta,
+    };
 }
 
 export function useCodeAnalysis() {
@@ -86,6 +105,7 @@ export function useCodeAnalysis() {
     const [callGraph, setCallGraph] = useState<CallGraph | null>(null);
     const [executionTrace, setExecutionTrace] = useState<ExecutionTrace | null>(null);
     const [error, setError] = useState<string | null>(null);
+    let requestSeq = 0;
 
     const analyzeCallGraph = useCallback(async (code: string, language: string): Promise<CallGraph | null> => {
         if (!code.trim()) {
@@ -95,44 +115,40 @@ export function useCodeAnalysis() {
 
         setIsAnalyzing(true);
         setError(null);
+        const reqId = ++requestSeq;
 
         try {
-            const genAI = getGenAI();
-            const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+            const raw = await graphragAPI.analyzeVisualizer({
+                mode: 'graph',
+                code,
+                language,
+                max_steps: DEFAULT_MAX_STEPS,
+                timeout_ms: DEFAULT_TIMEOUT_MS,
+            });
+            if (reqId !== requestSeq) return null;
 
-            const prompt = CALL_GRAPH_PROMPT
-                .replace(/{language}/g, language)
-                .replace(/{code}/g, code);
-
-            const result = await model.generateContent(prompt);
-            const response = result.response.text();
-
-            const graph = parseJSONSafely<CallGraph>(response);
-
-            if (!graph || !graph.nodes || !graph.edges) {
-                throw new Error('Invalid response format');
+            const graph = sanitizeGraph(raw);
+            if (!graph.nodes.length && !graph.edges.length) {
+                throw new Error('Analyzer returned empty graph');
             }
 
-            // Validate and clean the graph
-            const validNodes = graph.nodes.filter((n: GraphNode) => n.id && n.name);
-            const nodeIds = new Set(validNodes.map((n: GraphNode) => n.id));
-            const validEdges = graph.edges.filter((e: GraphEdge) =>
-                nodeIds.has(e.from) && nodeIds.has(e.to)
-            );
-
-            const cleanGraph: CallGraph = {
-                nodes: validNodes,
-                edges: validEdges
-            };
-
-            setCallGraph(cleanGraph);
-            return cleanGraph;
+            setCallGraph(graph);
+            return graph;
         } catch (e) {
-            const errorMsg = e instanceof Error ? e.message : 'Failed to analyze code';
-            setError(errorMsg);
+            if (reqId === requestSeq) {
+                const rawMsg = e instanceof Error ? e.message : 'Failed to analyze code';
+                const errorMsg = rawMsg.includes('Tried analyzer endpoints')
+                    ? rawMsg
+                    : rawMsg.includes('404')
+                    ? 'Analyzer endpoint not found (404). Restart backend to load /api/visualization/analyze.'
+                    : rawMsg;
+                setError(errorMsg);
+            }
             return null;
         } finally {
-            setIsAnalyzing(false);
+            if (reqId === requestSeq) {
+                setIsAnalyzing(false);
+            }
         }
     }, []);
 
@@ -144,49 +160,49 @@ export function useCodeAnalysis() {
 
         setIsAnalyzing(true);
         setError(null);
+        const reqId = ++requestSeq;
 
         try {
-            const genAI = getGenAI();
-            const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+            const raw = await graphragAPI.analyzeVisualizer({
+                mode: 'execution',
+                code,
+                language,
+                max_steps: DEFAULT_MAX_STEPS,
+                timeout_ms: DEFAULT_TIMEOUT_MS,
+            });
+            if (reqId !== requestSeq) return null;
 
-            const prompt = EXECUTION_TRACE_PROMPT
-                .replace(/{language}/g, language)
-                .replace(/{code}/g, code);
-
-            const result = await model.generateContent(prompt);
-            const response = result.response.text();
-
-            const trace = parseJSONSafely<ExecutionTrace>(response);
-
-            if (!trace || !trace.steps) {
-                throw new Error('Invalid response format');
+            const trace = sanitizeTrace(raw);
+            if (!trace.steps.length) {
+                throw new Error('Analyzer returned empty execution trace');
             }
 
-            // Validate steps
-            const validSteps = trace.steps.filter((s: ExecutionStep) =>
-                typeof s.line === 'number' && s.action && s.description
-            );
-
-            const cleanTrace: ExecutionTrace = {
-                steps: validSteps,
-                finalOutput: trace.finalOutput || ''
-            };
-
-            setExecutionTrace(cleanTrace);
-            return cleanTrace;
+            setExecutionTrace(trace);
+            return trace;
         } catch (e) {
-            const errorMsg = e instanceof Error ? e.message : 'Failed to trace execution';
-            setError(errorMsg);
+            if (reqId === requestSeq) {
+                const rawMsg = e instanceof Error ? e.message : 'Failed to trace execution';
+                const errorMsg = rawMsg.includes('Tried analyzer endpoints')
+                    ? rawMsg
+                    : rawMsg.includes('404')
+                    ? 'Analyzer endpoint not found (404). Restart backend to load /api/visualization/analyze.'
+                    : rawMsg;
+                setError(errorMsg);
+            }
             return null;
         } finally {
-            setIsAnalyzing(false);
+            if (reqId === requestSeq) {
+                setIsAnalyzing(false);
+            }
         }
     }, []);
 
     const reset = useCallback(() => {
+        requestSeq += 1;
         setCallGraph(null);
         setExecutionTrace(null);
         setError(null);
+        setIsAnalyzing(false);
     }, []);
 
     return {
@@ -196,6 +212,6 @@ export function useCodeAnalysis() {
         error,
         analyzeCallGraph,
         analyzeExecution,
-        reset
+        reset,
     };
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import ReactFlow, {
     Node,
     Edge,
@@ -141,8 +141,13 @@ function CallGraphView({ graph }: CallGraphViewProps) {
         return { nodes, edges };
     }, [graph]);
 
-    const [nodes, , onNodesChange] = useNodesState(flowNodes);
-    const [edges, , onEdgesChange] = useEdgesState(flowEdges);
+    const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges);
+
+    useEffect(() => {
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+    }, [flowNodes, flowEdges, setNodes, setEdges]);
 
     if (!graph.nodes.length) {
         return (

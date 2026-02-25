@@ -5,10 +5,11 @@ coordinating operations across Graph Service and Vector Service.
 """
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 
 from ..models.base import CodeEntity, EntityType, RelationshipType
+from ..config import settings
 from .graph_service import GraphService
 from .vector_service import VectorService
 from .cache_service import CacheService
@@ -51,7 +52,8 @@ class GraphVisualizationData:
     """Data for graph visualization."""
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
-    stats: Dict[str, int]
+    stats: Dict[str, Any]
+    coverage: Dict[str, int]
 
 
 @dataclass
@@ -60,7 +62,11 @@ class GraphFilters:
     entity_types: Optional[List[EntityType]] = None
     languages: Optional[List[str]] = None
     file_patterns: Optional[List[str]] = None
+    view_mode: str = settings.graph_view_mode_default
+    include_external: bool = settings.graph_include_external_default
+    include_isolated: bool = settings.graph_include_isolated_default
     max_nodes: int = 500
+    max_edges: int = 2000
 
 
 class QueryService:
@@ -354,182 +360,292 @@ class QueryService:
             GraphVisualizationData with nodes and edges
         """
         logger.info(f"Getting graph visualization for project: {project_id}")
-        
+
         if filters is None:
             filters = GraphFilters()
-        
+
         try:
-            # Build Cypher query with filters
-            query = self._build_visualization_query(project_id, filters)
-            
-            # Execute query using the graph service's neo4j manager
-            result = await self.graph_service.neo4j.execute_with_retry(query)
-            
-            nodes = []
-            edges = []
-            node_ids = set()
-            
-            for record in result:
-                # Extract nodes
-                if 'source' in record:
-                    source_node = record['source']
-                    source_labels = record.get('source_labels', [])
-                    source_id = source_node['id']
-                    
-                    if source_id not in node_ids:
-                        nodes.append(self._node_to_viz_format(source_node, source_labels))
-                        node_ids.add(source_id)
-                
-                if 'target' in record:
-                    target_node = record['target']
-                    target_labels = record.get('target_labels', [])
-                    target_id = target_node['id']
-                    
-                    if target_id not in node_ids:
-                        nodes.append(self._node_to_viz_format(target_node, target_labels))
-                        node_ids.add(target_id)
-                
-                # Extract edges
-                if 'relationship' in record:
-                    rel = record['relationship']
-                    edges.append({
-                        'id': f"{source_id}-{target_id}",
-                        'source': source_id,
-                        'target': target_id,
-                        'type': rel['type'],
-                        'label': rel['type']
-                    })
-            
-            # Limit nodes if necessary
-            if len(nodes) > filters.max_nodes:
-                logger.warning(
-                    f"Graph has {len(nodes)} nodes, limiting to {filters.max_nodes}"
-                )
-                nodes = nodes[:filters.max_nodes]
-                # Filter edges to only include edges between included nodes
-                included_node_ids = {n['id'] for n in nodes}
-                edges = [
-                    e for e in edges
-                    if e['source'] in included_node_ids and e['target'] in included_node_ids
-                ]
-            
-            # Calculate stats
+            if filters.view_mode == "symbol":
+                nodes, edges = await self._get_symbol_graph(project_id, filters)
+            else:
+                nodes, edges = await self._get_file_graph(project_id, filters)
+
+            raw_node_count = len(nodes)
+            raw_edge_count = len(edges)
+            nodes, edges, truncated = self._apply_limits(nodes, edges, filters)
+
+            edge_type_counts: Dict[str, int] = {}
+            for edge in edges:
+                edge_type = edge.get("type", "UNKNOWN")
+                edge_type_counts[edge_type] = edge_type_counts.get(edge_type, 0) + 1
+
             stats = {
-                'total_nodes': len(nodes),
-                'total_edges': len(edges),
-                'functions': sum(1 for n in nodes if n['type'] == 'FUNCTION'),
-                'classes': sum(1 for n in nodes if n['type'] == 'CLASS'),
-                'files': len(set(n['file_path'] for n in nodes))
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+                "files": sum(1 for n in nodes if n["type"] == "FILE"),
+                "functions": sum(1 for n in nodes if n["type"] == "FUNCTION"),
+                "classes": sum(1 for n in nodes if n["type"] == "CLASS"),
+                "imports": sum(1 for n in nodes if n["type"] == "IMPORT"),
+                "external_nodes": sum(1 for n in nodes if n["type"] == "EXTERNAL_MODULE"),
+                "edge_types": edge_type_counts,
+                "truncated": truncated,
+                "raw_nodes": raw_node_count,
+                "raw_edges": raw_edge_count,
             }
-            
-            viz_data = GraphVisualizationData(
-                nodes=nodes,
-                edges=edges,
-                stats=stats
-            )
-            
+
+            coverage = await self._get_graph_coverage(project_id, len(nodes), len(edges), filters.include_external)
+
+            viz_data = GraphVisualizationData(nodes=nodes, edges=edges, stats=stats, coverage=coverage)
             logger.info(
-                f"Graph visualization: {stats['total_nodes']} nodes, "
-                f"{stats['total_edges']} edges"
+                "Graph visualization generated",
+                extra={
+                    "project_id": project_id,
+                    "view_mode": filters.view_mode,
+                    "nodes": len(nodes),
+                    "edges": len(edges),
+                    "truncated": truncated,
+                },
             )
             return viz_data
-            
         except Exception as e:
             logger.error(f"Failed to get graph visualization: {e}")
             raise
-    
-    def _build_visualization_query(
+
+    async def _get_graph_coverage(
         self,
         project_id: str,
-        filters: GraphFilters
-    ) -> str:
-        """Build Cypher query for graph visualization with filters.
-        
-        Args:
-            project_id: Project identifier
-            filters: Filters to apply
-            
-        Returns:
-            Cypher query string
+        entities_in_graph: int,
+        relationships_in_graph: int,
+        include_external: bool,
+    ) -> Dict[str, int]:
+        """Return project-level counts alongside current graph counts."""
+        entities_query = """
+        MATCH (n)
+        WHERE n.project_id = $project_id
+        RETURN count(n) AS count
         """
-        # Base query - match entities and their relationships
-        query = f"""
-        MATCH (source)-[relationship]->(target)
-        WHERE source.project_id = '{project_id}' AND target.project_id = '{project_id}'
+        relationships_query = """
+        MATCH (s)-[r]->(t)
+        WHERE s.project_id = $project_id
+          AND (t.project_id = $project_id OR ($include_external AND t:ExternalModule))
+        RETURN count(r) AS count
         """
-        
-        # Add filters
-        where_clauses = []
-        
-        if filters.entity_types:
-            # Use labels instead of entity_type property
-            label_conditions = []
-            for entity_type in filters.entity_types:
-                if entity_type == EntityType.FILE:
-                    label_conditions.append("source:File OR target:File")
-                elif entity_type == EntityType.FUNCTION:
-                    label_conditions.append("source:Function OR target:Function")
-                elif entity_type == EntityType.CLASS:
-                    label_conditions.append("source:Class OR target:Class")
-                elif entity_type == EntityType.VARIABLE:
-                    label_conditions.append("source:Variable OR target:Variable")
-                elif entity_type == EntityType.IMPORT:
-                    label_conditions.append("source:Import OR target:Import")
-            
-            if label_conditions:
-                where_clauses.append(f"({' OR '.join(label_conditions)})")
-        
-        if filters.languages:
-            langs_str = ', '.join(f"'{lang}'" for lang in filters.languages)
-            where_clauses.append(f"source.language IN [{langs_str}]")
-        
-        if filters.file_patterns:
-            # Simple pattern matching (contains)
-            pattern_clauses = []
-            for pattern in filters.file_patterns:
-                pattern_clauses.append(f"source.file_path CONTAINS '{pattern}'")
-            where_clauses.append(f"({' OR '.join(pattern_clauses)})")
-        
-        if where_clauses:
-            query += " AND " + " AND ".join(where_clauses)
-        
-        # Return nodes and relationship data as maps, including labels
-        query += f"""
-        RETURN properties(source) AS source, 
-               labels(source) AS source_labels,
-               {{type: type(relationship)}} AS relationship, 
-               properties(target) AS target,
-               labels(target) AS target_labels
-        LIMIT {filters.max_nodes * 2}
-        """
-        
-        return query
-    
-    def _node_to_viz_format(self, node: Dict[str, Any], labels: List[str]) -> Dict[str, Any]:
-        """Convert Neo4j node to visualization format.
-        
-        Args:
-            node: Neo4j node properties as dictionary
-            labels: Node labels from Neo4j
-            
-        Returns:
-            Dictionary with node data for visualization
-        """
-        # Determine entity type from labels
-        entity_type = 'FUNCTION'  # default
-        for label in labels:
-            if label in ['File', 'Function', 'Class', 'Variable', 'Import', 'ExternalModule']:
-                entity_type = label.upper()
-                break
-        
+
+        entity_result = await self.graph_service.neo4j.execute_with_retry(
+            entities_query, {"project_id": project_id}
+        )
+        relationship_result = await self.graph_service.neo4j.execute_with_retry(
+            relationships_query, {"project_id": project_id, "include_external": include_external}
+        )
+
         return {
-            'id': node.get('id', ''),
-            'label': node.get('name', ''),
-            'type': entity_type,
-            'file_path': node.get('file_path', ''),
-            'start_line': node.get('start_line'),
-            'end_line': node.get('end_line'),
-            'language': node.get('language')
+            "entities_in_project": int(entity_result[0]["count"]) if entity_result else 0,
+            "entities_in_graph": entities_in_graph,
+            "relationships_in_project": int(relationship_result[0]["count"]) if relationship_result else 0,
+            "relationships_in_graph": relationships_in_graph,
+        }
+
+    async def _get_file_graph(
+        self,
+        project_id: str,
+        filters: GraphFilters,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Build a file-centric dependency graph."""
+        nodes_query = """
+        MATCH (n:File)
+        WHERE n.project_id = $project_id
+        RETURN properties(n) AS node, labels(n) AS labels
+        ORDER BY n.file_path, n.name
+        """
+        edges_query = """
+        MATCH (s:File {project_id: $project_id})-[r:IMPORTS]->(t)
+        WHERE (t:File AND t.project_id = $project_id)
+           OR ($include_external AND t:ExternalModule)
+        RETURN properties(s) AS source,
+               labels(s) AS source_labels,
+               type(r) AS rel_type,
+               properties(t) AS target,
+               labels(t) AS target_labels
+        ORDER BY source.id, target.id
+        """
+
+        node_records = await self.graph_service.neo4j.execute_with_retry(
+            nodes_query, {"project_id": project_id}
+        )
+        edge_records = await self.graph_service.neo4j.execute_with_retry(
+            edges_query, {"project_id": project_id, "include_external": filters.include_external}
+        )
+
+        nodes: Dict[str, Dict[str, Any]] = {}
+        edges: List[Dict[str, Any]] = []
+        connected_ids = set()
+
+        for record in node_records:
+            node = self._node_to_viz_format(record["node"], record["labels"])
+            nodes[node["id"]] = node
+
+        for record in edge_records:
+            source = self._node_to_viz_format(record["source"], record["source_labels"])
+            target = self._node_to_viz_format(record["target"], record["target_labels"])
+            if source["id"] not in nodes:
+                nodes[source["id"]] = source
+            if target["id"] not in nodes:
+                nodes[target["id"]] = target
+
+            connected_ids.add(source["id"])
+            connected_ids.add(target["id"])
+            edges.append(
+                {
+                    "id": f"{source['id']}-{target['id']}-{record['rel_type']}",
+                    "source": source["id"],
+                    "target": target["id"],
+                    "type": record["rel_type"],
+                    "label": record["rel_type"],
+                }
+            )
+
+        final_nodes = list(nodes.values())
+        if not filters.include_isolated:
+            final_nodes = [node for node in final_nodes if node["id"] in connected_ids]
+
+        final_nodes.sort(key=lambda n: (n.get("file_path", ""), n.get("label", ""), n.get("id", "")))
+        return final_nodes, edges
+
+    async def _get_symbol_graph(
+        self,
+        project_id: str,
+        filters: GraphFilters,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Build a symbol-level graph with optional external modules."""
+        node_conditions = ["n.project_id = $project_id"]
+        edge_target_condition = "(t.project_id = $project_id OR ($include_external AND t:ExternalModule))"
+        params: Dict[str, Any] = {"project_id": project_id, "include_external": filters.include_external}
+
+        if filters.entity_types:
+            label_map = {
+                EntityType.FILE: "File",
+                EntityType.FUNCTION: "Function",
+                EntityType.CLASS: "Class",
+                EntityType.VARIABLE: "Variable",
+                EntityType.IMPORT: "Import",
+            }
+            labels = [label_map[entity_type] for entity_type in filters.entity_types if entity_type in label_map]
+            if labels:
+                node_conditions.append("ANY(label IN labels(n) WHERE label IN $entity_labels)")
+                params["entity_labels"] = labels
+
+        if filters.languages:
+            node_conditions.append("n.language IN $languages")
+            params["languages"] = filters.languages
+
+        if filters.file_patterns:
+            node_conditions.append("ANY(pattern IN $file_patterns WHERE n.file_path CONTAINS pattern)")
+            params["file_patterns"] = filters.file_patterns
+
+        nodes_query = f"""
+        MATCH (n)
+        WHERE {' AND '.join(node_conditions)}
+        RETURN properties(n) AS node, labels(n) AS labels
+        ORDER BY n.file_path, n.name
+        """
+
+        edges_query = f"""
+        MATCH (s)-[r]->(t)
+        WHERE s.project_id = $project_id AND {edge_target_condition}
+        RETURN properties(s) AS source,
+               labels(s) AS source_labels,
+               type(r) AS rel_type,
+               properties(t) AS target,
+               labels(t) AS target_labels
+        ORDER BY source.id, target.id, rel_type
+        """
+
+        node_records = await self.graph_service.neo4j.execute_with_retry(nodes_query, params)
+        edge_records = await self.graph_service.neo4j.execute_with_retry(edges_query, params)
+
+        nodes: Dict[str, Dict[str, Any]] = {}
+        edges: List[Dict[str, Any]] = []
+        connected_ids = set()
+
+        for record in node_records:
+            node = self._node_to_viz_format(record["node"], record["labels"])
+            nodes[node["id"]] = node
+
+        for record in edge_records:
+            source = self._node_to_viz_format(record["source"], record["source_labels"])
+            target = self._node_to_viz_format(record["target"], record["target_labels"])
+            if source["id"] not in nodes:
+                nodes[source["id"]] = source
+            if target["id"] not in nodes:
+                nodes[target["id"]] = target
+
+            connected_ids.add(source["id"])
+            connected_ids.add(target["id"])
+            edges.append(
+                {
+                    "id": f"{source['id']}-{target['id']}-{record['rel_type']}",
+                    "source": source["id"],
+                    "target": target["id"],
+                    "type": record["rel_type"],
+                    "label": record["rel_type"],
+                }
+            )
+
+        final_nodes = list(nodes.values())
+        if not filters.include_isolated:
+            final_nodes = [node for node in final_nodes if node["id"] in connected_ids]
+
+        final_nodes.sort(key=lambda n: (n.get("type", ""), n.get("label", ""), n.get("id", "")))
+        return final_nodes, edges
+
+    def _apply_limits(
+        self,
+        nodes: List[Dict[str, Any]],
+        edges: List[Dict[str, Any]],
+        filters: GraphFilters,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], bool]:
+        """Apply deterministic node/edge limits and return truncation state."""
+        truncated = False
+        ordered_nodes = sorted(nodes, key=lambda n: (n.get("type", ""), n.get("label", ""), n.get("id", "")))
+        ordered_edges = sorted(edges, key=lambda e: (e["source"], e["target"], e["type"]))
+
+        if len(ordered_nodes) > filters.max_nodes:
+            ordered_nodes = ordered_nodes[: filters.max_nodes]
+            truncated = True
+
+        node_ids = {node["id"] for node in ordered_nodes}
+        ordered_edges = [edge for edge in ordered_edges if edge["source"] in node_ids and edge["target"] in node_ids]
+
+        if len(ordered_edges) > filters.max_edges:
+            ordered_edges = ordered_edges[: filters.max_edges]
+            truncated = True
+
+        return ordered_nodes, ordered_edges, truncated
+
+    def _node_to_viz_format(self, node: Dict[str, Any], labels: List[str]) -> Dict[str, Any]:
+        """Convert Neo4j node properties to visualization format."""
+        entity_type = "FUNCTION"
+        label_to_type = {
+            "File": "FILE",
+            "Function": "FUNCTION",
+            "Class": "CLASS",
+            "Variable": "VARIABLE",
+            "Import": "IMPORT",
+            "ExternalModule": "EXTERNAL_MODULE",
+        }
+        for label in labels:
+            if label in label_to_type:
+                entity_type = label_to_type[label]
+                break
+
+        return {
+            "id": node.get("id", ""),
+            "label": node.get("name", node.get("id", "")),
+            "type": entity_type,
+            "file_path": node.get("file_path", ""),
+            "start_line": node.get("start_line"),
+            "end_line": node.get("end_line"),
+            "language": node.get("language"),
         }
     
     async def _get_entity_by_id(

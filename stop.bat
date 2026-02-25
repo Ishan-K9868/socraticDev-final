@@ -5,6 +5,7 @@ REM GraphRAG/SocraticDev stop script for Windows
 set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 set "BACKEND_DIR=%ROOT_DIR%\backend"
+set "API_PORT=8002"
 set "COMPOSE_CMD="
 
 echo ========================================
@@ -27,6 +28,12 @@ if !errorlevel! EQU 0 (
 echo Stopping backend Python workers...
 powershell -NoProfile -Command "$root = [regex]::Escape('%BACKEND_DIR%'); $p = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match $root -and ( $_.CommandLine -match 'uvicorn\s+src\.main:app' -or $_.CommandLine -match 'celery(\.exe)?\s+-A\s+src\.celery_app\s+worker' ) }; if($p){ $p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
 echo [OK] Backend Python workers stopped
+
+echo Clearing any remaining listeners on port %API_PORT%...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
+    taskkill /PID %%P /T /F >nul 2>&1
+)
+echo [OK] Port %API_PORT% cleanup attempted
 
 if defined COMPOSE_CMD (
     echo Stopping Docker services...

@@ -10,7 +10,7 @@ type ViewMode = 'graph' | 'execution';
 
 function CodeVisualizer() {
     const [code, setCode] = useState('');
-    const [language, setLanguage] = useState('python');
+    const language = 'python';
     const [viewMode, setViewMode] = useState<ViewMode>('graph');
 
     const {
@@ -36,9 +36,10 @@ function CodeVisualizer() {
         reset();
     };
 
+    const activeMeta = viewMode === 'graph' ? callGraph?.meta : executionTrace?.meta;
+
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex flex-col">
-            {/* Header */}
             <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]">
                 <div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -52,17 +53,20 @@ function CodeVisualizer() {
                         </Link>
                         <div>
                             <h1 className="text-xl font-display font-bold flex items-center gap-2">
-                                <span className="text-2xl">🔍</span>
+                                <span className="text-primary-400">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.85-4.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </span>
                                 Code Visualizer
                             </h1>
                             <p className="text-sm text-[color:var(--color-text-muted)]">
-                                Visualize code structure and trace execution step-by-step
+                                Deterministic Python call graph and execution tracing
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {/* View Mode Toggle */}
                         <div className="flex items-center bg-[color:var(--color-bg-muted)] rounded-lg p-1">
                             <button
                                 onClick={() => setViewMode('graph')}
@@ -100,7 +104,30 @@ function CodeVisualizer() {
                 </div>
             </header>
 
-            {/* Error Banner */}
+            <div className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/70 px-6 py-2">
+                <div className="max-w-[1800px] mx-auto flex items-center justify-end">
+                    {isAnalyzing ? (
+                        <span className="px-3 py-1 rounded-full border border-primary-500/40 bg-primary-500/10 text-primary-300 text-xs font-medium">
+                            Analyzer running...
+                        </span>
+                    ) : activeMeta ? (
+                        <span
+                            className={`px-3 py-1 rounded-full border text-xs font-medium ${activeMeta.truncated
+                                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                }`}
+                            title={`Limits: max_steps ${activeMeta.limits.max_steps}, timeout ${activeMeta.limits.timeout_ms}ms`}
+                        >
+                            {activeMeta.engine} | {activeMeta.duration_ms}ms | {activeMeta.truncated ? 'truncated' : 'complete'}
+                        </span>
+                    ) : (
+                        <span className="px-3 py-1 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-muted)] text-[color:var(--color-text-muted)] text-xs">
+                            No analysis run yet
+                        </span>
+                    )}
+                </div>
+            </div>
+
             {error && (
                 <div className="bg-red-500/10 border-b border-red-500/30 px-6 py-3">
                     <div className="max-w-[1800px] mx-auto flex items-center gap-2 text-red-400">
@@ -112,21 +139,17 @@ function CodeVisualizer() {
                 </div>
             )}
 
-            {/* Main Content */}
             <div className="flex-1 flex min-h-0">
-                {/* Left Panel - Code Input */}
                 <div className="w-1/2 border-r border-[color:var(--color-border)] flex flex-col">
                     <CodeInputPanel
                         code={code}
                         language={language}
                         onCodeChange={handleCodeChange}
-                        onLanguageChange={setLanguage}
                         onAnalyze={handleAnalyze}
                         isAnalyzing={isAnalyzing}
                     />
                 </div>
 
-                {/* Right Panel - Visualization */}
                 <div className="w-1/2 flex flex-col bg-[color:var(--color-bg-secondary)]">
                     {viewMode === 'graph' ? (
                         <CallGraphView graph={callGraph || { nodes: [], edges: [] }} />
@@ -139,17 +162,16 @@ function CodeVisualizer() {
                 </div>
             </div>
 
-            {/* Footer info */}
             <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] px-6 py-3">
                 <div className="max-w-[1800px] mx-auto flex items-center justify-between text-sm text-[color:var(--color-text-muted)]">
                     <div className="flex items-center gap-4">
-                        <span>Powered by Gemini AI</span>
-                        <span>•</span>
-                        <span>Supports Python, JavaScript, TypeScript, Java, C++</span>
+                        <span>Server-side deterministic analyzer</span>
+                        <span>|</span>
+                        <span>Python-only v1</span>
                     </div>
                     <div>
                         <Link to="/dojo" className="hover:text-primary-400 transition-colors">
-                            Practice in The Dojo →
+                            Practice in The Dojo -&gt;
                         </Link>
                     </div>
                 </div>

@@ -1,9 +1,35 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
+
+function trimTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
+function buildAnalyzerBaseCandidates(primaryBaseUrl: string): string[] {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string) => {
+    const normalized = trimTrailingSlash(value);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  push(primaryBaseUrl);
+
+  const hostname =
+    typeof window !== 'undefined' && window.location?.hostname
+      ? window.location.hostname
+      : 'localhost';
+  push(`http://${hostname}:8002`);
+  push(`http://${hostname}:8000`);
+
+  return candidates;
+}
 
 // Types
 export interface UploadProjectRequest {
@@ -22,6 +48,7 @@ export interface UploadStatusResponse {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
   message?: string;
+  errors?: string[];
   statistics?: {
     file_count: number;
     entity_count: number;
@@ -62,7 +89,19 @@ export interface GraphVisualizationRequest {
   entity_types?: string[];
   languages?: string[];
   file_patterns?: string[];
+  view_mode?: 'file' | 'symbol';
+  include_external?: boolean;
+  include_isolated?: boolean;
   max_nodes?: number;
+  max_edges?: number;
+}
+
+export interface VisualizerAnalyzeRequest {
+  mode: 'graph' | 'execution';
+  code: string;
+  language: string;
+  max_steps?: number;
+  timeout_ms?: number;
 }
 
 export interface Project {
@@ -105,6 +144,25 @@ export interface GraphEdge {
 export interface GraphVisualizationResponse {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  stats?: {
+    total_nodes: number;
+    total_edges: number;
+    files: number;
+    functions: number;
+    classes: number;
+    imports: number;
+    external_nodes: number;
+    truncated: boolean;
+    edge_types?: Record<string, number>;
+    raw_nodes?: number;
+    raw_edges?: number;
+  };
+  coverage?: {
+    entities_in_project: number;
+    entities_in_graph: number;
+    relationships_in_project: number;
+    relationships_in_graph: number;
+  };
 }
 
 export interface ContextResponse {
@@ -121,6 +179,7 @@ export interface ContextResponse {
 class GraphRAGAPIClient {
   private client: AxiosInstance;
   private authToken: string | null = null;
+  private analyzerBaseOverride: string | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -210,7 +269,14 @@ class GraphRAGAPIClient {
   }
 
   async uploadFromGithub(request: UploadGithubRequest): Promise<{ session_id: string; project_id: string }> {
-    const response = await this.client.post('/api/upload/github', request);
+    const formData = new FormData();
+    formData.append('github_url', request.githubUrl);
+    formData.append('project_name', request.projectName);
+    const response = await this.client.post('/api/upload/github', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 
@@ -269,6 +335,35 @@ class GraphRAGAPIClient {
   async getGraphVisualization(request: GraphVisualizationRequest): Promise<GraphVisualizationResponse> {
     const response = await this.client.post('/api/visualization/graph', request);
     return response.data;
+  }
+
+  async analyzeVisualizer(request: VisualizerAnalyzeRequest): Promise<any> {
+    const candidates = buildAnalyzerBaseCandidates(API_BASE_URL);
+    const orderedCandidates = this.analyzerBaseOverride
+      ? [this.analyzerBaseOverride, ...candidates.filter((base) => base !== this.analyzerBaseOverride)]
+      : candidates;
+
+    let lastError: unknown = null;
+    for (const base of orderedCandidates) {
+      try {
+        const response = await this.client.post(`${base}/api/visualization/analyze`, request);
+        this.analyzerBaseOverride = base;
+        return response.data;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        const is404 = msg.includes('(404)') || msg.includes('404');
+        lastError = error;
+        if (is404) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (lastError instanceof Error) {
+      throw new Error(`${lastError.message}. Tried analyzer endpoints: ${orderedCandidates.join(', ')}`);
+    }
+    throw new Error(`Analyzer request failed. Tried analyzer endpoints: ${orderedCandidates.join(', ')}`);
   }
 
   // Health check

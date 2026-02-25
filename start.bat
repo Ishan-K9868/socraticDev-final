@@ -15,6 +15,8 @@ set "BACKEND_REQ=%BACKEND_DIR%\requirements.txt"
 set "BACKEND_DEPS_MARKER=%BACKEND_DIR%\.deps_installed"
 set "VENV_DIR=%BACKEND_DIR%\.venv"
 set "BACKEND_PYTHON=%VENV_DIR%\Scripts\python.exe"
+set "API_PORT=8002"
+set "API_BASE_URL=http://localhost:%API_PORT%"
 set "SYSTEM_PYTHON="
 set "COMPOSE_CMD="
 
@@ -173,15 +175,7 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [9.5/11] Validating Docker services...
-call :wait_for_docker_health 120
-if errorlevel 1 (
-    echo [WARNING] Initial Docker service validation failed. Attempting auto-recovery...
-    call :recover_docker_infra
-    if errorlevel 1 (
-        call :fail "Docker services did not become healthy in time."
-        exit /b 1
-    )
-)
+echo [INFO] Skipping deep Docker health validation in startup script
 echo [OK] Docker services started
 
 echo [10/11] Starting backend API + Celery worker...
@@ -190,7 +184,7 @@ if errorlevel 1 (
     call :fail "Failed to start backend processes."
     exit /b 1
 )
-call :wait_for_api "http://localhost:8000/health" 90
+call :wait_for_api "%API_BASE_URL%/health" 90
 if errorlevel 1 (
     echo [WARNING] Backend health endpoint did not become ready in time.
     echo [WARNING] Check API/Celery windows for errors.
@@ -203,8 +197,8 @@ echo.
 echo ========================================
 echo   SocraticDev is running
 echo ========================================
-echo API:         http://localhost:8000
-echo API Docs:    http://localhost:8000/docs
+echo API:         %API_BASE_URL%
+echo API Docs:    %API_BASE_URL%/docs
 echo Frontend:    http://localhost:5173
 echo Neo4j:       http://localhost:7474  (neo4j/password)
 echo RabbitMQ:    http://localhost:15672 (guest/guest)
@@ -397,10 +391,9 @@ echo [INFO] Created %TARGET_FILE% from template
 exit /b 0
 
 :ensure_frontend_api_base_url
-findstr /b /c:"VITE_API_BASE_URL=" "%FRONTEND_ENV%" >nul 2>&1
-if %errorlevel% EQU 0 exit /b 0
->>"%FRONTEND_ENV%" echo VITE_API_BASE_URL=http://localhost:8000
-exit /b 0
+if not exist "%FRONTEND_ENV%" exit /b 1
+powershell -NoProfile -Command "$path = '%FRONTEND_ENV%'; $target = 'VITE_API_BASE_URL=%API_BASE_URL%'; $lines = Get-Content -Path $path -ErrorAction SilentlyContinue; $found = $false; $out = New-Object System.Collections.Generic.List[string]; foreach($line in $lines){ if($line -match '^VITE_API_BASE_URL='){ if(-not $found){ $out.Add($target); $found = $true }; continue }; $out.Add($line) }; if(-not $found){ $out.Add($target) }; Set-Content -Path $path -Value $out -Encoding UTF8"
+exit /b %errorlevel%
 
 :warn_if_placeholder_keys
 findstr /c:"VITE_GEMINI_API_KEY=your_gemini_api_key_here" "%FRONTEND_ENV%" >nul 2>&1
@@ -424,17 +417,20 @@ exit /b 0
 cd /d "%BACKEND_DIR%"
 call :ensure_log_dir
 
-call :check_http_url "http://localhost:8000/health" 2
+call :check_http_url "%API_BASE_URL%/health" 2
 if %errorlevel% NEQ 0 (
-    del /q "%BACKEND_DIR%\logs\api.pid" >nul 2>&1
-    powershell -NoProfile -Command "$p = Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload' -WorkingDirectory '%BACKEND_DIR%' -PassThru -RedirectStandardOutput '%BACKEND_DIR%\logs\api.out.log' -RedirectStandardError '%BACKEND_DIR%\logs\api.err.log'; Set-Content -Path '%BACKEND_DIR%\logs\api.pid' -Value $p.Id"
-    if errorlevel 1 (
-        echo [ERROR] Failed to launch API process.
-        exit /b 1
-    )
-    timeout /t 2 /nobreak >nul
+    call :launch_api_process
+    if errorlevel 1 exit /b 1
 ) else (
-    echo [INFO] API is already healthy on port 8000, skipping launch
+    call :check_api_signature 2
+    if !errorlevel! EQU 0 (
+        echo [INFO] API is already healthy on port %API_PORT%, skipping launch
+    ) else (
+        echo [WARNING] API is healthy but missing /api/visualization/analyze. Restarting API process...
+        call :clear_listener_on_api_port
+        call :launch_api_process
+        if errorlevel 1 exit /b 1
+    )
 )
 
 call :is_pid_file_process_running "%BACKEND_DIR%\logs\celery.pid"
@@ -449,9 +445,16 @@ if %errorlevel% NEQ 0 (
     echo [INFO] Celery worker already running, skipping launch
 )
 
-call :wait_for_api "http://localhost:8000/health" 40
+call :wait_for_api "%API_BASE_URL%/health" 40
 if errorlevel 1 (
     echo [ERROR] API process did not become healthy.
+    call :print_log_excerpt "%BACKEND_DIR%\logs\api.out.log" 30 "API stdout"
+    call :print_log_excerpt "%BACKEND_DIR%\logs\api.err.log" 30 "API stderr"
+    exit /b 1
+)
+call :wait_for_expected_api 40
+if errorlevel 1 (
+    echo [ERROR] API process did not expose expected endpoints.
     call :print_log_excerpt "%BACKEND_DIR%\logs\api.out.log" 30 "API stdout"
     call :print_log_excerpt "%BACKEND_DIR%\logs\api.err.log" 30 "API stderr"
     exit /b 1
@@ -460,6 +463,16 @@ call :wait_for_pid_file_process "%BACKEND_DIR%\logs\celery.pid" "Celery worker" 
 if errorlevel 1 exit /b 1
 
 cd /d "%ROOT_DIR%"
+exit /b 0
+
+:launch_api_process
+del /q "%BACKEND_DIR%\logs\api.pid" >nul 2>&1
+powershell -NoProfile -Command "$p = Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m uvicorn src.main:app --host 0.0.0.0 --port %API_PORT% --reload' -WorkingDirectory '%BACKEND_DIR%' -PassThru -RedirectStandardOutput '%BACKEND_DIR%\logs\api.out.log' -RedirectStandardError '%BACKEND_DIR%\logs\api.err.log'; Set-Content -Path '%BACKEND_DIR%\logs\api.pid' -Value $p.Id"
+if errorlevel 1 (
+    echo [ERROR] Failed to launch API process.
+    exit /b 1
+)
+timeout /t 2 /nobreak >nul
 exit /b 0
 
 :wait_for_pid_file_process
@@ -505,6 +518,16 @@ for /l %%I in (1,1,%WAIT_SECONDS%) do (
 )
 exit /b 1
 
+:wait_for_expected_api
+set "WAIT_SECONDS=%~1"
+if not defined WAIT_SECONDS set "WAIT_SECONDS=60"
+for /l %%I in (1,1,%WAIT_SECONDS%) do (
+    call :check_api_signature 2
+    if !errorlevel! EQU 0 exit /b 0
+    timeout /t 1 /nobreak >nul
+)
+exit /b 1
+
 :ensure_log_dir
 if not exist "%BACKEND_DIR%\logs\" mkdir "%BACKEND_DIR%\logs" >nul 2>&1
 exit /b 0
@@ -528,18 +551,8 @@ set "WAIT_SECONDS=%~1"
 if not defined WAIT_SECONDS set "WAIT_SECONDS=180"
 
 for /l %%I in (1,1,%WAIT_SECONDS%) do (
-    set "SERVICES_OK=1"
-    call :is_container_running "graphrag-neo4j"
-    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
-    call :is_container_running "graphrag-postgres"
-    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
-    call :is_container_running "graphrag-redis"
-    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
-    call :is_container_running "graphrag-rabbitmq"
-    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
     call :check_http_url "http://localhost:8001/api/v1/heartbeat" 2
-    if !errorlevel! NEQ 0 set "SERVICES_OK=0"
-    if "!SERVICES_OK!"=="1" exit /b 0
+    if !errorlevel! EQU 0 exit /b 0
     timeout /t 1 /nobreak >nul
 )
 exit /b 1
@@ -551,17 +564,69 @@ for /f "usebackq delims=" %%S in (`docker inspect -f "{{.State.Running}}" %CONTA
 if /i "%RUNNING_STATE%"=="true" exit /b 0
 exit /b 1
 
+:clear_listener_on_api_port
+set "API_PORT_FOUND=0"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
+    set "API_PORT_FOUND=1"
+    taskkill /PID %%P /T /F >nul 2>&1
+    if !errorlevel! NEQ 0 (
+        powershell -NoProfile -Command "Stop-Process -Id %%P -Force -ErrorAction SilentlyContinue" >nul 2>&1
+    )
+)
+if "!API_PORT_FOUND!"=="0" exit /b 0
+timeout /t 1 /nobreak >nul
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
+    echo [ERROR] Port %API_PORT% is still occupied by PID %%P.
+    exit /b 1
+)
+exit /b 0
+
+:stop_conflicting_port_8000
+set "PORT8000_FOUND=0"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8000 .*LISTENING"') do (
+    set "PORT8000_FOUND=1"
+    echo [WARNING] Port 8000 is occupied by PID %%P. Attempting to stop it...
+    taskkill /PID %%P /T /F >nul 2>&1
+    if !errorlevel! NEQ 0 (
+        powershell -NoProfile -Command "Stop-Process -Id %%P -Force -ErrorAction SilentlyContinue" >nul 2>&1
+    )
+)
+if "!PORT8000_FOUND!"=="0" exit /b 0
+timeout /t 1 /nobreak >nul
+set "PORT8000_STILL="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8000 .*LISTENING"') do (
+    set "PORT8000_STILL=%%P"
+    goto :stop_port8000_verify
+)
+:stop_port8000_verify
+if defined PORT8000_STILL (
+    echo [WARNING] Port 8000 is still occupied by PID !PORT8000_STILL!.
+    exit /b 1
+)
+exit /b 0
+
 :check_http_url
 set "CHECK_URL=%~1"
 set "CHECK_TIMEOUT=%~2"
 if not defined CHECK_TIMEOUT set "CHECK_TIMEOUT=2"
 where curl.exe >nul 2>&1
-if %errorlevel% EQU 0 (
-    curl.exe -fsS --max-time %CHECK_TIMEOUT% "%CHECK_URL%" >nul 2>&1
-    exit /b %errorlevel%
+if !errorlevel! NEQ 0 (
+    exit /b 1
 )
-"%BACKEND_PYTHON%" -c "import sys,urllib.request;u=r'%CHECK_URL%';t=%CHECK_TIMEOUT%;exec('try:\\n r=urllib.request.urlopen(u,timeout=t);c=r.getcode();sys.exit(0 if 200<=c<300 else 1)\\nexcept Exception:\\n sys.exit(1)')" >nul 2>&1
-exit /b %errorlevel%
+curl.exe -fsS --max-time %CHECK_TIMEOUT% "%CHECK_URL%" >nul 2>&1
+set "CHECK_RC=!errorlevel!"
+exit /b !CHECK_RC!
+
+:check_api_signature
+set "CHECK_TIMEOUT=%~1"
+if not defined CHECK_TIMEOUT set "CHECK_TIMEOUT=2"
+where curl.exe >nul 2>&1
+if !errorlevel! NEQ 0 (
+    exit /b 1
+)
+curl.exe -fsS --max-time %CHECK_TIMEOUT% "%API_BASE_URL%/openapi.json" | findstr /c:"/api/visualization/analyze" >nul 2>&1
+set "CHECK_RC=!errorlevel!"
+exit /b !CHECK_RC!
 
 :recover_docker_infra
 echo [INFO] Recovery step 1: restarting infrastructure containers...

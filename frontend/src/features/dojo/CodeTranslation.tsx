@@ -2,7 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { sendMessageToGemini } from '../../services/gemini';
 import Button from '../../ui/Button';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 import { getRandomTranslationExample } from './examples/translationExamples';
+import { evaluateTranslation } from './evaluators';
 
 interface TranslationChallenge {
     sourceCode: string;
@@ -11,22 +13,43 @@ interface TranslationChallenge {
     correctSolution: string;
     hints: string[];
     explanation: string;
+    source?: 'practice' | 'ai';
+    isFallback?: boolean;
+    fallbackReason?: string;
 }
 
-const LANGUAGE_PAIRS = [
-    { source: 'Python', target: 'JavaScript' },
-    { source: 'JavaScript', target: 'Python' },
-    { source: 'Python', target: 'TypeScript' },
-    { source: 'Callback', target: 'Promise' },
-    { source: 'Promise', target: 'Async/Await' },
-    { source: 'For Loop', target: 'Map/Filter' },
-    { source: 'Imperative', target: 'Functional' }
+interface PairOption {
+    id: string;
+    source: string;
+    target: string;
+}
+
+const LANGUAGE_PAIRS: PairOption[] = [
+    { id: 'python_to_javascript', source: 'Python', target: 'JavaScript' },
+    { id: 'javascript_to_python', source: 'JavaScript', target: 'Python' },
+    { id: 'python_to_typescript', source: 'Python', target: 'TypeScript' },
+    { id: 'callback_to_promise', source: 'Callback', target: 'Promise' },
+    { id: 'promise_to_async_await', source: 'Promise', target: 'Async/Await' },
+    { id: 'for_loop_to_map_filter', source: 'For Loop', target: 'Map/Filter' },
+    { id: 'imperative_to_functional', source: 'Imperative', target: 'Functional' },
 ];
 
 interface CodeTranslationProps {
     onComplete?: (score: number) => void;
     onBack?: () => void;
     useAI?: boolean;
+}
+
+function parseJsonObject<T>(response: string): T | null {
+    const blockMatch = response.match(/```json\s*([\s\S]*?)```/i) || response.match(/```\s*([\s\S]*?)```/);
+    const raw = (blockMatch?.[1] || response).trim();
+    const objectMatch = raw.match(/\{[\s\S]*\}/);
+    if (!objectMatch) return null;
+    try {
+        return JSON.parse(objectMatch[0]) as T;
+    } catch {
+        return null;
+    }
 }
 
 function CodeTranslation({ onComplete, onBack, useAI = false }: CodeTranslationProps) {
@@ -37,75 +60,85 @@ function CodeTranslation({ onComplete, onBack, useAI = false }: CodeTranslationP
     const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
     const [hintsUsed, setHintsUsed] = useState(0);
     const [showHint, setShowHint] = useState(false);
-    const [selectedPair, setSelectedPair] = useState(LANGUAGE_PAIRS[0]);
+    const [selectedPair, setSelectedPair] = useState<PairOption>(LANGUAGE_PAIRS[0]);
 
-    const loadHardcodedChallenge = useCallback(() => {
-        const example = getRandomTranslationExample(selectedPair.source.toLowerCase() + '-to-' + selectedPair.target.toLowerCase());
+    const resetState = useCallback(() => {
+        setSubmitted(false);
+        setFeedback(null);
+        setUserSolution('');
+        setHintsUsed(0);
+        setShowHint(false);
+    }, []);
+
+    const loadHardcodedChallenge = useCallback((reason?: string) => {
+        const example = getRandomTranslationExample(selectedPair.id);
         setChallenge({
             sourceCode: example.sourceCode,
             sourceLanguage: example.sourceLanguage,
             targetLanguage: example.targetLanguage,
             correctSolution: example.correctSolution,
             hints: example.hints,
-            explanation: example.explanation
+            explanation: example.explanation,
+            source: useAI ? 'ai' : 'practice',
+            isFallback: Boolean(reason),
+            fallbackReason: reason,
         });
         setIsGenerating(false);
-    }, [selectedPair]);
+    }, [selectedPair.id, useAI]);
 
-    // Generate challenge
-    const generateChallenge = useCallback(async () => {
+    const generateAIChallenge = useCallback(async () => {
         setIsGenerating(true);
-        setSubmitted(false);
-        setFeedback(null);
-        setUserSolution('');
-        setHintsUsed(0);
-        setShowHint(false);
+        resetState();
 
         try {
-            const response = await sendMessageToGemini([{
-                role: 'user',
-                content: `Generate a Code Translation challenge.
+            const response = await sendMessageToGemini([
+                {
+                    role: 'user',
+                    content: `Generate a Code Translation challenge.\n\nSource: ${selectedPair.source}\nTarget: ${selectedPair.target}\n\nRequirements:\n1. Create a short code snippet (5-10 lines) in source style\n2. Provide equivalent target code\n3. Include 2 hints\n4. Include concise explanation\n\nReturn ONLY valid JSON:\n{\n  "sourceCode": "...",\n  "sourceLanguage": "${selectedPair.source}",\n  "targetLanguage": "${selectedPair.target}",\n  "correctSolution": "...",\n  "hints": ["hint 1", "hint 2"],\n  "explanation": "..."\n}`,
+                },
+            ], 'building');
 
-Source: ${selectedPair.source}
-Target: ${selectedPair.target}
+            const data = parseJsonObject<TranslationChallenge>(response);
+            const valid = data
+                && typeof data.sourceCode === 'string'
+                && typeof data.correctSolution === 'string'
+                && Array.isArray(data.hints)
+                && data.hints.length > 0;
 
-Requirements:
-1. Create a short code snippet (5-10 lines) in the source language/style
-2. Provide the equivalent code in the target language/style
-3. The code should demonstrate a clear pattern or concept
-4. Include 2 hints for users who get stuck
-5. Include a brief explanation of the translation
-
-Return ONLY valid JSON:
-{
-  "sourceCode": "the source code",
-  "sourceLanguage": "${selectedPair.source}",
-  "targetLanguage": "${selectedPair.target}",
-  "correctSolution": "the target code",
-  "hints": ["hint 1", "hint 2"],
-  "explanation": "Brief explanation of the translation"
-}`
-            }], 'building');
-
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const data = JSON.parse(jsonMatch[0]);
-                setChallenge(data);
+            if (!valid) {
+                loadHardcodedChallenge('Invalid AI challenge payload');
+                return;
             }
-        } catch (error) {
-            console.error('Failed to generate challenge:', error);
+
+            setChallenge({
+                sourceCode: data.sourceCode,
+                sourceLanguage: data.sourceLanguage || selectedPair.source,
+                targetLanguage: data.targetLanguage || selectedPair.target,
+                correctSolution: data.correctSolution,
+                hints: data.hints,
+                explanation: data.explanation || 'Equivalent translation of source behavior.',
+                source: 'ai',
+                isFallback: false,
+            });
+        } catch {
+            loadHardcodedChallenge('AI generation failed');
         } finally {
             setIsGenerating(false);
         }
-    }, [selectedPair]);
+    }, [selectedPair, resetState, loadHardcodedChallenge]);
 
-    useEffect(() => {
+    const refreshChallenge = useCallback(() => {
+        resetState();
         if (useAI) {
-            generateChallenge();
+            void generateAIChallenge();
         } else {
             loadHardcodedChallenge();
         }
-    }, [useAI, generateChallenge, loadHardcodedChallenge]);
+    }, [useAI, generateAIChallenge, loadHardcodedChallenge, resetState]);
+
+    useEffect(() => {
+        refreshChallenge();
+    }, [refreshChallenge]);
 
     const handleSubmit = useCallback(async () => {
         if (!challenge || !userSolution.trim()) return;
@@ -113,65 +146,41 @@ Return ONLY valid JSON:
         setSubmitted(true);
         setIsGenerating(true);
 
-        try {
-            const response = await sendMessageToGemini([{
-                role: 'user',
-                content: `Compare these two code translations and determine if the user's solution is semantically correct.
+        const localEval = evaluateTranslation(userSolution, challenge.correctSolution);
 
-Original (${challenge.sourceLanguage}):
-\`\`\`
-${challenge.sourceCode}
-\`\`\`
+        let finalFeedback = localEval;
 
-Expected (${challenge.targetLanguage}):
-\`\`\`
-${challenge.correctSolution}
-\`\`\`
-
-User's solution:
-\`\`\`
-${userSolution}
-\`\`\`
-
-Evaluate if the user's solution is semantically equivalent (produces the same result). Minor syntax variations are okay.
-
-Return ONLY valid JSON:
-{
-  "correct": true/false,
-  "message": "Brief feedback explaining why it's correct or what's wrong (1-2 sentences)"
-}`
-            }], 'building');
-
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const data = JSON.parse(jsonMatch[0]);
-                setFeedback(data);
-
-                if (data.correct) {
-                    const baseScore = 100;
-                    const hintPenalty = hintsUsed * 20;
-                    const finalScore = Math.max(baseScore - hintPenalty, 20);
-
-                    gsap.fromTo('.result-card',
-                        { scale: 0.9, opacity: 0 },
-                        { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(1.7)' }
-                    );
-
-                    setTimeout(() => {
-                        onComplete?.(finalScore);
-                    }, 2000);
+        if (useAI) {
+            try {
+                const response = await sendMessageToGemini([
+                    {
+                        role: 'user',
+                        content: `Compare translations semantically.\n\nSource (${challenge.sourceLanguage}):\n\n${challenge.sourceCode}\n\nExpected (${challenge.targetLanguage}):\n\n${challenge.correctSolution}\n\nUser: \n\n${userSolution}\n\nReturn ONLY JSON:\n{\n  "correct": true/false,\n  "message": "brief reason"\n}`,
+                    },
+                ], 'building');
+                const aiEval = parseJsonObject<{ correct: boolean; message: string }>(response);
+                if (aiEval && typeof aiEval.correct === 'boolean' && typeof aiEval.message === 'string') {
+                    finalFeedback = aiEval;
                 }
+            } catch {
+                // Keep deterministic fallback result.
             }
-        } catch (error) {
-            console.error('Failed to evaluate:', error);
-        } finally {
-            setIsGenerating(false);
         }
-    }, [challenge, userSolution, hintsUsed, onComplete]);
+
+        setFeedback(finalFeedback);
+
+        if (finalFeedback.correct) {
+            const finalScore = Math.max(100 - hintsUsed * 20, 20);
+            gsap.fromTo('.result-card', { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35 });
+            setTimeout(() => onComplete?.(finalScore), 1400);
+        }
+
+        setIsGenerating(false);
+    }, [challenge, userSolution, useAI, hintsUsed, onComplete]);
 
     const useHint = () => {
         if (!challenge || hintsUsed >= challenge.hints.length) return;
-        setHintsUsed(prev => prev + 1);
+        setHintsUsed((prev) => prev + 1);
         setShowHint(true);
     };
 
@@ -179,178 +188,106 @@ Return ONLY valid JSON:
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="text-6xl mb-4 animate-pulse">🌐</div>
                     <h2 className="text-xl font-bold mb-2">Generating Translation...</h2>
                     <p className="text-[color:var(--color-text-muted)]">
-                        Creating a {selectedPair.source} → {selectedPair.target} challenge
+                        Creating a {selectedPair.source} to {selectedPair.target} challenge
                     </p>
                 </div>
             </div>
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-xl font-bold mb-3">Unable to load challenge</h2>
+                    <Button onClick={refreshChallenge}>Retry</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] p-6">
             <div className="max-w-5xl mx-auto">
-                {/* Header */}
                 <div className="mb-6">
-                    <button
-                        onClick={onBack}
-                        className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)] mb-4 flex items-center gap-2"
-                    >
+                    <button onClick={onBack} className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)] mb-4 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                         Back to Dojo
                     </button>
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-4">
                         <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-3">
-                                <span className="text-3xl">🌐</span>
-                                Code Translation Dojo
-                            </h1>
-                            <p className="text-[color:var(--color-text-muted)] mt-1">
-                                Translate code between languages and paradigms
-                            </p>
+                            <h1 className="text-2xl font-bold">Code Translation Dojo</h1>
+                            <p className="text-[color:var(--color-text-muted)] mt-1">Translate code between languages and paradigms</p>
                         </div>
-                        <div className="text-right">
-                            <div className="text-lg font-mono text-primary-400">
-                                {challenge.sourceLanguage} → {challenge.targetLanguage}
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <ChallengeSourceBadge source={challenge.source || (useAI ? 'ai' : 'practice')} isFallback={challenge.isFallback} fallbackReason={challenge.fallbackReason} />
+                            <div className="text-lg font-mono text-primary-400">{challenge.sourceLanguage} to {challenge.targetLanguage}</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Language Pair Selector */}
                 <div className="mb-6 flex flex-wrap gap-2">
-                    {LANGUAGE_PAIRS.map((pair, i) => (
+                    {LANGUAGE_PAIRS.map((pair) => (
                         <button
-                            key={i}
-                            onClick={() => {
-                                setSelectedPair(pair);
-                            }}
-                            className={`
-                                px-3 py-1.5 rounded-lg text-sm transition-all
-                                ${selectedPair === pair
-                                    ? 'bg-primary-500 text-white'
-                                    : 'bg-[color:var(--color-bg-secondary)] hover:bg-[color:var(--color-bg-muted)]'
-                                }
-                            `}
+                            key={pair.id}
+                            onClick={() => setSelectedPair(pair)}
+                            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${selectedPair.id === pair.id ? 'bg-primary-500 text-white' : 'bg-[color:var(--color-bg-secondary)] hover:bg-[color:var(--color-bg-muted)]'}`}
                         >
-                            {pair.source} → {pair.target}
+                            {pair.source} to {pair.target}
                         </button>
                     ))}
                 </div>
 
-                {/* Code Panels */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    {/* Source Code */}
                     <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <span className="text-lg">📥</span>
-                            Source ({challenge.sourceLanguage})
-                        </h3>
+                        <h3 className="font-semibold mb-3">Source ({challenge.sourceLanguage})</h3>
                         <div className="bg-neutral-900 rounded-xl overflow-hidden border border-neutral-700">
-                            <div className="px-4 py-2 bg-neutral-800 border-b border-neutral-700 text-sm text-neutral-400">
-                                Translate this code
-                            </div>
-                            <pre className="p-4 font-mono text-sm text-neutral-100 overflow-x-auto whitespace-pre-wrap">
-                                {challenge.sourceCode}
-                            </pre>
+                            <pre className="p-4 font-mono text-sm text-neutral-100 overflow-x-auto whitespace-pre-wrap">{challenge.sourceCode}</pre>
                         </div>
                     </div>
 
-                    {/* Target Input */}
                     <div>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <span className="text-lg">📤</span>
-                            Target ({challenge.targetLanguage})
-                        </h3>
+                        <h3 className="font-semibold mb-3">Target ({challenge.targetLanguage})</h3>
                         <div className="bg-neutral-900 rounded-xl overflow-hidden border border-neutral-700">
-                            <div className="px-4 py-2 bg-neutral-800 border-b border-neutral-700 text-sm text-neutral-400">
-                                Write equivalent code
-                            </div>
                             <textarea
                                 value={userSolution}
                                 onChange={(e) => setUserSolution(e.target.value)}
                                 disabled={submitted && feedback?.correct}
-                                placeholder={`Write the equivalent ${challenge.targetLanguage} code here...`}
+                                placeholder={`Write equivalent ${challenge.targetLanguage} code...`}
                                 className="w-full h-48 p-4 font-mono text-sm bg-transparent resize-none focus:outline-none"
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Hints */}
                 {showHint && hintsUsed > 0 && (
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
-                        <h4 className="font-semibold text-yellow-400 mb-2">💡 Hints</h4>
+                        <h4 className="font-semibold text-yellow-400 mb-2">Hints</h4>
                         <ul className="text-sm space-y-1">
-                            {challenge.hints.slice(0, hintsUsed).map((hint, i) => (
-                                <li key={i}>• {hint}</li>
-                            ))}
+                            {challenge.hints.slice(0, hintsUsed).map((hint, i) => <li key={i}>- {hint}</li>)}
                         </ul>
                     </div>
                 )}
 
-                {/* Feedback */}
                 {feedback && (
-                    <div className={`
-                        result-card rounded-xl p-4 mb-6 border-2
-                        ${feedback.correct
-                            ? 'bg-green-500/10 border-green-500'
-                            : 'bg-red-500/10 border-red-500'
-                        }
-                    `}>
-                        <div className="flex items-start gap-3">
-                            <div className="text-3xl">
-                                {feedback.correct ? '🎉' : '🤔'}
-                            </div>
-                            <div>
-                                <h4 className={`font-semibold ${feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
-                                    {feedback.correct ? 'Correct!' : 'Not quite right'}
-                                </h4>
-                                <p className="text-sm text-[color:var(--color-text-muted)]">
-                                    {feedback.message}
-                                </p>
-                            </div>
-                        </div>
+                    <div className={`result-card rounded-xl p-4 mb-6 border-2 ${feedback.correct ? 'bg-green-500/10 border-green-500' : 'bg-red-500/10 border-red-500'}`}>
+                        <h4 className={`font-semibold ${feedback.correct ? 'text-green-400' : 'text-red-400'}`}>{feedback.correct ? 'Correct' : 'Not quite right'}</h4>
+                        <p className="text-sm text-[color:var(--color-text-muted)]">{feedback.message}</p>
                     </div>
                 )}
 
-                {/* Show correct solution after wrong answer */}
-                {feedback && !feedback.correct && (
-                    <div className="bg-[color:var(--color-bg-secondary)] rounded-xl p-4 mb-6 border border-[color:var(--color-border)]">
-                        <h4 className="font-semibold mb-3">✅ Expected Solution:</h4>
-                        <pre className="font-mono text-sm text-neutral-100 bg-neutral-800 p-4 rounded-lg overflow-x-auto">
-                            {challenge.correctSolution}
-                        </pre>
-                        <p className="text-sm text-[color:var(--color-text-muted)] mt-3">
-                            {challenge.explanation}
-                        </p>
-                    </div>
-                )}
-
-                {/* Actions */}
                 <div className="flex items-center gap-4">
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={!userSolution.trim() || isGenerating || (submitted && feedback?.correct)}
-                    >
+                    <Button onClick={handleSubmit} disabled={!userSolution.trim() || isGenerating || (submitted && feedback?.correct)}>
                         {isGenerating ? 'Checking...' : 'Submit Translation'}
                     </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={useHint}
-                        disabled={hintsUsed >= challenge.hints.length}
-                    >
+                    <Button variant="secondary" onClick={useHint} disabled={hintsUsed >= challenge.hints.length}>
                         Hint ({challenge.hints.length - hintsUsed} left)
                     </Button>
-                    <Button variant="ghost" onClick={generateChallenge}>
-                        New Challenge
-                    </Button>
+                    <Button variant="ghost" onClick={refreshChallenge}>New Challenge</Button>
                 </div>
             </div>
         </div>
@@ -358,3 +295,4 @@ Return ONLY valid JSON:
 }
 
 export default CodeTranslation;
+

@@ -17,6 +17,11 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
     const codeLines = code.split('\n');
     const step = trace.steps[currentStep];
 
+    useEffect(() => {
+        setCurrentStep(0);
+        setIsPlaying(false);
+    }, [trace]);
+
     // Auto-play logic
     useEffect(() => {
         if (isPlaying) {

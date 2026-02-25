@@ -32,6 +32,14 @@ export interface ProjectContext {
     uploadedAt: Date;
 }
 
+export interface UploadProjectStats {
+    file_count: number;
+    entity_count: number;
+    relationship_count: number;
+    embedding_count?: number;
+    error_count?: number;
+}
+
 export interface DependencyNode {
     id: string;
     label: string;
@@ -72,6 +80,7 @@ interface AppState {
     projectFiles: ProjectFile[];
     selectedFile: ProjectFile | null;
     dependencyGraph: { nodes: DependencyNode[]; edges: DependencyEdge[] } | null;
+    projectStats: UploadProjectStats | null;
 
     // Metrics (for demo)
     metrics: {
@@ -93,6 +102,7 @@ interface AppState {
     setProjectFiles: (files: ProjectFile[]) => void;
     setSelectedFile: (file: ProjectFile | null) => void;
     setDependencyGraph: (graph: { nodes: DependencyNode[]; edges: DependencyEdge[] } | null) => void;
+    setProjectStats: (stats: UploadProjectStats | null) => void;
     updateFileContent: (fileId: string, content: string) => void;
     clearProject: () => void;
     incrementMetric: (metric: keyof AppState['metrics']) => void;
@@ -119,6 +129,7 @@ export const useStore = create<AppState>()(
             projectFiles: [],
             selectedFile: null,
             dependencyGraph: null,
+            projectStats: null,
 
             // Initial Metrics
             metrics: {
@@ -177,6 +188,7 @@ export const useStore = create<AppState>()(
             setProjectFiles: (projectFiles) => set({ projectFiles }),
             setSelectedFile: (selectedFile) => set({ selectedFile }),
             setDependencyGraph: (dependencyGraph) => set({ dependencyGraph }),
+            setProjectStats: (projectStats) => set({ projectStats }),
 
             updateFileContent: (fileId, content) => {
                 const state = get();
@@ -212,6 +224,7 @@ export const useStore = create<AppState>()(
                 projectFiles: [],
                 selectedFile: null,
                 dependencyGraph: null,
+                projectStats: null,
             }),
 
             // Metric Actions
@@ -235,7 +248,11 @@ export const useStore = create<AppState>()(
             partialize: (state) => ({
                 theme: state.theme,
                 mode: state.mode,
-                // Don't persist project files (too large)
+                projectContext: state.projectContext,
+                projectFiles: state.projectFiles,
+                selectedFile: state.selectedFile,
+                dependencyGraph: state.dependencyGraph,
+                projectStats: state.projectStats,
             }),
         }
     )

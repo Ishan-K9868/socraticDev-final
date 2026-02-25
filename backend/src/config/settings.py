@@ -68,7 +68,13 @@ class Settings(BaseSettings):
     # Gemini API settings
     gemini_api_key: str = ""
     gemini_embedding_model: str = "text-embedding-004"
+    gemini_text_model: str = "gemini-2.0-flash"
     gemini_rate_limit_per_minute: int = 60
+    visualizer_ai_fallback_enabled: bool = False
+    visualizer_default_max_steps: int = 1000
+    visualizer_max_steps_cap: int = 5000
+    visualizer_default_timeout_ms: int = 3000
+    visualizer_max_timeout_ms: int = 10000
     
     # Upload settings
     max_upload_files: int = 10000
@@ -85,6 +91,9 @@ class Settings(BaseSettings):
     default_similarity_threshold: float = 0.7
     default_token_budget: int = 8000
     query_timeout_seconds: int = 30
+    graph_view_mode_default: str = "file"
+    graph_include_external_default: bool = True
+    graph_include_isolated_default: bool = True
     
     # Logging settings
     log_level: str = "INFO"

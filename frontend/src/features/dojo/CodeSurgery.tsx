@@ -4,6 +4,7 @@ import { SurgeryChallenge as SurgeryChallengeType, Bug } from './types';
 import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomSurgeryExample } from './examples/surgeryExamples';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 
 interface CodeSurgeryProps {
     topic?: string;
@@ -29,7 +30,7 @@ function CodeSurgery({
     const [isComplete, setIsComplete] = useState(false);
     const [finalScore, setFinalScore] = useState(0);
     const [timer, setTimer] = useState(0);
-    const [selectedLanguage] = useState(language);
+    const selectedLanguage = language;
 
     const { generateSurgeryChallenge, isGenerating, error } = useChallengeAI();
 
@@ -46,19 +47,37 @@ function CodeSurgery({
             buggyCode: example.buggyCode,
             correctCode: example.correctCode,
             bugs: example.bugs,
-            points: 75
+            points: 75,
+            source: useAI ? 'ai' : 'practice',
         };
         setChallenge(challengeData);
-    }, [selectedLanguage]);
+        setFoundBugs(new Set());
+        setWrongGuesses(new Set());
+        setHintsUsed(0);
+        setCurrentHint(null);
+        setShowSolution(false);
+        setIsComplete(false);
+        setFinalScore(0);
+        setTimer(0);
+    }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
     useEffect(() => {
         if (useAI) {
             const loadChallenge = async () => {
                 const generated = await generateSurgeryChallenge(topic, selectedLanguage);
-                if (generated) {
-                    console.log('Challenge loaded:', generated);
-                    setChallenge(generated);
+                if (generated.challenge) {
+                    setChallenge(generated.challenge);
+                    setFoundBugs(new Set());
+                    setWrongGuesses(new Set());
+                    setHintsUsed(0);
+                    setCurrentHint(null);
+                    setShowSolution(false);
+                    setIsComplete(false);
+                    setFinalScore(0);
+                    setTimer(0);
+                } else {
+                    loadHardcodedChallenge();
                 }
             };
             loadChallenge();
@@ -143,7 +162,7 @@ function CodeSurgery({
         );
     }
 
-    if (error) {
+    if (error && !challenge) {
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center max-w-md">
@@ -156,7 +175,16 @@ function CodeSurgery({
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <h2 className="text-xl font-bold mb-2">Challenge unavailable</h2>
+                    <Button onClick={loadHardcodedChallenge}>Load Practice Challenge</Button>
+                </div>
+            </div>
+        );
+    }
 
     const codeLines = challenge.buggyCode.split('\n');
 
@@ -185,6 +213,11 @@ function CodeSurgery({
                             </p>
                         </div>
                         <div className="text-right">
+                            <ChallengeSourceBadge
+                                source={challenge.source || (useAI ? 'ai' : 'practice')}
+                                isFallback={challenge.isFallback}
+                                fallbackReason={challenge.fallbackReason}
+                            />
                             <div className="text-2xl font-mono">{formatTime(timer)}</div>
                             <div className="text-sm text-[color:var(--color-text-muted)]">
                                 Bugs: {foundBugs.size}/{challenge.bugs.length}
@@ -359,3 +392,4 @@ function CodeSurgery({
 }
 
 export default CodeSurgery;
+

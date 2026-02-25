@@ -11,7 +11,9 @@ export type ChallengeType =
     | 'tdd'          // Test-driven challenge
     | 'bigo';        // Big O complexity
 
+export type ChallengeSource = 'practice' | 'ai';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+export type ModeLanguageSupport = Record<ChallengeType, string[]>;
 
 export interface Challenge {
     id: string;
@@ -23,6 +25,9 @@ export interface Challenge {
     language: string;
     points: number;
     timeLimit?: number; // seconds
+    source?: ChallengeSource;
+    isFallback?: boolean;
+    fallbackReason?: string;
 }
 
 // Parsons Problem types

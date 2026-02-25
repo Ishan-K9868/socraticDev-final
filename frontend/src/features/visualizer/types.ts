@@ -19,6 +19,7 @@ export interface GraphEdge {
 export interface CallGraph {
     nodes: GraphNode[];
     edges: GraphEdge[];
+    meta?: AnalysisMeta;
 }
 
 export interface ExecutionStep {
@@ -35,6 +36,17 @@ export interface ExecutionTrace {
     steps: ExecutionStep[];
     finalOutput: string;
     error?: string;
+    meta?: AnalysisMeta;
+}
+
+export interface AnalysisMeta {
+    engine: string;
+    truncated: boolean;
+    limits: {
+        max_steps: number;
+        timeout_ms: number;
+    };
+    duration_ms: number;
 }
 
 export interface VisualizerState {
@@ -51,8 +63,4 @@ export interface VisualizerState {
 
 export const SUPPORTED_VISUALIZER_LANGUAGES = [
     { id: 'python', name: 'Python', extension: 'py' },
-    { id: 'javascript', name: 'JavaScript', extension: 'js' },
-    { id: 'typescript', name: 'TypeScript', extension: 'ts' },
-    { id: 'java', name: 'Java', extension: 'java' },
-    { id: 'cpp', name: 'C++', extension: 'cpp' },
 ];

@@ -203,6 +203,7 @@ function DojoPage() {
             case 'bigo':
                 return (
                     <BigOBattle
+                        language={selectedLanguage}
                         onComplete={handleChallengeComplete}
                         onBack={handleBack}
                         useAI={useAI}

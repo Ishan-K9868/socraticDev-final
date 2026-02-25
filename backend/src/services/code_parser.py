@@ -13,6 +13,7 @@ from typing import List, Dict, Optional, Tuple, Any
 from pathlib import Path
 import logging
 from enum import Enum
+import hashlib
 
 from ..models.base import (
     CodeEntity,
@@ -141,6 +142,20 @@ class CodeParserService:
         """Initialize the code parser service."""
         self.parser_manager = TreeSitterParserManager()
         self.language_detector = LanguageDetector()
+
+    def build_entity_id(
+        self,
+        project_id: str,
+        entity_type: EntityType,
+        name: str,
+        start_line: int,
+        file_path: str,
+    ) -> str:
+        """Build a deterministic entity ID that avoids cross-file collisions."""
+        normalized_path = file_path.replace("\\", "/")
+        path_hash = hashlib.sha1(normalized_path.encode("utf-8")).hexdigest()[:10]
+        safe_name = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in name)[:80]
+        return f"{project_id}_{entity_type.value}_{safe_name}_{start_line}_{path_hash}"
     
     def parse_file(
         self, 
@@ -207,7 +222,7 @@ class CodeParserService:
         try:
             entities = self.extract_entities(tree, file_path, language, content)
             
-            # Create a FILE entity for this file
+            # Create a FILE entity for this file (used for relationships/storage).
             file_entity = CodeEntity(
                 project_id=project_id,
                 entity_type=EntityType.FILE,
@@ -222,19 +237,41 @@ class CodeParserService:
                 metadata={'full_path': file_path}
             )
             # Generate ID for file entity
-            file_entity.id = f"{project_id}_{file_entity.entity_type.value}_{file_entity.name}_{file_entity.start_line}"
-            
-            # Add file entity to the beginning of the list
-            entities.insert(0, file_entity)
-            
-            # Set project_id and generate IDs for all other entities
-            for entity in entities[1:]:  # Skip the file entity we just added
+            file_entity.id = self.build_entity_id(
+                project_id=project_id,
+                entity_type=file_entity.entity_type,
+                name=file_entity.name,
+                start_line=file_entity.start_line,
+                file_path=file_path,
+            )
+
+            # Set project_id and generate IDs for extracted entities.
+            for entity in entities:
                 entity.project_id = project_id
                 # Generate consistent ID format that matches graph service
                 if not entity.id:
-                    entity.id = f"{project_id}_{entity.entity_type.value}_{entity.name}_{entity.start_line}"
-            
-            relationships = self.extract_relationships(tree, file_path, language, entities)
+                    entity.id = self.build_entity_id(
+                        project_id=project_id,
+                        entity_type=entity.entity_type,
+                        name=entity.name,
+                        start_line=entity.start_line,
+                        file_path=entity.file_path,
+                    )
+
+            entities_for_relationships = [file_entity] + entities
+            relationships = self.extract_relationships(tree, file_path, language, entities_for_relationships)
+            # Ensure File->Entity ownership relationships exist for graph completeness.
+            if file_entity and file_entity.id:
+                for entity in entities:
+                    if entity.id:
+                        relationships.append(
+                            CodeRelationship(
+                                source_id=file_entity.id,
+                                target_id=entity.id,
+                                relationship_type=RelationshipType.DEFINES,
+                                metadata={"file_path": file_path},
+                            )
+                        )
         except Exception as e:
             error_msg = f"Error extracting entities/relationships from {file_path}: {str(e)}"
             logger.error(error_msg)
@@ -1038,11 +1075,125 @@ class CodeParserService:
         content: str
     ) -> List[CodeEntity]:
         """Extract entities from Java AST.
-        
-        This is a placeholder implementation that will be completed in task 6.2.
+
+        Extracts classes, methods, fields, and imports from Java code.
         """
-        # TODO: Implement in task 6.2
-        return []
+        entities = []
+
+        def get_text(node: Node) -> str:
+            return content[node.start_byte:node.end_byte]
+
+        def traverse(node: Node, project_id: str = ""):
+            # Class declarations
+            if node.type == "class_declaration":
+                class_name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        class_name = get_text(child)
+                        break
+
+                if class_name:
+                    entities.append(
+                        CodeEntity(
+                            project_id=project_id,
+                            entity_type=EntityType.CLASS,
+                            name=class_name,
+                            file_path=file_path,
+                            start_line=node.start_point[0] + 1,
+                            end_line=node.end_point[0] + 1,
+                            signature=get_text(node)[:200],
+                            docstring=None,
+                            body=None,
+                            language=LanguageEnum.JAVA,
+                            metadata={},
+                        )
+                    )
+
+            # Method declarations
+            elif node.type == "method_declaration":
+                method_name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        method_name = get_text(child)
+                        break
+
+                if method_name:
+                    entities.append(
+                        CodeEntity(
+                            project_id=project_id,
+                            entity_type=EntityType.FUNCTION,
+                            name=method_name,
+                            file_path=file_path,
+                            start_line=node.start_point[0] + 1,
+                            end_line=node.end_point[0] + 1,
+                            signature=get_text(node)[:200],
+                            docstring=None,
+                            body=get_text(node)[:500],
+                            language=LanguageEnum.JAVA,
+                            metadata={},
+                        )
+                    )
+
+            # Field declarations (class-level variables)
+            elif node.type == "field_declaration":
+                declarator = None
+                for child in node.children:
+                    if child.type == "variable_declarator":
+                        declarator = child
+                        break
+
+                if declarator:
+                    field_name = None
+                    for d_child in declarator.children:
+                        if d_child.type == "identifier":
+                            field_name = get_text(d_child)
+                            break
+                    if field_name:
+                        entities.append(
+                            CodeEntity(
+                                project_id=project_id,
+                                entity_type=EntityType.VARIABLE,
+                                name=field_name,
+                                file_path=file_path,
+                                start_line=node.start_point[0] + 1,
+                                end_line=node.end_point[0] + 1,
+                                signature=get_text(node)[:200],
+                                docstring=None,
+                                body=None,
+                                language=LanguageEnum.JAVA,
+                                metadata={"scope": "class"},
+                            )
+                        )
+
+            # Imports as entities
+            elif node.type == "import_declaration":
+                import_path = ""
+                for child in node.children:
+                    if child.type in ["scoped_identifier", "identifier"]:
+                        import_path = get_text(child)
+                        break
+                if import_path:
+                    entities.append(
+                        CodeEntity(
+                            project_id=project_id,
+                            entity_type=EntityType.IMPORT,
+                            name=import_path,
+                            file_path=file_path,
+                            start_line=node.start_point[0] + 1,
+                            end_line=node.end_point[0] + 1,
+                            signature=get_text(node),
+                            docstring=None,
+                            body=None,
+                            language=LanguageEnum.JAVA,
+                            metadata={"import_path": import_path},
+                        )
+                    )
+
+            for child in node.children:
+                traverse(child, project_id)
+
+        traverse(tree.root_node)
+        return entities
     
     def _extract_python_relationships(
         self, 

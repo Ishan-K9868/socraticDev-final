@@ -297,28 +297,43 @@ for (const result of results) {
 
 // Export all translation examples
 export const TRANSLATION_EXAMPLES: Record<string, TranslationExample[]> = {
-    'Python→JavaScript': pythonToJS,
-    'JavaScript→Python': pythonToJS.map(e => ({
+    python_to_javascript: pythonToJS,
+    javascript_to_python: pythonToJS.map(e => ({
         ...e,
         sourceCode: e.correctSolution,
         targetLanguage: 'Python',
         sourceLanguage: 'JavaScript',
         correctSolution: e.sourceCode
     })),
-    'Python→TypeScript': pythonToJS.map(e => ({
+    python_to_typescript: pythonToJS.map(e => ({
         ...e,
         targetLanguage: 'TypeScript'
     })),
-    'Callback→Promise': callbackToPromise,
-    'Promise→Async/Await': promiseToAsync,
-    'ForLoop→Map/Filter': loopToFunctional,
-    'Imperative→Functional': imperativeToFunctional
+    callback_to_promise: callbackToPromise,
+    promise_to_async_await: promiseToAsync,
+    for_loop_to_map_filter: loopToFunctional,
+    imperative_to_functional: imperativeToFunctional
+};
+
+const LEGACY_PAIR_ALIASES: Record<string, string> = {
+    'python-to-javascript': 'python_to_javascript',
+    'javascript-to-python': 'javascript_to_python',
+    'python-to-typescript': 'python_to_typescript',
+    'callback-to-promise': 'callback_to_promise',
+    'promise-to-async/await': 'promise_to_async_await',
+    'for loop-to-map/filter': 'for_loop_to_map_filter',
+    'imperative-to-functional': 'imperative_to_functional',
 };
 
 export function getRandomTranslationExample(pair?: string): TranslationExample {
-    if (pair && TRANSLATION_EXAMPLES[pair]) {
-        const examples = TRANSLATION_EXAMPLES[pair];
-        return examples[Math.floor(Math.random() * examples.length)];
+    if (pair) {
+        const key = TRANSLATION_EXAMPLES[pair]
+            ? pair
+            : LEGACY_PAIR_ALIASES[pair] || pair.toLowerCase();
+        if (TRANSLATION_EXAMPLES[key]) {
+            const examples = TRANSLATION_EXAMPLES[key];
+            return examples[Math.floor(Math.random() * examples.length)];
+        }
     }
     const allExamples = Object.values(TRANSLATION_EXAMPLES).flat();
     return allExamples[Math.floor(Math.random() * allExamples.length)];

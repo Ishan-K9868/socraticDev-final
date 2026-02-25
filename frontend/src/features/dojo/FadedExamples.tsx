@@ -4,6 +4,7 @@ import { FadedChallenge as FadedChallengeType } from './types';
 import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomFadedExample } from './examples/fadedExamples';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 
 interface FadedExamplesProps {
     topic?: string;
@@ -25,7 +26,7 @@ function FadedExamples({
     const [results, setResults] = useState<Record<string, boolean>>({});
     const [submitted, setSubmitted] = useState(false);
     const [hintsUsed, setHintsUsed] = useState<Set<string>>(new Set());
-    const [selectedLanguage] = useState(language);
+    const selectedLanguage = language;
 
     const { generateFadedChallenge, isGenerating, error } = useChallengeAI();
 
@@ -42,24 +43,33 @@ function FadedExamples({
             fullCode: example.fullCode,
             template: example.template,
             blanks: example.blanks,
-            points: 50
+            points: 50,
+            source: useAI ? 'ai' : 'practice',
         };
         setChallenge(challengeData);
         const initial: Record<string, string> = {};
         challengeData.blanks.forEach(b => { initial[b.id] = ''; });
         setAnswers(initial);
-    }, [selectedLanguage]);
+        setResults({});
+        setSubmitted(false);
+        setHintsUsed(new Set());
+    }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
     useEffect(() => {
         if (useAI) {
             const loadChallenge = async () => {
                 const generated = await generateFadedChallenge(topic, selectedLanguage);
-                if (generated) {
-                    setChallenge(generated);
+                if (generated.challenge) {
+                    setChallenge(generated.challenge);
                     const initial: Record<string, string> = {};
-                    generated.blanks.forEach(b => { initial[b.id] = ''; });
+                    generated.challenge.blanks.forEach(b => { initial[b.id] = ''; });
                     setAnswers(initial);
+                    setResults({});
+                    setSubmitted(false);
+                    setHintsUsed(new Set());
+                } else {
+                    loadHardcodedChallenge();
                 }
             };
             loadChallenge();
@@ -196,7 +206,7 @@ function FadedExamples({
         );
     }
 
-    if (error) {
+    if (error && !challenge) {
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center max-w-md">
@@ -209,7 +219,16 @@ function FadedExamples({
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <h2 className="text-xl font-bold mb-2">Challenge unavailable</h2>
+                    <Button onClick={loadHardcodedChallenge}>Load Practice Challenge</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] p-6">
@@ -236,6 +255,11 @@ function FadedExamples({
                             </p>
                         </div>
                         <div className="text-right">
+                            <ChallengeSourceBadge
+                                source={challenge.source || (useAI ? 'ai' : 'practice')}
+                                isFallback={challenge.isFallback}
+                                fallbackReason={challenge.fallbackReason}
+                            />
                             <div className="text-2xl font-bold text-primary-400">{challenge.points} pts</div>
                             <div className="text-xs text-[color:var(--color-text-muted)]">
                                 {challenge.blanks.length} blanks to fill
@@ -331,3 +355,4 @@ function FadedExamples({
 }
 
 export default FadedExamples;
+

@@ -4,6 +4,7 @@ import { MentalChallenge as MentalChallengeType } from './types';
 import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomMentalExample } from './examples/mentalExamples';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 
 interface MentalCompilerProps {
     topic?: string;
@@ -27,7 +28,7 @@ function MentalCompiler({
     const [currentTraceStep, setCurrentTraceStep] = useState(0);
     const [isPlayingTrace, setIsPlayingTrace] = useState(false);
     const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
-    const [selectedLanguage] = useState(language);
+    const selectedLanguage = language;
 
     const { generateMentalChallenge, isGenerating, error } = useChallengeAI();
 
@@ -45,18 +46,33 @@ function MentalCompiler({
             expectedOutput: example.expectedOutput,
             wrongOptions: example.wrongOptions,
             traceSteps: example.traceSteps,
-            points: 50
+            points: 50,
+            source: useAI ? 'ai' : 'practice',
         };
         setChallenge(challengeData);
-    }, [selectedLanguage]);
+        setSelectedAnswer(null);
+        setSubmitted(false);
+        setShowTrace(false);
+        setCurrentTraceStep(0);
+        setIsPlayingTrace(false);
+        setHighlightedLine(null);
+    }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
     useEffect(() => {
         if (useAI) {
             const loadChallenge = async () => {
                 const generated = await generateMentalChallenge(topic, selectedLanguage);
-                if (generated) {
-                    setChallenge(generated);
+                if (generated.challenge) {
+                    setChallenge(generated.challenge);
+                    setSelectedAnswer(null);
+                    setSubmitted(false);
+                    setShowTrace(false);
+                    setCurrentTraceStep(0);
+                    setIsPlayingTrace(false);
+                    setHighlightedLine(null);
+                } else {
+                    loadHardcodedChallenge();
                 }
             };
             loadChallenge();
@@ -65,9 +81,11 @@ function MentalCompiler({
         }
     }, [useAI, topic, selectedLanguage, generateMentalChallenge, loadHardcodedChallenge]);
 
-    const allOptions = challenge
-        ? [challenge.expectedOutput, ...challenge.wrongOptions].sort(() => Math.random() - 0.5)
-        : [];
+    const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+    useEffect(() => {
+        if (!challenge) return;
+        setShuffledOptions([challenge.expectedOutput, ...challenge.wrongOptions].sort(() => Math.random() - 0.5));
+    }, [challenge]);
 
     const handleSubmit = useCallback(() => {
         if (!challenge || !selectedAnswer) return;
@@ -120,8 +138,14 @@ function MentalCompiler({
             step++;
         }, 1500);
 
-        return () => clearInterval(interval);
     }, [challenge]);
+
+    useEffect(() => {
+        return () => {
+            setIsPlayingTrace(false);
+            setHighlightedLine(null);
+        };
+    }, []);
 
     const isCorrect = submitted && selectedAnswer === challenge?.expectedOutput;
 
@@ -143,7 +167,7 @@ function MentalCompiler({
         );
     }
 
-    if (error) {
+    if (error && !challenge) {
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center max-w-md">
@@ -160,7 +184,16 @@ function MentalCompiler({
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <h2 className="text-xl font-bold mb-2">Challenge unavailable</h2>
+                    <Button onClick={loadHardcodedChallenge}>Load Practice Challenge</Button>
+                </div>
+            </div>
+        );
+    }
 
     const codeLines = challenge.code.split('\n');
 
@@ -191,6 +224,11 @@ function MentalCompiler({
                             </p>
                         </div>
                         <div className="text-right">
+                            <ChallengeSourceBadge
+                                source={challenge.source || (useAI ? 'ai' : 'practice')}
+                                isFallback={challenge.isFallback}
+                                fallbackReason={challenge.fallbackReason}
+                            />
                             <div className="text-2xl font-bold text-primary-400">{challenge.points} pts</div>
                         </div>
                     </div>
@@ -305,7 +343,7 @@ function MentalCompiler({
                             What's the output?
                         </h3>
                         <div className="answer-options space-y-3">
-                            {allOptions.map((option, index) => {
+                            {shuffledOptions.map((option, index) => {
                                 const isSelected = selectedAnswer === option;
                                 const isCorrectAnswer = option === challenge.expectedOutput;
                                 const showResult = submitted;
@@ -398,3 +436,4 @@ function MentalCompiler({
 }
 
 export default MentalCompiler;
+

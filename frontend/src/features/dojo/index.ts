@@ -11,6 +11,8 @@ export { default as CodeTranslation } from './CodeTranslation';
 export { default as PatternDetective } from './PatternDetective';
 export { default as BigOBattle } from './BigOBattle';
 export { default as TDDChallenge } from './TDDChallenge';
+export { default as ChallengeSourceBadge } from './ChallengeSourceBadge';
 export { useChallengeAI } from './useChallengeAI';
 export * from './types';
 export * from './ChallengeIcons';
+export * from './evaluators';

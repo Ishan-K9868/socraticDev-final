@@ -1,19 +1,14 @@
-import { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { SUPPORTED_VISUALIZER_LANGUAGES } from './types';
 
 interface CodeInputPanelProps {
     code: string;
     language: string;
     onCodeChange: (code: string) => void;
-    onLanguageChange: (lang: string) => void;
     onAnalyze: () => void;
     isAnalyzing: boolean;
 }
 
-// Sample code snippets for each language
-const SAMPLE_CODE: Record<string, string> = {
-    python: `def factorial(n):
+const PYTHON_SAMPLE_CODE = `def factorial(n):
     if n <= 1:
         return 1
     return n * factorial(n - 1)
@@ -23,165 +18,29 @@ def fibonacci(n):
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
 
-# Main execution
 result = factorial(5)
 fib_result = fibonacci(6)
-print(f"Factorial: {result}, Fibonacci: {fib_result}")`,
-
-    javascript: `function bubbleSort(arr) {
-    const n = arr.length;
-    for (let i = 0; i < n - 1; i++) {
-        for (let j = 0; j < n - i - 1; j++) {
-            if (arr[j] > arr[j + 1]) {
-                [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-            }
-        }
-    }
-    return arr;
-}
-
-function printArray(arr) {
-    console.log(arr.join(', '));
-}
-
-const numbers = [64, 34, 25, 12, 22, 11, 90];
-const sorted = bubbleSort([...numbers]);
-printArray(sorted);`,
-
-    typescript: `interface TreeNode {
-    value: number;
-    left?: TreeNode;
-    right?: TreeNode;
-}
-
-function insertNode(root: TreeNode | undefined, value: number): TreeNode {
-    if (!root) {
-        return { value };
-    }
-    if (value < root.value) {
-        root.left = insertNode(root.left, value);
-    } else {
-        root.right = insertNode(root.right, value);
-    }
-    return root;
-}
-
-function inorderTraversal(node: TreeNode | undefined): number[] {
-    if (!node) return [];
-    return [...inorderTraversal(node.left), node.value, ...inorderTraversal(node.right)];
-}
-
-let tree: TreeNode = { value: 50 };
-[30, 70, 20, 40, 60, 80].forEach(v => tree = insertNode(tree, v));
-console.log(inorderTraversal(tree));`,
-
-    java: `public class BinarySearch {
-    public static int search(int[] arr, int target) {
-        int left = 0;
-        int right = arr.length - 1;
-        
-        while (left <= right) {
-            int mid = left + (right - left) / 2;
-            
-            if (arr[mid] == target) {
-                return mid;
-            }
-            if (arr[mid] < target) {
-                left = mid + 1;
-            } else {
-                right = mid - 1;
-            }
-        }
-        return -1;
-    }
-    
-    public static void main(String[] args) {
-        int[] arr = {2, 3, 4, 10, 40};
-        int result = search(arr, 10);
-        System.out.println("Found at index: " + result);
-    }
-}`,
-
-    cpp: `#include <iostream>
-#include <vector>
-using namespace std;
-
-int partition(vector<int>& arr, int low, int high) {
-    int pivot = arr[high];
-    int i = low - 1;
-    
-    for (int j = low; j < high; j++) {
-        if (arr[j] < pivot) {
-            i++;
-            swap(arr[i], arr[j]);
-        }
-    }
-    swap(arr[i + 1], arr[high]);
-    return i + 1;
-}
-
-void quickSort(vector<int>& arr, int low, int high) {
-    if (low < high) {
-        int pi = partition(arr, low, high);
-        quickSort(arr, low, pi - 1);
-        quickSort(arr, pi + 1, high);
-    }
-}
-
-int main() {
-    vector<int> arr = {10, 7, 8, 9, 1, 5};
-    quickSort(arr, 0, arr.size() - 1);
-    for (int x : arr) cout << x << " ";
-    return 0;
-}`
-};
+print(f"Factorial: {result}, Fibonacci: {fib_result}")`;
 
 function CodeInputPanel({
     code,
     language,
     onCodeChange,
-    onLanguageChange,
     onAnalyze,
-    isAnalyzing
+    isAnalyzing,
 }: CodeInputPanelProps) {
-    const [, setShowSamples] = useState(false);
-
     const loadSampleCode = () => {
-        const sample = SAMPLE_CODE[language] || SAMPLE_CODE.python;
-        onCodeChange(sample);
-        setShowSamples(false);
-    };
-
-    const getMonacoLanguage = (lang: string) => {
-        const map: Record<string, string> = {
-            python: 'python',
-            javascript: 'javascript',
-            typescript: 'typescript',
-            java: 'java',
-            cpp: 'cpp'
-        };
-        return map[lang] || 'plaintext';
+        onCodeChange(PYTHON_SAMPLE_CODE);
     };
 
     return (
         <div className="flex flex-col h-full">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)]">
                 <div className="flex items-center gap-4">
                     <h3 className="font-semibold">Code Input</h3>
-
-                    {/* Language Selector */}
-                    <select
-                        value={language}
-                        onChange={(e) => onLanguageChange(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                        {SUPPORTED_VISUALIZER_LANGUAGES.map(lang => (
-                            <option key={lang.id} value={lang.id}>
-                                {lang.name}
-                            </option>
-                        ))}
-                    </select>
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-blue-500/40 text-blue-300 bg-blue-500/10">
+                        {language.toUpperCase()} only
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -223,11 +82,10 @@ function CodeInputPanel({
                 </div>
             </div>
 
-            {/* Editor */}
             <div className="flex-1 min-h-0">
                 <Editor
                     height="100%"
-                    language={getMonacoLanguage(language)}
+                    language="python"
                     value={code}
                     onChange={(value) => onCodeChange(value || '')}
                     theme="vs-dark"
@@ -238,7 +96,7 @@ function CodeInputPanel({
                         scrollBeyondLastLine: false,
                         automaticLayout: true,
                         tabSize: 4,
-                        wordWrap: 'on'
+                        wordWrap: 'on',
                     }}
                 />
             </div>

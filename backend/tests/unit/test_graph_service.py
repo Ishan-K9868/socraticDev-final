@@ -308,6 +308,37 @@ class TestRelationshipOperations:
         
         result = await graph_service.create_relationships([rel])
         assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_create_import_relationships_supports_internal_and_external_targets(
+        self, graph_service, mock_neo4j_manager
+    ):
+        """Test IMPORTS relationships preserve internal targets and external modules."""
+        relationships = [
+            CodeRelationship(
+                source_id="file-1",
+                target_id="external:react",
+                relationship_type=RelationshipType.IMPORTS,
+            ),
+            CodeRelationship(
+                source_id="file-1",
+                target_id="file-2",
+                relationship_type=RelationshipType.IMPORTS,
+            ),
+        ]
+
+        mock_neo4j_manager.execute_write_with_retry.side_effect = [
+            [{"count": 1}],
+            [{"count": 1}],
+        ]
+
+        result = await graph_service.create_relationships(relationships)
+
+        assert result == 2
+        assert mock_neo4j_manager.execute_write_with_retry.call_count == 2
+        queries = [call.args[0] for call in mock_neo4j_manager.execute_write_with_retry.call_args_list]
+        assert any("MERGE (target:ExternalModule" in query for query in queries)
+        assert any("MATCH (target {id: rel.target_id})" in query for query in queries)
     
     @pytest.mark.asyncio
     async def test_create_relationships_batch_by_type(self, graph_service, mock_neo4j_manager):

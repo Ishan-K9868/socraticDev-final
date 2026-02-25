@@ -515,57 +515,73 @@ class GraphService:
         Returns:
             Count of created relationships
         """
-        # Build relationship data
-        rel_data = []
-        for rel in relationships:
-            data = {
-                "source_id": rel.source_id,
-                "target_id": rel.target_id,
-            }
-            if rel.metadata:
-                import json
-                data["metadata"] = json.dumps(rel.metadata)
-            rel_data.append(data)
-        
-        # DEBUG: Log first few relationship IDs
-        if rel_data:
-            logger.info(f"Creating {len(rel_data)} {relationship_type.value} relationships")
-            logger.info(f"Sample relationship IDs: source={rel_data[0]['source_id']}, target={rel_data[0]['target_id']}")
-        
-        # For IMPORTS relationships, create external module nodes if they don't exist
-        if relationship_type == RelationshipType.IMPORTS:
-            query = f"""
-            UNWIND $relationships AS rel
-            MATCH (source {{id: rel.source_id}})
-            MERGE (target:ExternalModule {{id: rel.target_id}})
-            ON CREATE SET target.name = substring(rel.target_id, 9)
-            CREATE (source)-[r:{relationship_type.value}]->(target)
-            SET r.metadata = COALESCE(rel.metadata, '{{}}')
-            RETURN count(r) AS count
-            """
-        else:
-            # For other relationships, both nodes must exist
-            query = f"""
-            UNWIND $relationships AS rel
-            MATCH (source {{id: rel.source_id}})
-            MATCH (target {{id: rel.target_id}})
-            CREATE (source)-[r:{relationship_type.value}]->(target)
-            SET r.metadata = COALESCE(rel.metadata, '{{}}')
-            RETURN count(r) AS count
-            """
-        
+        def _serialize(rel_group: List[CodeRelationship]) -> List[Dict[str, Any]]:
+            rel_data: List[Dict[str, Any]] = []
+            for rel in rel_group:
+                data = {"source_id": rel.source_id, "target_id": rel.target_id}
+                if rel.metadata:
+                    import json
+                    data["metadata"] = json.dumps(rel.metadata)
+                rel_data.append(data)
+            return rel_data
+
+        async def _run_query(rel_data: List[Dict[str, Any]], query: str) -> int:
+            if not rel_data:
+                return 0
+            result = await self.neo4j.execute_write_with_retry(query, {"relationships": rel_data})
+            return int(result[0]["count"]) if result else 0
+
         try:
-            result = await self.neo4j.execute_write_with_retry(
-                query,
-                {"relationships": rel_data}
+            if relationship_type == RelationshipType.IMPORTS:
+                external_rels = [rel for rel in relationships if rel.target_id.startswith("external:")]
+                internal_rels = [rel for rel in relationships if not rel.target_id.startswith("external:")]
+
+                external_query = f"""
+                UNWIND $relationships AS rel
+                MATCH (source {{id: rel.source_id}})
+                MERGE (target:ExternalModule {{id: rel.target_id}})
+                ON CREATE SET target.name = substring(rel.target_id, 9)
+                CREATE (source)-[r:{relationship_type.value}]->(target)
+                SET r.metadata = COALESCE(rel.metadata, '{{}}')
+                RETURN count(r) AS count
+                """
+                internal_query = f"""
+                UNWIND $relationships AS rel
+                MATCH (source {{id: rel.source_id}})
+                MATCH (target {{id: rel.target_id}})
+                CREATE (source)-[r:{relationship_type.value}]->(target)
+                SET r.metadata = COALESCE(rel.metadata, '{{}}')
+                RETURN count(r) AS count
+                """
+
+                external_count = await _run_query(_serialize(external_rels), external_query)
+                internal_count = await _run_query(_serialize(internal_rels), internal_query)
+                count = external_count + internal_count
+                attempted = len(relationships)
+            else:
+                rel_data = _serialize(relationships)
+                query = f"""
+                UNWIND $relationships AS rel
+                MATCH (source {{id: rel.source_id}})
+                MATCH (target {{id: rel.target_id}})
+                CREATE (source)-[r:{relationship_type.value}]->(target)
+                SET r.metadata = COALESCE(rel.metadata, '{{}}')
+                RETURN count(r) AS count
+                """
+                count = await _run_query(rel_data, query)
+                attempted = len(rel_data)
+
+            logger.info(
+                f"Successfully created {count} {relationship_type.value} relationships "
+                f"(attempted {attempted})"
             )
-            
-            count = result[0]["count"] if result else 0
-            logger.info(f"Successfully created {count} {relationship_type.value} relationships (attempted {len(rel_data)})")
-            if count < len(rel_data):
-                logger.warning(f"Only {count} of {len(rel_data)} {relationship_type.value} relationships were created - some source/target IDs may not exist")
+            if count < attempted:
+                logger.warning(
+                    f"Only {count} of {attempted} {relationship_type.value} relationships "
+                    "were created - some source/target IDs may not exist"
+                )
             return count
-            
+
         except Exception as e:
             logger.error(f"Failed to create {relationship_type.value} relationships: {str(e)}")
             raise DatabaseQueryError(f"Failed to create relationships: {str(e)}") from e

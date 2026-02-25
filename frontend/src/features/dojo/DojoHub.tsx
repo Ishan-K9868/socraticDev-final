@@ -5,7 +5,7 @@ import Button from '../../ui/Button';
 import ThemeToggle from '../../components/ThemeToggle';
 import { ChallengeType, DojoStats } from './types';
 import { ChallengeIcons, DojoIcon } from './ChallengeIcons';
-import { SUPPORTED_LANGUAGES } from './constants';
+import { SUPPORTED_LANGUAGES, isLanguageSupportedInPractice } from './constants';
 import ModeSwitcher from './ModeSwitcher';
 
 interface ChallengeCard {
@@ -389,15 +389,23 @@ function DojoHub({ onSelectChallenge, selectedLanguage = 'python', onLanguageCha
 
                 {/* Challenge Grid */}
                 <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {challengeCards.map((card) => (
+                    {challengeCards.map((card) => {
+                        const practiceSupported = isLanguageSupportedInPractice(card.id, selectedLanguage);
+                        const isEnabled = card.available && (useAI || practiceSupported);
+                        const disabledReason = !card.available
+                            ? 'Coming Soon'
+                            : 'Not yet available for this mode in Practice source. Switch to AI Mode to get a challenge.';
+
+                        return (
                         <button
                             key={card.id}
-                            onClick={() => card.available && onSelectChallenge(card.id)}
-                            disabled={!card.available}
+                            onClick={() => isEnabled && onSelectChallenge(card.id)}
+                            disabled={!isEnabled}
+                            title={!isEnabled ? disabledReason : undefined}
                             className={`
                                 challenge-card group relative overflow-hidden rounded-2xl p-5 text-left
                                 transition-all duration-300
-                                ${card.available
+                                ${isEnabled
                                     ? 'bg-[color:var(--color-bg-secondary)] hover:shadow-2xl hover:shadow-black/10 hover:-translate-y-1 cursor-pointer'
                                     : 'bg-[color:var(--color-bg-muted)] opacity-50 cursor-not-allowed'
                                 }
@@ -431,12 +439,12 @@ function DojoHub({ onSelectChallenge, selectedLanguage = 'python', onLanguageCha
                                 <span className={`text-xs font-semibold px-2 py-1 rounded-lg border ${getDifficultyColor(card.difficulty)}`}>
                                     {card.difficulty}
                                 </span>
-                                {!card.available && (
+                                {!isEnabled && (
                                     <span className="text-xs bg-[color:var(--color-bg-muted)] px-2 py-1 rounded-lg">
-                                        Coming Soon
+                                        {disabledReason}
                                     </span>
                                 )}
-                                {card.available && stats.categoryProgress[card.id] > 0 && (
+                                {isEnabled && stats.categoryProgress[card.id] > 0 && (
                                     <span className="text-xs text-[color:var(--color-text-muted)]">
                                         {stats.categoryProgress[card.id]}x
                                     </span>
@@ -450,7 +458,7 @@ function DojoHub({ onSelectChallenge, selectedLanguage = 'python', onLanguageCha
                                 </svg>
                             </div>
                         </button>
-                    ))}
+                    );})}
                 </div>
 
                 {/* Quick Start Section */}

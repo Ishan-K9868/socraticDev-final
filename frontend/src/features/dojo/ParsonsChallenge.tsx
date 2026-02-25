@@ -21,6 +21,7 @@ import { ParsonsChallenge as ParsonsChallengeType, CodeLine } from './types';
 import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomParsonsExample } from './examples/parsonsExamples';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 
 interface SortableLineProps {
     line: CodeLine;
@@ -58,7 +59,7 @@ function SortableLine({ line, isCorrect }: SortableLineProps) {
                 ${isCorrect !== null && isCorrect !== undefined ? 'text-neutral-100' : 'text-[color:var(--color-text-primary)]'}
                 ${isCorrect === true && 'border-green-500 bg-green-500/10'}
                 ${isCorrect === false && 'border-red-500 bg-red-500/10'}
-                ${line.isDistractor && isCorrect === false && 'line-through opacity-60'}
+                ${line.isDistractor && isCorrect === false && 'line-through opacity-90 text-neutral-300'}
                 hover:border-primary-400
                 ${isCorrect !== null && isCorrect !== undefined ? 'hover:bg-neutral-800/80' : 'hover:bg-[color:var(--color-bg-muted)]'}
             `}
@@ -90,7 +91,7 @@ function ParsonsChallenge({
     const [hintsUsed, setHintsUsed] = useState(0);
     const [showHint, setShowHint] = useState(false);
     const [attempts, setAttempts] = useState(0);
-    const [selectedLanguage] = useState(language);
+    const selectedLanguage = language;
 
     const { generateParsonsChallenge, isGenerating, error } = useChallengeAI();
 
@@ -130,20 +131,33 @@ function ParsonsChallenge({
             lines: allLines,
             solution: example.solution,
             hints: example.hints,
-            points: 60
+            points: 60,
+            source: useAI ? 'ai' : 'practice',
         };
         setChallenge(challengeData);
         setUserOrder(allLines);
-    }, [selectedLanguage]);
+        setResult(null);
+        setLineResults({});
+        setHintsUsed(0);
+        setShowHint(false);
+        setAttempts(0);
+    }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
     useEffect(() => {
         if (useAI) {
             const loadChallenge = async () => {
                 const generated = await generateParsonsChallenge(topic, selectedLanguage);
-                if (generated) {
-                    setChallenge(generated);
-                    setUserOrder(generated.lines);
+                if (generated.challenge) {
+                    setChallenge(generated.challenge);
+                    setUserOrder(generated.challenge.lines);
+                    setResult(null);
+                    setLineResults({});
+                    setHintsUsed(0);
+                    setShowHint(false);
+                    setAttempts(0);
+                } else {
+                    loadHardcodedChallenge();
                 }
             };
             loadChallenge();
@@ -248,7 +262,7 @@ function ParsonsChallenge({
         );
     }
 
-    if (error) {
+    if (error && !challenge) {
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center max-w-md">
@@ -261,7 +275,20 @@ function ParsonsChallenge({
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <h2 className="text-xl font-bold mb-2">Challenge unavailable</h2>
+                    <Button onClick={loadHardcodedChallenge}>Load Practice Challenge</Button>
+                </div>
+            </div>
+        );
+    }
+
+    const userSolutionPreview = userOrder
+        .filter((line) => !line.isDistractor)
+        .map((line) => line.content);
 
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] p-6">
@@ -288,6 +315,11 @@ function ParsonsChallenge({
                             </p>
                         </div>
                         <div className="text-right">
+                            <ChallengeSourceBadge
+                                source={challenge.source || (useAI ? 'ai' : 'practice')}
+                                isFallback={challenge.isFallback}
+                                fallbackReason={challenge.fallbackReason}
+                            />
                             <div className="text-2xl font-bold text-primary-400">{challenge.points} pts</div>
                             <div className="text-xs text-[color:var(--color-text-muted)]">
                                 Attempts: {attempts}
@@ -365,6 +397,30 @@ function ParsonsChallenge({
                     </div>
                 )}
 
+                {result && (
+                    <div className="bg-[color:var(--color-bg-secondary)] rounded-xl p-4 mb-6 border border-[color:var(--color-border)]">
+                        <h4 className="font-semibold mb-3">Solution Comparison</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-2">
+                                    Your Order
+                                </div>
+                                <pre className="text-xs md:text-sm font-mono bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                                    {userSolutionPreview.join('\n') || '(no non-distractor lines selected)'}
+                                </pre>
+                            </div>
+                            <div>
+                                <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-2">
+                                    Expected Order
+                                </div>
+                                <pre className="text-xs md:text-sm font-mono bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                                    {challenge.solution.join('\n')}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Hint Section */}
                 {showHint && hintsUsed > 0 && (
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
@@ -398,3 +454,4 @@ function ParsonsChallenge({
 }
 
 export default ParsonsChallenge;
+

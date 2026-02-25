@@ -4,6 +4,7 @@ import { ELI5Challenge as ELI5ChallengeType } from './types';
 import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomELI5Example } from './examples/eli5Examples';
+import ChallengeSourceBadge from './ChallengeSourceBadge';
 
 // Common programming jargon to detect
 const JARGON_WORDS = [
@@ -42,7 +43,7 @@ function ELI5Challenge({
     const [submitted, setSubmitted] = useState(false);
     const [aiResponse, setAiResponse] = useState<string | null>(null);
     const [score, setScore] = useState<number | null>(null);
-    const [selectedLanguage] = useState(language);
+    const selectedLanguage = language;
 
     const { generateELI5Challenge, isGenerating, error } = useChallengeAI();
 
@@ -60,18 +61,29 @@ function ELI5Challenge({
             keyPoints: example.keyPoints,
             forbiddenWords: example.forbiddenWords,
             targetGradeLevel: 5,
-            points: 60
+            points: 60,
+            source: useAI ? 'ai' : 'practice',
         };
         setChallenge(challengeData);
-    }, [selectedLanguage]);
+        setExplanation('');
+        setSubmitted(false);
+        setAiResponse(null);
+        setScore(null);
+    }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
     useEffect(() => {
         if (useAI) {
             const loadChallenge = async () => {
                 const generated = await generateELI5Challenge(topic, selectedLanguage);
-                if (generated) {
-                    setChallenge(generated);
+                if (generated.challenge) {
+                    setChallenge(generated.challenge);
+                    setExplanation('');
+                    setSubmitted(false);
+                    setAiResponse(null);
+                    setScore(null);
+                } else {
+                    loadHardcodedChallenge();
                 }
             };
             loadChallenge();
@@ -84,12 +96,13 @@ function ELI5Challenge({
     const detectedJargon = useMemo(() => {
         if (!challenge) return [];
 
-        const words = explanation.toLowerCase().split(/\s+/);
         const allJargon = [...JARGON_WORDS, ...challenge.forbiddenWords.map(w => w.toLowerCase())];
 
-        return allJargon.filter(jargon =>
-            words.some(word => word.includes(jargon.toLowerCase()))
-        );
+        return allJargon.filter((jargon) => {
+            const escaped = jargon.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+            return regex.test(explanation);
+        });
     }, [explanation, challenge]);
 
     // Calculate readability score (simplified Flesch-Kincaid)
@@ -184,7 +197,7 @@ function ELI5Challenge({
         );
     }
 
-    if (error) {
+    if (error && !challenge) {
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
                 <div className="text-center max-w-md">
@@ -197,7 +210,16 @@ function ELI5Challenge({
         );
     }
 
-    if (!challenge) return null;
+    if (!challenge) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <h2 className="text-xl font-bold mb-2">Challenge unavailable</h2>
+                    <Button onClick={loadHardcodedChallenge}>Load Practice Challenge</Button>
+                </div>
+            </div>
+        );
+    }
 
     const readability = getReadabilityLabel(readabilityScore);
 
@@ -215,10 +237,17 @@ function ELI5Challenge({
                         </svg>
                         Back to Dojo
                     </button>
-                    <h1 className="text-2xl font-bold flex items-center gap-3">
-                        <span className="text-3xl">👶</span>
-                        ELI5: Explain Like I'm 5
-                    </h1>
+                    <div className="flex items-center justify-between gap-3">
+                        <h1 className="text-2xl font-bold flex items-center gap-3">
+                            <span className="text-3xl">👶</span>
+                            ELI5: Explain Like I'm 5
+                        </h1>
+                        <ChallengeSourceBadge
+                            source={challenge.source || (useAI ? 'ai' : 'practice')}
+                            isFallback={challenge.isFallback}
+                            fallbackReason={challenge.fallbackReason}
+                        />
+                    </div>
                     <p className="text-[color:var(--color-text-muted)] mt-1">
                         Explain this code so simply that a 5-year-old would understand!
                     </p>
@@ -370,3 +399,5 @@ function ELI5Challenge({
 }
 
 export default ELI5Challenge;
+
+

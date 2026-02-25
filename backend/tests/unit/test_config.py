@@ -49,6 +49,9 @@ def test_query_settings():
     assert 0 < settings.default_similarity_threshold <= 1.0
     assert settings.default_token_budget > 0
     assert settings.query_timeout_seconds > 0
+    assert settings.graph_view_mode_default in ["file", "symbol"]
+    assert isinstance(settings.graph_include_external_default, bool)
+    assert isinstance(settings.graph_include_isolated_default, bool)
 
 
 def test_logging_settings():

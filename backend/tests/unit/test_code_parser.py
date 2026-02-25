@@ -434,6 +434,17 @@ class Child(Parent):
         # Should extract CALLS and EXTENDS relationships
         assert len(result.relationships) >= 1
 
+    def test_file_defines_relationships_present(self):
+        """Test that file ownership relationships are created for extracted entities."""
+        service = CodeParserService()
+        code = """
+def hello():
+    return 1
+"""
+        result = service.parse_file("test.py", code, project_id="proj_test")
+        defines = [r for r in result.relationships if r.relationship_type == RelationshipType.DEFINES]
+        assert len(defines) >= 1
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""

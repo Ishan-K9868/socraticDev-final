@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import DependencyGraph, { GraphNode, GraphEdge } from './DependencyGraph';
 import { useStore } from '../../store/useStore';
 import { graphragAPI } from '../../services';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
 
-// Sample data for when no project is loaded
 const SAMPLE_NODES: GraphNode[] = [
     { id: 'main', label: 'main.py', type: 'file', x: 0, y: 0, dependencies: ['utils', 'api', 'models'], dependents: [], metadata: { lines: 156, language: 'python' } },
     { id: 'utils', label: 'utils.py', type: 'file', x: 0, y: 0, dependencies: [], dependents: ['main', 'api'], metadata: { lines: 89, language: 'python' } },
@@ -28,6 +27,127 @@ interface GraphPanelProps {
     projectName?: string;
 }
 
+type GraphStats = {
+    total_nodes: number;
+    total_edges: number;
+    files: number;
+    functions: number;
+    classes: number;
+    imports: number;
+    external_nodes: number;
+    truncated: boolean;
+    edge_types?: Record<string, number>;
+};
+
+type GraphCoverage = {
+    entities_in_project: number;
+    entities_in_graph: number;
+    relationships_in_project: number;
+    relationships_in_graph: number;
+};
+
+type ApiNode = {
+    id: string;
+    label: string;
+    type: string;
+    file_path?: string;
+};
+
+type ApiEdge = {
+    source: string;
+    target: string;
+    type: string;
+};
+
+const normalizeType = (type: string): string => type.toUpperCase();
+
+const isFileNode = (node: ApiNode): boolean => normalizeType(node.type) === 'FILE';
+
+const isExternalNode = (node: ApiNode): boolean => (
+    normalizeType(node.type) === 'EXTERNAL_MODULE' || node.id.startsWith('external:')
+);
+
+function projectGraphView(
+    nodes: ApiNode[],
+    edges: ApiEdge[],
+    viewMode: 'file' | 'symbol',
+    includeExternal: boolean,
+    includeIsolated: boolean
+): { nodes: ApiNode[]; edges: ApiEdge[] } {
+    const nodeById = new Map(nodes.map(node => [node.id, node]));
+    const upperEdges = edges.map(edge => ({ ...edge, type: normalizeType(edge.type) }));
+
+    if (viewMode === 'file') {
+        let projectedEdges = upperEdges.filter(edge => {
+            if (edge.type !== 'IMPORTS') return false;
+            const source = nodeById.get(edge.source);
+            const target = nodeById.get(edge.target);
+            if (!source || !target || !isFileNode(source)) return false;
+            if (isFileNode(target)) return true;
+            return includeExternal && isExternalNode(target);
+        });
+
+        const connectedIds = new Set<string>();
+        projectedEdges.forEach(edge => {
+            connectedIds.add(edge.source);
+            connectedIds.add(edge.target);
+        });
+
+        let projectedNodes = nodes.filter(node => {
+            if (isFileNode(node)) return true;
+            return includeExternal && isExternalNode(node);
+        });
+
+        if (!includeIsolated) {
+            projectedNodes = projectedNodes.filter(node => connectedIds.has(node.id));
+        }
+
+        const keepIds = new Set(projectedNodes.map(node => node.id));
+        projectedEdges = projectedEdges.filter(edge => keepIds.has(edge.source) && keepIds.has(edge.target));
+
+        return { nodes: projectedNodes, edges: projectedEdges };
+    }
+
+    let projectedNodes = includeExternal ? nodes : nodes.filter(node => !isExternalNode(node));
+    const keepIds = new Set(projectedNodes.map(node => node.id));
+    let projectedEdges = upperEdges.filter(edge => keepIds.has(edge.source) && keepIds.has(edge.target));
+
+    if (!includeIsolated) {
+        const connectedIds = new Set<string>();
+        projectedEdges.forEach(edge => {
+            connectedIds.add(edge.source);
+            connectedIds.add(edge.target);
+        });
+        projectedNodes = projectedNodes.filter(node => connectedIds.has(node.id));
+        const connectedKeepIds = new Set(projectedNodes.map(node => node.id));
+        projectedEdges = projectedEdges.filter(
+            edge => connectedKeepIds.has(edge.source) && connectedKeepIds.has(edge.target)
+        );
+    }
+
+    return { nodes: projectedNodes, edges: projectedEdges };
+}
+
+function buildGraphStats(nodes: ApiNode[], edges: ApiEdge[]): GraphStats {
+    const edgeTypes: Record<string, number> = {};
+    edges.forEach(edge => {
+        const type = normalizeType(edge.type);
+        edgeTypes[type] = (edgeTypes[type] || 0) + 1;
+    });
+
+    return {
+        total_nodes: nodes.length,
+        total_edges: edges.length,
+        files: nodes.filter(node => normalizeType(node.type) === 'FILE').length,
+        functions: nodes.filter(node => normalizeType(node.type) === 'FUNCTION').length,
+        classes: nodes.filter(node => normalizeType(node.type) === 'CLASS').length,
+        imports: nodes.filter(node => normalizeType(node.type) === 'IMPORT').length,
+        external_nodes: nodes.filter(node => isExternalNode(node)).length,
+        truncated: false,
+        edge_types: edgeTypes,
+    };
+}
+
 function GraphPanel({ projectName }: GraphPanelProps) {
     const { projectContext } = useStore();
     const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -35,150 +155,251 @@ function GraphPanel({ projectName }: GraphPanelProps) {
     const [realNodes, setRealNodes] = useState<GraphNode[]>([]);
     const [realEdges, setRealEdges] = useState<GraphEdge[]>([]);
     const [loading, setLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'file' | 'symbol'>('file');
+    const [includeExternal, setIncludeExternal] = useState(true);
+    const [includeIsolated, setIncludeIsolated] = useState(true);
+    const [stats, setStats] = useState<GraphStats | null>(null);
+    const [coverage, setCoverage] = useState<GraphCoverage | null>(null);
+    const selectedNodeIdRef = useRef<string | null>(null);
 
-    // Fetch real graph data from backend when project context changes
+    const calculateImpactForNodes = useCallback((node: GraphNode, graphNodes: GraphNode[]) => {
+        const impacted = new Set<string>();
+        const queue = [node.id];
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const currentNode = graphNodes.find(n => n.id === currentId);
+            if (!currentNode) continue;
+
+            currentNode.dependents.forEach(depId => {
+                if (!impacted.has(depId)) {
+                    impacted.add(depId);
+                    queue.push(depId);
+                }
+            });
+        }
+
+        return Array.from(impacted);
+    }, []);
+
+    const fetchGraphData = useCallback(async () => {
+        if (!projectContext?.id) return;
+
+        setLoading(true);
+        try {
+            const response = await graphragAPI.getGraphVisualization({
+                project_id: projectContext.id,
+                view_mode: viewMode,
+                include_external: includeExternal,
+                include_isolated: includeIsolated,
+                max_nodes: 1200,
+                max_edges: 3500,
+            });
+            const responseNodes: ApiNode[] = response.nodes.map(node => ({
+                id: node.id,
+                label: node.label,
+                type: node.type,
+                file_path: node.file_path,
+            }));
+            const responseEdges: ApiEdge[] = response.edges.map(edge => ({
+                source: edge.source,
+                target: edge.target,
+                type: edge.type,
+            }));
+            const projected = projectGraphView(
+                responseNodes,
+                responseEdges,
+                viewMode,
+                includeExternal,
+                includeIsolated
+            );
+
+            const toNodeType = (type: string): GraphNode['type'] => {
+                const normalized = normalizeType(type).toLowerCase();
+                if (normalized === 'file') return 'file';
+                if (normalized === 'function') return 'function';
+                if (normalized === 'class') return 'class';
+                if (normalized === 'variable') return 'variable';
+                return 'import';
+            };
+
+            const toEdgeType = (type: string): GraphEdge['type'] => {
+                const normalized = normalizeType(type).toLowerCase();
+                if (normalized === 'calls') return 'calls';
+                if (normalized === 'extends') return 'extends';
+                if (normalized === 'uses') return 'uses';
+                return 'imports';
+            };
+
+            const nodes: GraphNode[] = projected.nodes.map(node => ({
+                id: node.id,
+                label: node.label,
+                type: toNodeType(node.type),
+                x: 0,
+                y: 0,
+                dependencies: [],
+                dependents: [],
+                metadata: {
+                    language: node.file_path ? node.file_path.split('.').pop() : undefined,
+                },
+            }));
+
+            const edges: GraphEdge[] = projected.edges.map(edge => ({
+                source: edge.source,
+                target: edge.target,
+                type: toEdgeType(edge.type),
+            }));
+
+            edges.forEach(edge => {
+                const sourceNode = nodes.find(n => n.id === edge.source);
+                const targetNode = nodes.find(n => n.id === edge.target);
+                if (sourceNode && targetNode) {
+                    if (!sourceNode.dependencies.includes(edge.target)) sourceNode.dependencies.push(edge.target);
+                    if (!targetNode.dependents.includes(edge.source)) targetNode.dependents.push(edge.source);
+                }
+            });
+
+            setRealNodes(nodes);
+            setRealEdges(edges);
+
+            const previousSelectedId = selectedNodeIdRef.current;
+            const nextSelectedNode = previousSelectedId
+                ? nodes.find(node => node.id === previousSelectedId) || nodes[0] || null
+                : nodes[0] || null;
+            setSelectedNode(nextSelectedNode);
+            selectedNodeIdRef.current = nextSelectedNode?.id || null;
+            setImpactedNodes(nextSelectedNode ? calculateImpactForNodes(nextSelectedNode, nodes) : []);
+
+            const calculatedStats = buildGraphStats(projected.nodes, projected.edges);
+            const serverTruncated = Boolean(response.stats?.truncated);
+            setStats({ ...calculatedStats, truncated: serverTruncated });
+            setCoverage(response.coverage || null);
+        } catch (error) {
+            console.error('Failed to fetch graph data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [projectContext?.id, viewMode, includeExternal, includeIsolated]);
+
     useEffect(() => {
-        const fetchGraphData = async () => {
-            if (!projectContext?.id) return;
-            
-            setLoading(true);
-            try {
-                const response = await graphragAPI.getGraphVisualization({
-                    project_id: projectContext.id,
-                });
-                
-                // Convert backend format to frontend format
-                const nodes: GraphNode[] = response.nodes.map(node => ({
-                    id: node.id,
-                    label: node.label,
-                    type: node.type.toLowerCase() as GraphNode['type'],
-                    x: 0,
-                    y: 0,
-                    dependencies: [],
-                    dependents: [],
-                    metadata: {
-                        language: node.file_path ? node.file_path.split('.').pop() : undefined,
-                    }
-                }));
-                
-                // Build dependency/dependent relationships from edges
-                const edges: GraphEdge[] = response.edges.map(edge => ({
-                    source: edge.source,
-                    target: edge.target,
-                    type: edge.type.toLowerCase() as GraphEdge['type'],
-                }));
-                
-                // Populate dependencies and dependents
-                edges.forEach(edge => {
-                    const sourceNode = nodes.find(n => n.id === edge.source);
-                    const targetNode = nodes.find(n => n.id === edge.target);
-                    
-                    if (sourceNode && targetNode) {
-                        if (!sourceNode.dependencies.includes(edge.target)) {
-                            sourceNode.dependencies.push(edge.target);
-                        }
-                        if (!targetNode.dependents.includes(edge.source)) {
-                            targetNode.dependents.push(edge.source);
-                        }
-                    }
-                });
-                
-                setRealNodes(nodes);
-                setRealEdges(edges);
-            } catch (error) {
-                console.error('Failed to fetch graph data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
         fetchGraphData();
-    }, [projectContext?.id]);
+    }, [fetchGraphData]);
 
-    // Use real data if available, otherwise sample
     const hasRealData = realNodes.length > 0;
     const nodes = hasRealData ? realNodes : SAMPLE_NODES;
     const edges = hasRealData ? realEdges : SAMPLE_EDGES;
 
-    // Calculate impact when a node is selected
     const calculateImpact = useCallback((node: GraphNode) => {
-        const impacted = new Set<string>();
-        const queue = [node.id];
-
-        // BFS to find all dependents (what breaks if we change this)
-        while (queue.length > 0) {
-            const currentId = queue.shift()!;
-            const currentNode = nodes.find(n => n.id === currentId);
-
-            if (currentNode) {
-                currentNode.dependents.forEach(depId => {
-                    if (!impacted.has(depId)) {
-                        impacted.add(depId);
-                        queue.push(depId);
-                    }
-                });
-            }
-        }
-
-        setImpactedNodes(Array.from(impacted));
-    }, [nodes]);
+        setImpactedNodes(calculateImpactForNodes(node, nodes));
+    }, [calculateImpactForNodes, nodes]);
 
     const handleNodeClick = useCallback((node: GraphNode) => {
         setSelectedNode(node);
+        selectedNodeIdRef.current = node.id;
         calculateImpact(node);
     }, [calculateImpact]);
 
     const handleClearSelection = useCallback(() => {
         setSelectedNode(null);
+        selectedNodeIdRef.current = null;
         setImpactedNodes([]);
     }, []);
 
     return (
-        <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
-                <div>
-                    <h3 className="font-display font-semibold">Dependency Graph</h3>
-                    <p className="text-sm text-[color:var(--color-text-muted)]">
-                        {projectContext?.name || projectName || 'Sample Project'} • {nodes.length} nodes • {edges.length} connections
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {selectedNode && (
-                        <Button variant="ghost" size="sm" onClick={handleClearSelection}>
-                            Clear Selection
+        <div className="h-full min-h-0 flex flex-col">
+            <div className="p-4 border-b border-[color:var(--color-border)] space-y-3">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-display font-semibold">Dependency Graph</h3>
+                        <p className="text-sm text-[color:var(--color-text-muted)]">
+                            {projectContext?.name || projectName || 'Sample Project'} - {nodes.length} nodes - {edges.length} connections
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {selectedNode && (
+                            <Button variant="ghost" size="sm" onClick={handleClearSelection}>
+                                Clear Selection
+                            </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={fetchGraphData}>
+                            Refresh Graph
                         </Button>
-                    )}
-                    <Badge variant={hasRealData ? 'accent' : 'secondary'}>
-                        {hasRealData ? (
+                        <Badge variant={hasRealData ? 'accent' : 'secondary'}>
+                            {hasRealData ? 'Real Project Data' : 'Sample Data'}
+                        </Badge>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-center text-sm">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[color:var(--color-text-muted)]">Mode</span>
+                        <Button
+                            variant={viewMode === 'file' ? 'primary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setViewMode('file')}
+                        >
+                            File
+                        </Button>
+                        <Button
+                            variant={viewMode === 'symbol' ? 'primary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setViewMode('symbol')}
+                        >
+                            Symbol
+                        </Button>
+                    </div>
+
+                    <label className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            checked={includeExternal}
+                            onChange={(e) => setIncludeExternal(e.target.checked)}
+                        />
+                        Include external modules
+                    </label>
+                    <label className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            checked={includeIsolated}
+                            onChange={(e) => setIncludeIsolated(e.target.checked)}
+                        />
+                        Include isolated nodes
+                    </label>
+                </div>
+
+                {(stats || coverage) && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        {coverage && (
+                            <Badge variant="secondary">
+                                Coverage: {coverage.entities_in_graph}/{coverage.entities_in_project} entities, {coverage.relationships_in_graph}/{coverage.relationships_in_project} relationships
+                            </Badge>
+                        )}
+                        {stats && (
                             <>
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Real Project Data
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Sample Data
+                                <Badge variant="secondary">Files: {stats.files}</Badge>
+                                <Badge variant="secondary">Functions: {stats.functions}</Badge>
+                                <Badge variant="secondary">Classes: {stats.classes}</Badge>
+                                <Badge variant="secondary">External: {stats.external_nodes}</Badge>
                             </>
                         )}
-                    </Badge>
-                </div>
+                    </div>
+                )}
+
+                {stats?.truncated && (
+                    <div className="text-xs px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 text-warning">
+                        Graph truncated by limits. Use filters/mode to explore more of the project.
+                    </div>
+                )}
             </div>
 
-            {/* Main content */}
-            <div className="flex-1 flex">
-                {/* Graph */}
-                <div className="flex-1 p-4">
+            <div className="flex-1 min-h-0 flex">
+                <div className="flex-1 min-h-0 p-4">
                     {loading ? (
                         <div className="w-full h-full flex items-center justify-center">
                             <div className="text-center">
                                 <svg className="w-12 h-12 mx-auto text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                 </svg>
                                 <p className="mt-4 text-[color:var(--color-text-muted)]">Loading graph...</p>
                             </div>
@@ -194,50 +415,18 @@ function GraphPanel({ projectName }: GraphPanelProps) {
                     )}
                 </div>
 
-                {/* Side panel */}
                 {selectedNode && (
-                    <div className="w-80 border-l border-[color:var(--color-border)] p-4 overflow-y-auto">
-                        {/* Selected node info */}
+                    <div className="w-80 h-full min-h-0 border-l border-[color:var(--color-border)] p-4 overflow-y-auto">
                         <div className="mb-6">
                             <div className="flex items-center gap-2 mb-2">
-                                <div
-                                    className="w-4 h-4 rounded-full"
-                                    style={{
-                                        backgroundColor: selectedNode.type === 'file' ? '#3D5A80' :
-                                            selectedNode.type === 'function' ? '#E07A5F' :
-                                                selectedNode.type === 'class' ? '#81936A' : '#6B7280'
-                                    }}
-                                />
                                 <h4 className="font-display font-semibold">{selectedNode.label}</h4>
                             </div>
-                            <Badge variant="secondary" className="mb-2">
-                                {selectedNode.type}
-                            </Badge>
-                            {selectedNode.metadata?.lines && (
-                                <p className="text-sm text-[color:var(--color-text-muted)]">
-                                    {selectedNode.metadata.lines} lines
-                                </p>
-                            )}
+                            <Badge variant="secondary" className="mb-2">{selectedNode.type}</Badge>
                             {selectedNode.metadata?.language && (
-                                <p className="text-sm text-[color:var(--color-text-muted)]">
-                                    Language: {selectedNode.metadata.language}
-                                </p>
-                            )}
-                            {selectedNode.metadata?.functions && selectedNode.metadata.functions.length > 0 && (
-                                <div className="mt-2">
-                                    <p className="text-xs text-[color:var(--color-text-muted)]">Functions:</p>
-                                    <p className="text-sm font-mono">{selectedNode.metadata.functions.slice(0, 5).join(', ')}</p>
-                                </div>
-                            )}
-                            {selectedNode.metadata?.classes && selectedNode.metadata.classes.length > 0 && (
-                                <div className="mt-2">
-                                    <p className="text-xs text-[color:var(--color-text-muted)]">Classes:</p>
-                                    <p className="text-sm font-mono">{selectedNode.metadata.classes.join(', ')}</p>
-                                </div>
+                                <p className="text-sm text-[color:var(--color-text-muted)]">Language: {selectedNode.metadata.language}</p>
                             )}
                         </div>
 
-                        {/* Dependencies */}
                         <div className="mb-6">
                             <h5 className="text-sm font-medium mb-2 text-[color:var(--color-text-secondary)]">
                                 Dependencies ({selectedNode.dependencies.length})
@@ -262,59 +451,37 @@ function GraphPanel({ projectName }: GraphPanelProps) {
                             )}
                         </div>
 
-                        {/* Impact Analysis */}
                         <div>
-                            <h5 className="text-sm font-medium mb-2 flex items-center gap-2 text-[color:var(--color-text-secondary)]">
-                                <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                            <h5 className="text-sm font-medium mb-2 text-[color:var(--color-text-secondary)]">
                                 Impact Analysis ({impactedNodes.length})
                             </h5>
                             {impactedNodes.length > 0 ? (
-                                <>
-                                    <p className="text-xs text-[color:var(--color-text-muted)] mb-2">
-                                        Changes to this file may affect:
-                                    </p>
-                                    <div className="space-y-1">
-                                        {impactedNodes.map(id => {
-                                            const node = nodes.find(n => n.id === id);
-                                            return (
-                                                <button
-                                                    key={id}
-                                                    onClick={() => node && handleNodeClick(node)}
-                                                    className="w-full text-left px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 hover:bg-warning/20 transition-colors text-sm"
-                                                >
-                                                    <span className="text-warning">⚠</span> {node?.label || id}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </>
+                                <div className="space-y-1">
+                                    {impactedNodes.map(id => {
+                                        const node = nodes.find(n => n.id === id);
+                                        return (
+                                            <button
+                                                key={id}
+                                                onClick={() => node && handleNodeClick(node)}
+                                                className="w-full text-left px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 hover:bg-warning/20 transition-colors text-sm"
+                                            >
+                                                {node?.label || id}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             ) : (
-                                <p className="text-sm text-[color:var(--color-text-muted)]">
-                                    No dependents - safe to modify
-                                </p>
+                                <p className="text-sm text-[color:var(--color-text-muted)]">No dependents - safe to modify</p>
                             )}
-                        </div>
-
-                        {/* Ask AI Button */}
-                        <div className="mt-6 pt-4 border-t border-[color:var(--color-border)]">
-                            <Button className="w-full">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Ask about this file
-                            </Button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Hint if no real data */}
             {!hasRealData && (
                 <div className="p-4 border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-muted)]">
                     <p className="text-sm text-center text-[color:var(--color-text-secondary)]">
-                        💡 Upload a project in the <strong>Project</strong> tab to see your real dependency graph
+                        Upload a project in the <strong>Project</strong> tab to see your real dependency graph
                     </p>
                 </div>
             )}

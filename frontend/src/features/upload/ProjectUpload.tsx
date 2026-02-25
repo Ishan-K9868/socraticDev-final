@@ -22,15 +22,19 @@ function ProjectUpload() {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [uploadStatus, setUploadStatus] = useState<UploadStatusResponse | null>(null);
     const [pendingFiles, setPendingFiles] = useState<ProjectFile[]>([]);  // Store files until backend completes
+    const pollFailureCountRef = useRef(0);
+    const pendingSinceRef = useRef<number | null>(null);
 
     const {
         projectContext,
         projectFiles,
+        projectStats,
         selectedFile,
         setProjectContext,
         setProjectFiles,
         setSelectedFile,
         setDependencyGraph,
+        setProjectStats,
         clearProject
     } = useStore();
 
@@ -46,12 +50,28 @@ function ProjectUpload() {
     // Poll upload status
     useEffect(() => {
         if (!sessionId || !isProcessing) return;
+        pollFailureCountRef.current = 0;
+        pendingSinceRef.current = null;
 
         const pollInterval = setInterval(async () => {
             try {
                 const status = await graphragAPI.getUploadStatus(sessionId);
+                pollFailureCountRef.current = 0;
                 setUploadStatus(status);
                 setProgress(status.progress * 100);  // Convert 0.0-1.0 to 0-100
+
+                if (status.status === 'pending') {
+                    if (pendingSinceRef.current === null) {
+                        pendingSinceRef.current = Date.now();
+                    } else if (Date.now() - pendingSinceRef.current > 45000) {
+                        setIsProcessing(false);
+                        setError('Upload is queued but not processing. Start backend worker or retry.');
+                        clearInterval(pollInterval);
+                    }
+                    return;
+                }
+
+                pendingSinceRef.current = null;
 
                 if (status.status === 'completed') {
                     setIsProcessing(false);
@@ -61,6 +81,7 @@ function ProjectUpload() {
                     if (status.statistics && status.project_id) {
                         // Set project files NOW (not earlier)
                         setProjectFiles(pendingFiles);
+                        setProjectStats(status.statistics);
                         
                         // Set project context
                         setProjectContext({
@@ -76,16 +97,22 @@ function ProjectUpload() {
                     }
                 } else if (status.status === 'failed') {
                     setIsProcessing(false);
-                    setError(status.error || 'Upload failed');
+                    setError(status.error || status.errors?.[0] || 'Upload failed');
                     clearInterval(pollInterval);
                 }
             } catch (err) {
                 console.error('Failed to poll upload status:', err);
+                pollFailureCountRef.current += 1;
+                if (pollFailureCountRef.current >= 3) {
+                    setIsProcessing(false);
+                    setError('Failed to fetch upload status from backend. Please retry.');
+                    clearInterval(pollInterval);
+                }
             }
         }, 2000);
 
         return () => clearInterval(pollInterval);
-    }, [sessionId, isProcessing, projectName, pendingFiles, setProjectContext, setProjectFiles]);
+    }, [sessionId, isProcessing, projectName, pendingFiles, setProjectContext, setProjectFiles, setProjectStats]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -222,11 +249,14 @@ function ProjectUpload() {
         setError(null);
         setSessionId(null);
         setUploadStatus(null);
+        setProjectStats(null);
         setPendingFiles([]);
         setGithubUrl('');
         setProjectName('');
         setProgress(0);
-    }, [clearProject]);
+        pollFailureCountRef.current = 0;
+        pendingSinceRef.current = null;
+    }, [clearProject, setProjectStats]);
 
     const handleFileSelect = useCallback((file: ProjectFile) => {
         if (file.type === 'file' && file.content) {
@@ -507,25 +537,26 @@ function ProjectUpload() {
                             </div>
                             <Button variant="ghost" size="sm" onClick={handleClearProject}>
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v6m3-3H9m12 0A9 9 0 113 12a9 9 0 0118 0z" />
                                 </svg>
+                                Reset Project
                             </Button>
                         </div>
                         
                         {/* Upload Statistics */}
-                        {uploadStatus?.statistics && (
+                        {(uploadStatus?.statistics || projectStats) && (
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="px-4 py-3 rounded-xl bg-gradient-to-br from-primary-500/10 to-primary-600/10 border border-primary-500/20 shadow-sm">
                                     <p className="text-xs text-[color:var(--color-text-muted)] mb-1">Entities</p>
-                                    <p className="text-2xl font-bold bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent">{uploadStatus.statistics.entity_count}</p>
+                                    <p className="text-2xl font-bold bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent">{(uploadStatus?.statistics || projectStats)?.entity_count ?? 0}</p>
                                 </div>
                                 <div className="px-4 py-3 rounded-xl bg-gradient-to-br from-secondary-500/10 to-secondary-600/10 border border-secondary-500/20 shadow-sm">
                                     <p className="text-xs text-[color:var(--color-text-muted)] mb-1">Relations</p>
-                                    <p className="text-2xl font-bold bg-gradient-to-r from-secondary-500 to-secondary-600 bg-clip-text text-transparent">{uploadStatus.statistics.relationship_count}</p>
+                                    <p className="text-2xl font-bold bg-gradient-to-r from-secondary-500 to-secondary-600 bg-clip-text text-transparent">{(uploadStatus?.statistics || projectStats)?.relationship_count ?? 0}</p>
                                 </div>
                                 <div className="px-4 py-3 rounded-xl bg-gradient-to-br from-accent-500/10 to-accent-600/10 border border-accent-500/20 shadow-sm">
                                     <p className="text-xs text-[color:var(--color-text-muted)] mb-1">Files</p>
-                                    <p className="text-2xl font-bold bg-gradient-to-r from-accent-500 to-accent-600 bg-clip-text text-transparent">{uploadStatus.statistics.file_count}</p>
+                                    <p className="text-2xl font-bold bg-gradient-to-r from-accent-500 to-accent-600 bg-clip-text text-transparent">{(uploadStatus?.statistics || projectStats)?.file_count ?? 0}</p>
                                 </div>
                             </div>
                         )}
