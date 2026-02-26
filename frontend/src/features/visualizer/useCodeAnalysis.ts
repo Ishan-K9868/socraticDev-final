@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CallGraph, ExecutionTrace, GraphNode, GraphEdge, ExecutionStep } from './types';
 import { graphragAPI } from '../../services/graphrag-api';
 
@@ -8,6 +8,26 @@ const DEFAULT_TIMEOUT_MS = 3000;
 function toPositiveInt(value: unknown, fallback = 1): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function toLineOrNull(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    const line = Math.floor(parsed);
+    return line >= 0 ? line : null;
+}
+
+function mapVisualizerError(rawMsg: string, fallbackMessage: string): string {
+    if (rawMsg.includes('Tried analyzer endpoints')) {
+        return rawMsg;
+    }
+    if (rawMsg.includes('(422)') || rawMsg.includes('API Error (422)')) {
+        return 'Invalid request payload for analyzer (422). Please retry with valid Python code.';
+    }
+    if (rawMsg.includes('404')) {
+        return 'Analyzer endpoint not found (404). Restart backend to load /api/visualization/analyze.';
+    }
+    return rawMsg || fallbackMessage;
 }
 
 function sanitizeGraph(raw: any): CallGraph {
@@ -28,7 +48,7 @@ function sanitizeGraph(raw: any): CallGraph {
             id,
             name,
             type,
-            line: toPositiveInt(item?.line, 1),
+            line: toLineOrNull(item?.line),
         });
         seen.add(id);
     }
@@ -96,6 +116,7 @@ function sanitizeTrace(raw: any): ExecutionTrace {
         steps,
         finalOutput: typeof raw?.finalOutput === 'string' ? raw.finalOutput : '',
         error: typeof raw?.error === 'string' ? raw.error : undefined,
+        error_code: typeof raw?.error_code === 'string' ? raw.error_code : undefined,
         meta,
     };
 }
@@ -105,7 +126,7 @@ export function useCodeAnalysis() {
     const [callGraph, setCallGraph] = useState<CallGraph | null>(null);
     const [executionTrace, setExecutionTrace] = useState<ExecutionTrace | null>(null);
     const [error, setError] = useState<string | null>(null);
-    let requestSeq = 0;
+    const requestSeqRef = useRef(0);
 
     const analyzeCallGraph = useCallback(async (code: string, language: string): Promise<CallGraph | null> => {
         if (!code.trim()) {
@@ -115,7 +136,7 @@ export function useCodeAnalysis() {
 
         setIsAnalyzing(true);
         setError(null);
-        const reqId = ++requestSeq;
+        const reqId = ++requestSeqRef.current;
 
         try {
             const raw = await graphragAPI.analyzeVisualizer({
@@ -125,7 +146,7 @@ export function useCodeAnalysis() {
                 max_steps: DEFAULT_MAX_STEPS,
                 timeout_ms: DEFAULT_TIMEOUT_MS,
             });
-            if (reqId !== requestSeq) return null;
+            if (reqId !== requestSeqRef.current) return null;
 
             const graph = sanitizeGraph(raw);
             if (!graph.nodes.length && !graph.edges.length) {
@@ -135,18 +156,14 @@ export function useCodeAnalysis() {
             setCallGraph(graph);
             return graph;
         } catch (e) {
-            if (reqId === requestSeq) {
+            if (reqId === requestSeqRef.current) {
                 const rawMsg = e instanceof Error ? e.message : 'Failed to analyze code';
-                const errorMsg = rawMsg.includes('Tried analyzer endpoints')
-                    ? rawMsg
-                    : rawMsg.includes('404')
-                    ? 'Analyzer endpoint not found (404). Restart backend to load /api/visualization/analyze.'
-                    : rawMsg;
+                const errorMsg = mapVisualizerError(rawMsg, 'Failed to analyze code');
                 setError(errorMsg);
             }
             return null;
         } finally {
-            if (reqId === requestSeq) {
+            if (reqId === requestSeqRef.current) {
                 setIsAnalyzing(false);
             }
         }
@@ -160,7 +177,7 @@ export function useCodeAnalysis() {
 
         setIsAnalyzing(true);
         setError(null);
-        const reqId = ++requestSeq;
+        const reqId = ++requestSeqRef.current;
 
         try {
             const raw = await graphragAPI.analyzeVisualizer({
@@ -169,36 +186,33 @@ export function useCodeAnalysis() {
                 language,
                 max_steps: DEFAULT_MAX_STEPS,
                 timeout_ms: DEFAULT_TIMEOUT_MS,
+                allow_execution: true,
             });
-            if (reqId !== requestSeq) return null;
+            if (reqId !== requestSeqRef.current) return null;
 
             const trace = sanitizeTrace(raw);
-            if (!trace.steps.length) {
+            if (!trace.steps.length && !trace.error && !trace.finalOutput) {
                 throw new Error('Analyzer returned empty execution trace');
             }
 
             setExecutionTrace(trace);
             return trace;
         } catch (e) {
-            if (reqId === requestSeq) {
+            if (reqId === requestSeqRef.current) {
                 const rawMsg = e instanceof Error ? e.message : 'Failed to trace execution';
-                const errorMsg = rawMsg.includes('Tried analyzer endpoints')
-                    ? rawMsg
-                    : rawMsg.includes('404')
-                    ? 'Analyzer endpoint not found (404). Restart backend to load /api/visualization/analyze.'
-                    : rawMsg;
+                const errorMsg = mapVisualizerError(rawMsg, 'Failed to trace execution');
                 setError(errorMsg);
             }
             return null;
         } finally {
-            if (reqId === requestSeq) {
+            if (reqId === requestSeqRef.current) {
                 setIsAnalyzing(false);
             }
         }
     }, []);
 
     const reset = useCallback(() => {
-        requestSeq += 1;
+        requestSeqRef.current += 1;
         setCallGraph(null);
         setExecutionTrace(null);
         setError(null);

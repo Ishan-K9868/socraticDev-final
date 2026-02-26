@@ -1,20 +1,42 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useChat } from './useChat';
-import { useStore } from '../../store/useStore';
-import { getModelName } from '../../services/gemini';
+import { Message, useStore } from '../../store/useStore';
+import { generateFlashcardsWithGemini, getModelName } from '../../services/gemini';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import Badge from '../../ui/Badge';
+import { GeneratedCardCandidate } from '../srs/types';
+import GeneratedCardReviewModal from '../srs/GeneratedCardReviewModal';
+import { useSRS } from '../srs/useSRS';
 
 function ChatPanel() {
+    type SaveSummary = { inserted: number; duplicates: number; rejected: number };
     const { messages, isLoading, sendMessage, isConfigured } = useChat();
-    const { mode } = useStore();
+    const { mode, projectContext } = useStore();
+    const { settings, addGeneratedCards } = useSRS();
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [isGeneratingCards, setIsGeneratingCards] = useState(false);
+    const [generationModalOpen, setGenerationModalOpen] = useState(false);
+    const [generatedCards, setGeneratedCards] = useState<GeneratedCardCandidate[]>([]);
+    const [generationEngine, setGenerationEngine] = useState<'gemini' | 'fallback'>('fallback');
+    const [generationReason, setGenerationReason] = useState<string | undefined>(undefined);
+    const [generationSeedMessage, setGenerationSeedMessage] = useState<Message | null>(null);
+    const [generatingMessageId, setGeneratingMessageId] = useState<string | null>(null);
+    const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
+    const toastTimeoutRef = useRef<number | null>(null);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        return () => {
+            if (toastTimeoutRef.current !== null) {
+                window.clearTimeout(toastTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const quickPrompts = mode === 'learning' ? [
         'How do I implement binary search?',
@@ -26,8 +48,67 @@ function ChatPanel() {
         'Write unit tests for this function',
     ];
 
+    const handleGenerateFromMessage = async (message: Message) => {
+        setIsGeneratingCards(true);
+        setGenerationSeedMessage(message);
+        setGeneratingMessageId(message.id);
+        try {
+            const response = await generateFlashcardsWithGemini({
+                source: 'chat',
+                content: message.content,
+                languageHint: projectContext?.language,
+                count: 3,
+            });
+            setGeneratedCards(response.cards);
+            setGenerationEngine(response.engine);
+            setGenerationReason(response.fallbackReason);
+            setGenerationModalOpen(true);
+        } finally {
+            setIsGeneratingCards(false);
+            setGeneratingMessageId(null);
+        }
+    };
+
+    const handleSaveGeneratedCards = (cards: GeneratedCardCandidate[]) => {
+        const summary = addGeneratedCards(cards, 'chat');
+        setSaveSummary(summary);
+        if (toastTimeoutRef.current !== null) {
+            window.clearTimeout(toastTimeoutRef.current);
+        }
+        toastTimeoutRef.current = window.setTimeout(() => {
+            setSaveSummary(null);
+            toastTimeoutRef.current = null;
+        }, 3500);
+        setGenerationModalOpen(false);
+    };
+
+    const handleRegenerate = async () => {
+        if (!generationSeedMessage) return;
+        await handleGenerateFromMessage(generationSeedMessage);
+    };
+
     return (
         <div className="h-full flex flex-col">
+            <GeneratedCardReviewModal
+                open={generationModalOpen}
+                cards={generatedCards}
+                engine={generationEngine}
+                fallbackReason={generationReason}
+                loading={isGeneratingCards}
+                title="Review Chat Flashcards"
+                onClose={() => setGenerationModalOpen(false)}
+                onSave={handleSaveGeneratedCards}
+                onRegenerate={handleRegenerate}
+            />
+            {saveSummary && (
+                <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-lg border border-success/40 bg-[color:var(--color-bg-elevated)] px-4 py-3 shadow-lg">
+                    <p className="text-sm font-semibold text-success mb-1">Flashcards saved</p>
+                    <p className="text-xs text-[color:var(--color-text-secondary)]">
+                        Inserted: {saveSummary.inserted} | Duplicates: {saveSummary.duplicates} | Rejected: {saveSummary.rejected}
+                    </p>
+                </div>
+            )}
+
             {/* API Status Banner */}
             {!isConfigured && (
                 <div className="px-4 py-3 bg-warning/10 border-b border-warning/30 flex items-center gap-3">
@@ -130,6 +211,9 @@ function ChatPanel() {
                                 key={message.id}
                                 message={message}
                                 isLatest={index === messages.length - 1}
+                                canGenerateFlashcards={message.role === 'assistant' && settings.autoCreateFromChat}
+                                onGenerateFlashcards={handleGenerateFromMessage}
+                                isGeneratingFlashcards={isGeneratingCards && generatingMessageId === message.id}
                             />
                         ))}
 

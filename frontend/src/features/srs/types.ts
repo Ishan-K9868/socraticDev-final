@@ -21,6 +21,7 @@ export interface ReviewResult {
     cardId: string;
     quality: Quality;        // User's self-rating
     reviewedAt: number;
+    dayKey: string;
 }
 
 // SM-2 Quality ratings
@@ -39,6 +40,8 @@ export interface SRSStats {
     currentStreak: number;
     longestStreak: number;
     averageEaseFactor: number;
+    totalReviews: number;
+    reviewAccuracy: number;
 }
 
 export interface DeckProgress {
@@ -46,6 +49,56 @@ export interface DeckProgress {
     learning: number;
     review: number;
     mastered: number;
+}
+
+export interface ReviewEvent {
+    cardId: string;
+    quality: Quality;
+    reviewedAt: number;
+    dayKey: string;
+}
+
+export interface SRSSettings {
+    dailyReviewLimit: number;
+    ratingMode: 'simple4' | 'full6';
+    autoCreateFromChat: boolean;
+    autoCreateFromDojo: boolean;
+}
+
+export interface SRSExportPayload {
+    version: 1;
+    exportedAt: number;
+    cards: Flashcard[];
+    reviewLog: ReviewEvent[];
+    settings: SRSSettings;
+}
+
+export type CardGenerationSource = 'chat' | 'dojo';
+
+export interface GeneratedCardCandidate {
+    front: string;
+    back: string;
+    type: Flashcard['type'];
+    language?: string;
+    tags?: string[];
+    confidence?: number;
+    reason?: string;
+}
+
+export interface CardGenerationRequest {
+    source: CardGenerationSource;
+    content: string;
+    languageHint?: string;
+    topic?: string;
+    challengeType?: string;
+    score?: number;
+    count?: number;
+}
+
+export interface CardGenerationResult {
+    cards: GeneratedCardCandidate[];
+    engine: 'gemini' | 'fallback';
+    fallbackReason?: string;
 }
 
 export const QUALITY_LABELS: Record<Quality, { label: string; color: string; description: string }> = {

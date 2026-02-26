@@ -405,7 +405,7 @@ function ParsonsChallenge({
                                 <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-2">
                                     Your Order
                                 </div>
-                                <pre className="text-xs md:text-sm font-mono bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                                <pre className="text-xs md:text-sm font-mono text-neutral-100 bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap border border-neutral-700 min-h-[160px]">
                                     {userSolutionPreview.join('\n') || '(no non-distractor lines selected)'}
                                 </pre>
                             </div>
@@ -413,7 +413,7 @@ function ParsonsChallenge({
                                 <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-2">
                                     Expected Order
                                 </div>
-                                <pre className="text-xs md:text-sm font-mono bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                                <pre className="text-xs md:text-sm font-mono text-neutral-100 bg-neutral-900 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap border border-neutral-700 min-h-[160px]">
                                     {challenge.solution.join('\n')}
                                 </pre>
                             </div>

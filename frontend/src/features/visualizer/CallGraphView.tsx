@@ -18,36 +18,38 @@ interface CallGraphViewProps {
 }
 
 // Custom node component
-function CustomNode({ data }: { data: { label: string; type: string; line: number } }) {
+function CustomNode({ data }: { data: { label: string; type: string; line: number | null } }) {
     const getTypeColor = () => {
         switch (data.type) {
-            case 'function': return 'border-cyan-500 bg-cyan-500/10';
-            case 'class': return 'border-violet-500 bg-violet-500/10';
-            case 'method': return 'border-blue-500 bg-blue-500/10';
-            case 'variable': return 'border-green-500 bg-green-500/10';
-            case 'module': return 'border-orange-500 bg-orange-500/10';
-            default: return 'border-neutral-500 bg-neutral-500/10';
+            case 'function': return 'border-cyan-500/60 bg-cyan-500/10';
+            case 'class': return 'border-violet-500/60 bg-violet-500/10';
+            case 'method': return 'border-blue-500/60 bg-blue-500/10';
+            case 'variable': return 'border-emerald-500/60 bg-emerald-500/10';
+            case 'module': return 'border-orange-500/60 bg-orange-500/10';
+            default: return 'border-neutral-500/60 bg-neutral-500/10 text-[color:var(--color-text-primary)]';
         }
     };
 
     const getTypeIcon = () => {
         switch (data.type) {
-            case 'function': return 'ƒ';
-            case 'class': return 'C';
-            case 'method': return 'M';
-            case 'variable': return 'V';
-            case 'module': return '📦';
-            default: return '•';
+            case 'function': return 'fn';
+            case 'class': return 'cls';
+            case 'method': return 'm';
+            case 'variable': return 'var';
+            case 'module': return 'mod';
+            default: return 'node';
         }
     };
 
     return (
-        <div className={`px-4 py-3 rounded-lg border-2 ${getTypeColor()} min-w-[120px] text-center`}>
+        <div className={`px-4 py-3 rounded-xl border ${getTypeColor()} min-w-[140px] text-center shadow-lg backdrop-blur-sm text-[color:var(--color-text-primary)]`}>
             <div className="flex items-center justify-center gap-2">
-                <span className="text-xs font-mono opacity-60">{getTypeIcon()}</span>
-                <span className="font-medium text-sm">{data.label}</span>
+                <span className="text-[10px] uppercase font-mono opacity-80 tracking-wide">{getTypeIcon()}</span>
+                <span className="font-semibold text-sm">{data.label}</span>
             </div>
-            <div className="text-xs text-neutral-400 mt-1">Line {data.line}</div>
+            <div className="text-xs text-[color:var(--color-text-muted)] mt-1">
+                {typeof data.line === 'number' && data.line > 0 ? `Line ${data.line}` : 'No source line'}
+            </div>
         </div>
     );
 }
@@ -152,7 +154,7 @@ function CallGraphView({ graph }: CallGraphViewProps) {
     if (!graph.nodes.length) {
         return (
             <div className="h-full flex items-center justify-center text-[color:var(--color-text-muted)]">
-                <div className="text-center">
+                <div className="text-center p-8 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/65 backdrop-blur-sm">
                     <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                     </svg>
@@ -164,7 +166,7 @@ function CallGraphView({ graph }: CallGraphViewProps) {
     }
 
     return (
-        <div className="h-full w-full">
+        <div className="h-full w-full relative">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -177,12 +179,12 @@ function CallGraphView({ graph }: CallGraphViewProps) {
                     type: 'smoothstep',
                 }}
             >
-                <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+                <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(120,113,108,0.35)" />
                 <Controls />
             </ReactFlow>
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 p-3 rounded-lg bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] text-xs">
+            <div className="absolute bottom-4 left-4 p-3 rounded-xl bg-[color:var(--color-bg-secondary)]/85 backdrop-blur-md border border-[color:var(--color-border)] text-xs shadow-lg">
                 <div className="font-medium mb-2">Legend</div>
                 <div className="flex flex-wrap gap-3">
                     <div className="flex items-center gap-1">

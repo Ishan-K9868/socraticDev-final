@@ -4,7 +4,7 @@ export interface GraphNode {
     id: string;
     name: string;
     type: 'function' | 'class' | 'method' | 'variable' | 'module';
-    line: number;
+    line: number | null;
     endLine?: number;
     code?: string;
 }
@@ -36,6 +36,7 @@ export interface ExecutionTrace {
     steps: ExecutionStep[];
     finalOutput: string;
     error?: string;
+    error_code?: 'invalid_request' | 'timeout' | 'sandbox_blocked' | 'runtime_error' | 'internal_error';
     meta?: AnalysisMeta;
 }
 

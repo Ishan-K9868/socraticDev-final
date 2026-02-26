@@ -85,25 +85,43 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
 
     const getActionIcon = (action: string) => {
         switch (action) {
-            case 'call': return '→';
-            case 'return': return '←';
+            case 'call': return '->';
+            case 'return': return '<-';
             case 'assign': return '=';
             case 'condition': return '?';
-            case 'loop': return '↻';
-            default: return '•';
+            case 'loop': return 'loop';
+            default: return 'step';
         }
     };
 
     if (!trace.steps.length) {
         return (
-            <div className="h-full flex items-center justify-center text-[color:var(--color-text-muted)]">
-                <div className="text-center">
-                    <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p>No execution trace yet</p>
-                    <p className="text-sm mt-1">Click Visualize to trace execution</p>
+            <div className="h-full p-6 text-[color:var(--color-text-muted)]">
+                <div className="max-w-2xl mx-auto">
+                    {trace.error ? (
+                        <div className="rounded-xl border border-red-500/40 bg-red-500/10 backdrop-blur-sm p-4 mb-4">
+                            <div className="font-semibold text-red-300 mb-2">Execution Error</div>
+                            <pre className="text-sm whitespace-pre-wrap text-red-200">{trace.error}</pre>
+                        </div>
+                    ) : null}
+
+                    {trace.finalOutput ? (
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm p-4 mb-4">
+                            <div className="font-semibold text-emerald-300 mb-2">Output</div>
+                            <pre className="text-sm whitespace-pre-wrap text-emerald-200">{trace.finalOutput}</pre>
+                        </div>
+                    ) : null}
+
+                    <div className="text-center mt-6 p-8 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/60 backdrop-blur-sm">
+                        <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>{trace.error ? 'Trace stopped before step capture' : 'No execution trace yet'}</p>
+                        <p className="text-sm mt-1">
+                            {trace.error ? 'Fix the error and run again.' : 'Click Visualize to trace execution'}
+                        </p>
+                    </div>
                 </div>
             </div>
         );
@@ -112,7 +130,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Controls */}
-            <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)]">
+            <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/55 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleReset}
@@ -137,7 +155,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
 
                     <button
                         onClick={handlePlayPause}
-                        className="p-3 rounded-full bg-primary-500 hover:bg-primary-600 text-white transition-colors"
+                        className="p-3 rounded-full bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-lg shadow-primary-500/20"
                         title={isPlaying ? 'Pause' : 'Play'}
                     >
                         {isPlaying ? (
@@ -170,7 +188,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
                         <select
                             value={playSpeed}
                             onChange={(e) => setPlaySpeed(Number(e.target.value))}
-                            className="px-2 py-1 rounded bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] text-sm"
+                            className="px-2 py-1 rounded-lg bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] text-sm"
                         >
                             <option value={2000}>0.5x</option>
                             <option value={1000}>1x</option>
@@ -190,7 +208,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
             {/* Main content */}
             <div className="flex-1 flex min-h-0">
                 {/* Code with highlighting */}
-                <div className="w-1/2 overflow-auto border-r border-[color:var(--color-border)]">
+                <div className="w-1/2 overflow-auto border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-primary)]/25">
                     <pre ref={codeRef} className="p-4 text-sm font-mono">
                         {codeLines.map((line, i) => {
                             const lineNum = i + 1;
@@ -208,7 +226,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
                                     <span className="w-10 text-right pr-4 text-[color:var(--color-text-muted)] select-none">
                                         {lineNum}
                                     </span>
-                                    <span className={isActive ? 'text-white' : 'text-neutral-300'}>
+                                    <span className={isActive ? 'text-[color:var(--color-text-primary)]' : 'text-[color:var(--color-text-secondary)]'}>
                                         {line || ' '}
                                     </span>
                                 </div>
@@ -218,7 +236,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
                 </div>
 
                 {/* Right panel - Step info */}
-                <div className="w-1/2 flex flex-col overflow-auto">
+                <div className="w-1/2 flex flex-col overflow-auto bg-[color:var(--color-bg-secondary)]/40">
                     {/* Current step info */}
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -226,10 +244,10 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="p-4 border-b border-[color:var(--color-border)]"
+                            className="p-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/30"
                         >
                             <div className="flex items-center gap-2 mb-2">
-                                <span className={`text-lg ${getActionColor(step?.action || '')}`}>
+                                <span className={`text-xs uppercase px-2 py-0.5 rounded-md border border-[color:var(--color-border)] ${getActionColor(step?.action || '')}`}>
                                     {getActionIcon(step?.action || '')}
                                 </span>
                                 <span className="font-semibold capitalize">{step?.action}</span>
@@ -297,7 +315,7 @@ function ExecutionAnimator({ trace, code }: ExecutionAnimatorProps) {
                                 </svg>
                                 Output
                             </h4>
-                            <pre className="p-3 bg-neutral-900 rounded-lg text-sm font-mono text-green-400 overflow-auto">
+                            <pre className="p-3 bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)] rounded-lg text-sm font-mono text-[color:var(--color-text-primary)] overflow-auto">
                                 {step?.output || trace.finalOutput || 'No output'}
                             </pre>
                         </div>

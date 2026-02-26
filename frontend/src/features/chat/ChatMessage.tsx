@@ -7,9 +7,18 @@ import CodeBlock from './CodeBlock';
 interface ChatMessageProps {
     message: Message;
     isLatest?: boolean;
+    onGenerateFlashcards?: (message: Message) => void;
+    canGenerateFlashcards?: boolean;
+    isGeneratingFlashcards?: boolean;
 }
 
-function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
+function ChatMessage({
+    message,
+    isLatest = false,
+    onGenerateFlashcards,
+    canGenerateFlashcards = false,
+    isGeneratingFlashcards = false,
+}: ChatMessageProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const isUser = message.role === 'user';
 
@@ -128,6 +137,53 @@ function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
                         minute: '2-digit'
                     })}
                 </div>
+                {!isUser && canGenerateFlashcards && onGenerateFlashcards && (
+                    <div className="px-4 pb-4">
+                        {isLatest && (
+                            <div className="relative mb-1 h-10 w-full text-primary-400 translate-y-2">
+                                <span className="absolute right-0 top-1 text-[11px] font-medium italic whitespace-nowrap">
+                                    Need a quick revision set?
+                                </span>
+                                <svg
+                                    className="absolute inset-0 h-full w-full pointer-events-none"
+                                    viewBox="0 0 320 40"
+                                    fill="none"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M308 7 C252 7, 190 30, 26 33"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeDasharray="3.5 5"
+                                    >
+                                        <animate
+                                            attributeName="stroke-dashoffset"
+                                            from="18"
+                                            to="0"
+                                            dur="1.4s"
+                                            repeatCount="indefinite"
+                                        />
+                                    </path>
+                                    <path d="M30 29 L24 33 L31 36" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => onGenerateFlashcards(message)}
+                            disabled={isGeneratingFlashcards}
+                            className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-md bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isGeneratingFlashcards && (
+                                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                            )}
+                            {isGeneratingFlashcards ? 'Generating...' : 'Generate Flashcards'}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

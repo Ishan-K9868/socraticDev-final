@@ -22,14 +22,24 @@ function AppPage() {
     const containerRef = useRef<HTMLDivElement>(null);
     const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chat');
     const [showOnboarding, setShowOnboarding] = useState(false);
-    const [selectedExample, setSelectedExample] = useState(EXAMPLE_PROJECTS[0]);
-    const { projectContext, theme, selectedFile } = useStore();
-
-    // Determine what to show in the editor
-    const editorContent = selectedFile?.content || selectedExample.code;
-    const editorFilename = selectedFile?.name || selectedExample.filename;
-    const editorLanguage = selectedFile?.language || selectedExample.language;
-    const editorKey = selectedFile?.id || selectedExample.id;
+    const [selectedExampleId, setSelectedExampleId] = useState(EXAMPLE_PROJECTS[0]?.id || '');
+    const {
+        projectContext,
+        theme,
+        selectedFile,
+        activeDocumentId,
+        editorDocuments,
+        setDocumentSelection,
+        addChatContextSnippet,
+        updateDocumentContent,
+        renameDocument,
+        setDocumentLanguageMode,
+        openDocumentFromExample,
+        createScratchDocument,
+        openDocumentFromProjectFile,
+    } = useStore();
+    const activeDocument = editorDocuments.find((doc) => doc.id === activeDocumentId) || null;
+    const selectedExample = EXAMPLE_PROJECTS.find((project) => project.id === selectedExampleId) || EXAMPLE_PROJECTS[0];
 
     // Check if first visit - show onboarding
     useEffect(() => {
@@ -38,6 +48,22 @@ function AppPage() {
             setShowOnboarding(true);
         }
     }, []);
+
+    useEffect(() => {
+        if (!activeDocumentId && editorDocuments.length === 0) {
+            createScratchDocument({
+                name: 'scratch.py',
+                languageMode: 'python',
+                content: '# Start coding...\n',
+            });
+        }
+    }, [activeDocumentId, editorDocuments.length, createScratchDocument]);
+
+    useEffect(() => {
+        if (selectedFile?.id) {
+            openDocumentFromProjectFile(selectedFile.id);
+        }
+    }, [selectedFile?.id, openDocumentFromProjectFile]);
 
     const handleOnboardingComplete = () => {
         localStorage.setItem('socraticdev-onboarding', 'true');
@@ -265,7 +291,10 @@ function AppPage() {
                                                     {EXAMPLE_PROJECTS.map((project) => (
                                                         <button
                                                             key={project.id}
-                                                            onClick={() => setSelectedExample(project)}
+                                                            onClick={() => {
+                                                                setSelectedExampleId(project.id);
+                                                                openDocumentFromExample(project);
+                                                            }}
                                                             className={`w-full text-left p-3 rounded-lg transition-colors ${selectedExample.id === project.id
                                                                 ? 'bg-primary-500/10 border border-primary-500/30'
                                                                 : 'bg-[color:var(--color-bg-elevated)] hover:bg-[color:var(--color-bg-secondary)]'
@@ -308,10 +337,39 @@ function AppPage() {
                             {/* Right Panel - Code Editor */}
                             <div className="app-panel hidden md:flex flex-1 flex-col overflow-hidden">
                                 <CodeEditor
-                                    key={editorKey}
-                                    initialValue={editorContent}
-                                    filename={editorFilename}
-                                    language={editorLanguage}
+                                    key={activeDocument?.id || 'scratch-editor'}
+                                    value={activeDocument?.content || ''}
+                                    filename={activeDocument?.name || 'scratch.py'}
+                                    languageMode={activeDocument?.languageMode || 'python'}
+                                    onChange={(value) => {
+                                        if (activeDocument?.id) {
+                                            updateDocumentContent(activeDocument.id, value);
+                                        }
+                                    }}
+                                    onRename={(nextName) => {
+                                        if (!activeDocument?.id) return;
+                                        renameDocument(activeDocument.id, nextName);
+                                    }}
+                                    onLanguageModeChange={(nextLanguage) => {
+                                        if (!activeDocument?.id) return;
+                                        setDocumentLanguageMode(activeDocument.id, nextLanguage);
+                                    }}
+                                    onSelectionChange={(selection) => {
+                                        if (!activeDocument?.id) return;
+                                        setDocumentSelection(activeDocument.id, selection);
+                                    }}
+                                    onSelectionContextAdd={(snippet) => {
+                                        if (!activeDocument?.id) return;
+                                        addChatContextSnippet({
+                                            documentId: activeDocument.id,
+                                            documentName: activeDocument.name,
+                                            languageMode: activeDocument.languageMode,
+                                            text: snippet.text,
+                                            startLine: snippet.startLine,
+                                            endLine: snippet.endLine,
+                                        });
+                                        setSidebarTab('chat');
+                                    }}
                                 />
                             </div>
                         </>

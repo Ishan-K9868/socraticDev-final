@@ -1,6 +1,37 @@
 import { useState, useCallback } from 'react';
-import { useStore } from '../../store/useStore';
+import { ChatContextSnippet, useStore } from '../../store/useStore';
+import { ProjectFile } from '../../utils/projectAnalyzer';
 import { sendMessageToGemini, isGeminiConfigured, ChatMessage } from '../../services/gemini';
+
+function flattenProjectFiles(files: ProjectFile[], acc: ProjectFile[] = []): ProjectFile[] {
+    for (const file of files) {
+        acc.push(file);
+        if (file.children?.length) {
+            flattenProjectFiles(file.children, acc);
+        }
+    }
+    return acc;
+}
+
+function formatSnippetContext(snippets?: ChatContextSnippet[]): string | undefined {
+    if (!snippets || snippets.length === 0) return undefined;
+
+    const bounded = snippets.slice(0, 4).map((snippet) => {
+        const content = snippet.text.length > 1000
+            ? `${snippet.text.slice(0, 1000)}\n...[truncated]`
+            : snippet.text;
+        return [
+            `File: ${snippet.documentName}`,
+            `Language: ${snippet.languageMode}`,
+            `Lines: ${snippet.startLine}-${snippet.endLine}`,
+            '```',
+            content,
+            '```',
+        ].join('\n');
+    });
+
+    return `Selected code context (user-attached):\n${bounded.join('\n\n')}`;
+}
 
 export function useChat() {
     const { mode, addMessage, conversations, currentConversationId, projectContext } = useStore();
@@ -10,7 +41,6 @@ export function useChat() {
     const currentConversation = conversations.find(c => c.id === currentConversationId);
     const messages = currentConversation?.messages || [];
 
-    // Convert store messages to API format
     const getApiMessages = useCallback((): ChatMessage[] => {
         return messages.map(msg => ({
             role: msg.role,
@@ -18,32 +48,37 @@ export function useChat() {
         }));
     }, [messages]);
 
-    // Build project context string
     const getProjectContextString = useCallback((): string | undefined => {
         if (!projectContext) return undefined;
+        const flattened = flattenProjectFiles(projectContext.files || []);
+        const onlyFiles = flattened.filter((file) => file.type === 'file');
+        const listing = onlyFiles
+            .slice(0, 20)
+            .map((file) => `${file.path || file.name} (${file.language || 'plaintext'})`);
 
         return `Project: ${projectContext.name}
 Language: ${projectContext.language}
-Files: ${projectContext.files.slice(0, 20).join(', ')}${projectContext.files.length > 20 ? ` ...and ${projectContext.files.length - 20} more` : ''}`;
+Files (${onlyFiles.length}):
+${listing.map((entry) => `- ${entry}`).join('\n')}${onlyFiles.length > listing.length ? `\n- ...and ${onlyFiles.length - listing.length} more` : ''}`;
     }, [projectContext]);
 
-    const sendMessage = useCallback(async (content: string) => {
+    const sendMessage = useCallback(async (
+        content: string,
+        opts?: { contextSnippets?: ChatContextSnippet[] },
+    ) => {
         if (!content.trim() || isLoading) return;
 
         setError(null);
 
-        // Check if API is configured
         if (!isGeminiConfigured()) {
             setError('Gemini API key not configured. Please add your API key to .env.local');
 
-            // Add user message anyway
             addMessage({
                 role: 'user',
                 content: content.trim(),
                 mode,
             });
 
-            // Add error message as assistant response
             addMessage({
                 role: 'assistant',
                 content: `⚠️ **API Key Required**
@@ -62,7 +97,6 @@ Once configured, I'll be able to help you learn and build with the full power of
             return;
         }
 
-        // Add user message
         addMessage({
             role: 'user',
             content: content.trim(),
@@ -72,20 +106,18 @@ Once configured, I'll be able to help you learn and build with the full power of
         setIsLoading(true);
 
         try {
-            // Get conversation history including the new message
             const apiMessages: ChatMessage[] = [
                 ...getApiMessages(),
                 { role: 'user', content: content.trim() },
             ];
 
-            // Call Gemini API
             const response = await sendMessageToGemini(
                 apiMessages,
                 mode,
-                getProjectContextString()
+                getProjectContextString(),
+                formatSnippetContext(opts?.contextSnippets),
             );
 
-            // Add AI response
             addMessage({
                 role: 'assistant',
                 content: response,
@@ -95,7 +127,6 @@ Once configured, I'll be able to help you learn and build with the full power of
             const errorMessage = err instanceof Error ? err.message : 'An error occurred';
             setError(errorMessage);
 
-            // Add error message as assistant response
             addMessage({
                 role: 'assistant',
                 content: `❌ **Error**

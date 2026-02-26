@@ -1,4 +1,5 @@
 import Editor from '@monaco-editor/react';
+import { useStore } from '../../store/useStore';
 
 interface CodeInputPanelProps {
     code: string;
@@ -29,16 +30,17 @@ function CodeInputPanel({
     onAnalyze,
     isAnalyzing,
 }: CodeInputPanelProps) {
+    const { theme } = useStore();
     const loadSampleCode = () => {
         onCodeChange(PYTHON_SAMPLE_CODE);
     };
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)]">
+            <div className="flex items-center justify-between p-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/75 backdrop-blur-md">
                 <div className="flex items-center gap-4">
-                    <h3 className="font-semibold">Code Input</h3>
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-blue-500/40 text-blue-300 bg-blue-500/10">
+                    <h3 className="font-semibold text-[color:var(--color-text-primary)]">Code Input</h3>
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-primary-500/30 text-primary-400 bg-primary-500/10">
                         {language.toUpperCase()} only
                     </span>
                 </div>
@@ -46,7 +48,7 @@ function CodeInputPanel({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={loadSampleCode}
-                        className="px-3 py-1.5 text-sm text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)] transition-colors"
+                        className="px-3 py-1.5 text-sm rounded-lg text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-bg-muted)] transition-colors"
                     >
                         Load Sample
                     </button>
@@ -57,8 +59,8 @@ function CodeInputPanel({
                         className={`
                             px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all
                             ${isAnalyzing || !code.trim()
-                                ? 'bg-primary-500/50 cursor-not-allowed'
-                                : 'bg-primary-500 hover:bg-primary-600 text-white'
+                                ? 'bg-primary-500/50 text-white/80 cursor-not-allowed'
+                                : 'bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/20'
                             }
                         `}
                     >
@@ -82,13 +84,13 @@ function CodeInputPanel({
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 bg-[color:var(--color-bg-primary)]/60">
                 <Editor
                     height="100%"
                     language="python"
                     value={code}
                     onChange={(value) => onCodeChange(value || '')}
-                    theme="vs-dark"
+                    theme={theme === 'dark' ? 'vs-dark' : 'vs'}
                     options={{
                         minimap: { enabled: false },
                         fontSize: 14,
@@ -97,6 +99,7 @@ function CodeInputPanel({
                         automaticLayout: true,
                         tabSize: 4,
                         wordWrap: 'on',
+                        padding: { top: 12, bottom: 12 },
                     }}
                 />
             </div>

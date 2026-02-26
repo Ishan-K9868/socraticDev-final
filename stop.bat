@@ -29,11 +29,14 @@ echo Stopping backend Python workers...
 powershell -NoProfile -Command "$root = [regex]::Escape('%BACKEND_DIR%'); $p = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match $root -and ( $_.CommandLine -match 'uvicorn\s+src\.main:app' -or $_.CommandLine -match 'celery(\.exe)?\s+-A\s+src\.celery_app\s+worker' ) }; if($p){ $p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
 echo [OK] Backend Python workers stopped
 
-echo Clearing any remaining listeners on port %API_PORT%...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
-    taskkill /PID %%P /T /F >nul 2>&1
+echo Verifying API port %API_PORT% ownership...
+powershell -NoProfile -Command "$port = %API_PORT%; $root = [regex]::Escape('%BACKEND_DIR%'); $left = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -eq $port }; if(-not $left){ Write-Output 'CLEAR'; exit 0 }; $unmanaged = $false; foreach($conn in $left){ $pid = $conn.OwningProcess; $proc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $pid) -ErrorAction SilentlyContinue; if(-not $proc){ continue }; if($proc.CommandLine -match $root -and $proc.CommandLine -match 'uvicorn\s+src\.main:app'){ try { Stop-Process -Id $pid -Force -ErrorAction Stop } catch{} } else { $unmanaged = $true; Write-Output ('UNMANAGED:' + $pid) } }; if($unmanaged){ exit 2 } else { exit 0 }" >"%BACKEND_DIR%\logs\stop_port_check.log" 2>&1
+if %errorlevel% EQU 2 (
+    echo [WARNING] Port %API_PORT% is still used by non-SocraticDev process(es):
+    type "%BACKEND_DIR%\logs\stop_port_check.log"
+) else (
+    echo [OK] API port ownership check complete
 )
-echo [OK] Port %API_PORT% cleanup attempted
 
 if defined COMPOSE_CMD (
     echo Stopping Docker services...

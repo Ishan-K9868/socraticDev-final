@@ -1,5 +1,11 @@
 import { Mode } from '../store/useStore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+    CardGenerationRequest,
+    CardGenerationResult,
+    GeneratedCardCandidate,
+} from '../features/srs/types';
+import { generateFallbackFlashcards } from '../features/srs/aiCardFallback';
 
 // Gemini API configuration
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
@@ -107,10 +113,114 @@ export interface ChatMessage {
     content: string;
 }
 
+const TAG_STOPWORDS = new Set([
+    'the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'your', 'you', 'are', 'how', 'what',
+    'when', 'where', 'why', 'which', 'will', 'would', 'could', 'should', 'can', 'does', 'did', 'have',
+    'has', 'had', 'not', 'but', 'use', 'using', 'about', 'through', 'their', 'there', 'them', 'then',
+    'than', 'also', 'only', 'more', 'most', 'some', 'many', 'each', 'other', 'very', 'code', 'card',
+    'cards', 'question', 'answer', 'example', 'examples',
+]);
+
+function extractJsonPayload(text: string): unknown {
+    const fenced = text.match(/```json\s*([\s\S]*?)```/i);
+    const candidate = fenced ? fenced[1] : text;
+    const trimmed = candidate.trim();
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        const start = trimmed.indexOf('{');
+        const end = trimmed.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return JSON.parse(trimmed.slice(start, end + 1));
+        }
+        throw new Error('Failed to parse generated JSON payload');
+    }
+}
+
+function normalizeGeneratedCards(payload: unknown, count: number): GeneratedCardCandidate[] {
+    const rawCards = Array.isArray((payload as { cards?: unknown[] })?.cards)
+        ? (payload as { cards: unknown[] }).cards
+        : [];
+
+    const cleaned = rawCards
+        .map((item) => {
+            if (!item || typeof item !== 'object') return null;
+            const obj = item as Record<string, unknown>;
+            const front = typeof obj.front === 'string' ? obj.front.trim() : '';
+            const back = typeof obj.back === 'string' ? obj.back.trim() : '';
+            if (!front || !back) return null;
+
+            const type = obj.type === 'cloze' || obj.type === 'code' ? obj.type : 'basic';
+            const tags = Array.isArray(obj.tags)
+                ? obj.tags.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 8)
+                : undefined;
+
+            const language = typeof obj.language === 'string' ? obj.language.trim() : undefined;
+            const confidence = Number.isFinite(Number(obj.confidence)) ? Number(obj.confidence) : undefined;
+            const reason = typeof obj.reason === 'string' ? obj.reason.trim() : undefined;
+
+            return {
+                front: front.slice(0, 500),
+                back: back.slice(0, 800),
+                type,
+                language: language || undefined,
+                tags,
+                confidence,
+                reason,
+            } as GeneratedCardCandidate;
+        })
+        .filter((card): card is GeneratedCardCandidate => card !== null);
+
+    return cleaned.slice(0, Math.max(1, Math.min(5, count)));
+}
+
+function tokenizeForTags(text: string): string[] {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.\-\s]/g, ' ')
+        .split(/\s+/)
+        .map((word) => word.trim())
+        .filter((word) => word.length >= 3 && !TAG_STOPWORDS.has(word));
+}
+
+function buildAutoTags(card: GeneratedCardCandidate, request: CardGenerationRequest): string[] {
+    const merged = `${card.front} ${card.back}`;
+    const tokens = tokenizeForTags(merged);
+    const freq = new Map<string, number>();
+    tokens.forEach((token) => freq.set(token, (freq.get(token) || 0) + 1));
+    const ranked = Array.from(freq.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([word]) => word)
+        .slice(0, 3);
+
+    const sourceTag = request.source === 'chat' ? 'chat' : 'dojo';
+    const languageTag = (card.language || request.languageHint || '').toLowerCase().trim();
+    const topicTag = (request.topic || '').toLowerCase().trim().replace(/\s+/g, '-');
+
+    const tagSet = new Set<string>();
+    tagSet.add(sourceTag);
+    if (languageTag) tagSet.add(languageTag);
+    if (topicTag) tagSet.add(topicTag);
+    ranked.forEach((tag) => tagSet.add(tag));
+
+    return Array.from(tagSet).slice(0, 8);
+}
+
+function ensureCardTags(cards: GeneratedCardCandidate[], request: CardGenerationRequest): GeneratedCardCandidate[] {
+    return cards.map((card) => {
+        const existingTags = (card.tags || []).map((tag) => tag.trim()).filter(Boolean).slice(0, 8);
+        if (existingTags.length > 0) {
+            return { ...card, tags: existingTags };
+        }
+        return { ...card, tags: buildAutoTags(card, request) };
+    });
+}
+
 export async function sendMessageToGemini(
     messages: ChatMessage[],
     mode: Mode,
-    projectContext?: string
+    projectContext?: string,
+    extraContext?: string,
 ): Promise<string> {
     if (!GEMINI_API_KEY) {
         throw new Error(
@@ -124,6 +234,10 @@ export async function sendMessageToGemini(
     // Add project context if available
     if (projectContext) {
         systemPrompt += `\n\n## Project Context:\nThe user has uploaded a project. Here's the context:\n${projectContext}\n\nUse this context to provide more relevant and project-specific assistance.`;
+    }
+
+    if (extraContext) {
+        systemPrompt += `\n\n## User-selected Code Context:\n${extraContext}\n\nPrioritize this selected context when answering.`;
     }
 
     try {
@@ -157,6 +271,70 @@ export async function sendMessageToGemini(
     } catch (error) {
         console.error('Gemini API Error:', error);
         throw error;
+    }
+}
+
+export async function generateFlashcardsWithGemini(
+    request: CardGenerationRequest
+): Promise<CardGenerationResult> {
+    const count = Math.max(1, Math.min(5, request.count ?? 3));
+    if (!request.content.trim()) {
+        return generateFallbackFlashcards({ ...request, count });
+    }
+
+    if (!GEMINI_API_KEY) {
+        return generateFallbackFlashcards({ ...request, count });
+    }
+
+    const generationPrompt = `
+Generate exactly ${count} high-quality flashcards as JSON.
+
+Source: ${request.source}
+Topic: ${request.topic || 'n/a'}
+Challenge Type: ${request.challengeType || 'n/a'}
+Language Hint: ${request.languageHint || 'n/a'}
+Score: ${typeof request.score === 'number' ? request.score : 'n/a'}
+
+Rules:
+- Output valid JSON only
+- Root shape: {"cards":[...]}
+- Each card: {"front":string,"back":string,"type":"basic"|"cloze"|"code","language"?:string,"tags"?:string[],"confidence"?:number,"reason"?:string}
+- concise, concrete, no duplicate cards
+- Include at least one practical/usage-oriented card when possible
+
+Source content:
+${request.content}
+`.trim();
+
+    try {
+        const ai = getGenAI();
+        const model = ai.getGenerativeModel({
+            model: GEMINI_MODEL,
+            generationConfig: {
+                temperature: 0.4,
+                topK: 32,
+                topP: 0.9,
+                maxOutputTokens: 2048,
+            },
+        });
+
+        const result = await model.generateContent(generationPrompt);
+        const response = await result.response;
+        const text = response.text();
+        const parsed = extractJsonPayload(text);
+        const cards = ensureCardTags(normalizeGeneratedCards(parsed, count), request);
+
+        if (!cards.length) {
+            return generateFallbackFlashcards({ ...request, count });
+        }
+
+        return {
+            cards,
+            engine: 'gemini',
+        };
+    } catch (error) {
+        console.error('Gemini flashcard generation error:', error);
+        return generateFallbackFlashcards({ ...request, count });
     }
 }
 

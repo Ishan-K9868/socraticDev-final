@@ -428,6 +428,7 @@ if %errorlevel% NEQ 0 (
     ) else (
         echo [WARNING] API is healthy but missing /api/visualization/analyze. Restarting API process...
         call :clear_listener_on_api_port
+        if errorlevel 1 exit /b 1
         call :launch_api_process
         if errorlevel 1 exit /b 1
     )
@@ -565,42 +566,11 @@ if /i "%RUNNING_STATE%"=="true" exit /b 0
 exit /b 1
 
 :clear_listener_on_api_port
-set "API_PORT_FOUND=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
-    set "API_PORT_FOUND=1"
-    taskkill /PID %%P /T /F >nul 2>&1
-    if !errorlevel! NEQ 0 (
-        powershell -NoProfile -Command "Stop-Process -Id %%P -Force -ErrorAction SilentlyContinue" >nul 2>&1
-    )
-)
-if "!API_PORT_FOUND!"=="0" exit /b 0
-timeout /t 1 /nobreak >nul
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%API_PORT% .*LISTENING"') do (
-    echo [ERROR] Port %API_PORT% is still occupied by PID %%P.
-    exit /b 1
-)
-exit /b 0
-
-:stop_conflicting_port_8000
-set "PORT8000_FOUND=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8000 .*LISTENING"') do (
-    set "PORT8000_FOUND=1"
-    echo [WARNING] Port 8000 is occupied by PID %%P. Attempting to stop it...
-    taskkill /PID %%P /T /F >nul 2>&1
-    if !errorlevel! NEQ 0 (
-        powershell -NoProfile -Command "Stop-Process -Id %%P -Force -ErrorAction SilentlyContinue" >nul 2>&1
-    )
-)
-if "!PORT8000_FOUND!"=="0" exit /b 0
-timeout /t 1 /nobreak >nul
-set "PORT8000_STILL="
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8000 .*LISTENING"') do (
-    set "PORT8000_STILL=%%P"
-    goto :stop_port8000_verify
-)
-:stop_port8000_verify
-if defined PORT8000_STILL (
-    echo [WARNING] Port 8000 is still occupied by PID !PORT8000_STILL!.
+powershell -NoProfile -Command "$port = %API_PORT%; $root = [regex]::Escape('%BACKEND_DIR%'); $listeners = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match $root -and $_.CommandLine -match 'uvicorn\s+src\.main:app' }; $killed = $false; foreach($p in $listeners){ try{ Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop; $killed = $true } catch{} }; Start-Sleep -Milliseconds 500; $left = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -eq $port }; if($left){ foreach($conn in $left){ $pid = $conn.OwningProcess; $proc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $pid) -ErrorAction SilentlyContinue; if(-not $proc){ continue }; if($proc.CommandLine -match $root -and $proc.CommandLine -match 'uvicorn\s+src\.main:app'){ try { Stop-Process -Id $pid -Force -ErrorAction Stop; $killed = $true } catch{} } else { Write-Output ('UNMANAGED:' + $pid) } }; Start-Sleep -Milliseconds 300; $left2 = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -eq $port }; if($left2){ foreach($conn in $left2){ $pid = $conn.OwningProcess; $proc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $pid) -ErrorAction SilentlyContinue; if($proc -and -not ($proc.CommandLine -match $root -and $proc.CommandLine -match 'uvicorn\s+src\.main:app')){ Write-Output ('UNMANAGED:' + $pid) } } } }; if($killed){ Write-Output 'KILLED_MANAGED' }" >"%BACKEND_DIR%\logs\port_clear.log" 2>&1
+findstr /C:"UNMANAGED:" "%BACKEND_DIR%\logs\port_clear.log" >nul 2>&1
+if %errorlevel% EQU 0 (
+    echo [ERROR] Port %API_PORT% is occupied by a non-SocraticDev process. Stop it manually and retry.
+    type "%BACKEND_DIR%\logs\port_clear.log"
     exit /b 1
 )
 exit /b 0

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, MouseEvent as ReactMouseEvent } from 'react';
 import { useStore } from '../store/useStore';
 import { ChatPanel } from '../features/chat';
 import { CodeEditor } from '../features/editor';
@@ -11,29 +11,43 @@ import ThemeToggle from '../components/ThemeToggle';
 import { Link } from 'react-router-dom';
 import { ProjectFile } from '../utils/projectAnalyzer';
 
-interface OpenTab {
-    file: ProjectFile;
-    isModified: boolean;
-}
-
 function BuildModePage() {
     const containerRef = useRef<HTMLDivElement>(null);
     const [explorerWidth, setExplorerWidth] = useState(250);
     const [chatWidth, setChatWidth] = useState(400);
     const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
     const [isResizing, setIsResizing] = useState<'explorer' | 'chat' | null>(null);
-    const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
-    const [activeTabIndex, setActiveTabIndex] = useState(0);
     const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
     const {
         projectContext,
         projectFiles,
         selectedFile,
-        setSelectedFile,
+        editorDocuments,
+        activeDocumentId,
+        setActiveDocument,
+        removeEditorDocument,
+        setDocumentSelection,
+        addChatContextSnippet,
+        updateDocumentContent,
+        renameDocument,
+        setDocumentLanguageMode,
+        createScratchDocument,
+        openDocumentFromProjectFile,
     } = useStore();
 
     const { sendMessage, isLoading } = useChat();
+    const activeDocument = editorDocuments.find((doc) => doc.id === activeDocumentId) || null;
+
+    useEffect(() => {
+        if (!activeDocumentId && editorDocuments.length === 0) {
+            createScratchDocument({
+                name: 'scratch.py',
+                languageMode: 'python',
+                content: '# Start building...\n',
+            });
+        }
+    }, [activeDocumentId, editorDocuments.length, createScratchDocument]);
 
     // Handle resizing with proper mouse tracking
     useEffect(() => {
@@ -70,57 +84,44 @@ function BuildModePage() {
         };
     }, [isResizing, explorerWidth, isExplorerCollapsed]);
 
-    // Open file in tab
     const handleFileSelect = useCallback((file: ProjectFile) => {
-        if (file.type !== 'file' || !file.content) return;
+        if (file.type !== 'file') return;
+        openDocumentFromProjectFile(file.id);
+    }, [openDocumentFromProjectFile]);
 
-        setSelectedFile(file);
-
-        const existingIndex = openTabs.findIndex(t => t.file.id === file.id);
-        if (existingIndex >= 0) {
-            setActiveTabIndex(existingIndex);
-        } else {
-            setOpenTabs(prev => [...prev, { file, isModified: false }]);
-            setActiveTabIndex(openTabs.length);
-        }
-    }, [openTabs, setSelectedFile]);
-
-    // Close tab
-    const closeTab = useCallback((index: number, e: React.MouseEvent) => {
+    const closeTab = useCallback((documentId: string, e: ReactMouseEvent) => {
         e.stopPropagation();
-        setOpenTabs(prev => prev.filter((_, i) => i !== index));
-        if (activeTabIndex >= index && activeTabIndex > 0) {
-            setActiveTabIndex(activeTabIndex - 1);
-        }
-    }, [activeTabIndex]);
+        removeEditorDocument(documentId);
+    }, [removeEditorDocument]);
 
-    const activeFile = openTabs[activeTabIndex]?.file || selectedFile;
-
-    // Quick action handlers
     const handleQuickAction = useCallback((action: 'explain' | 'refactor' | 'fix' | 'test') => {
-        if (!activeFile || !activeFile.content) return;
+        if (!activeDocument?.content.trim()) return;
 
-        const codeSnippet = activeFile.content.length > 2000
-            ? activeFile.content.substring(0, 2000) + '\n// ... (truncated)'
-            : activeFile.content;
+        const codeSnippet = activeDocument.content.length > 2000
+            ? `${activeDocument.content.substring(0, 2000)}\n# ... (truncated)`
+            : activeDocument.content;
 
-        const prompts: Record<string, string> = {
-            explain: `Explain the following code from ${activeFile.name}. Break it down step by step:\n\n\`\`\`${activeFile.language || 'code'}\n${codeSnippet}\n\`\`\``,
-            refactor: `Suggest refactoring improvements for this code from ${activeFile.name}:\n\n\`\`\`${activeFile.language || 'code'}\n${codeSnippet}\n\`\`\``,
-            fix: `Review this code from ${activeFile.name} for bugs and issues:\n\n\`\`\`${activeFile.language || 'code'}\n${codeSnippet}\n\`\`\``,
-            test: `Generate unit tests for this code from ${activeFile.name}:\n\n\`\`\`${activeFile.language || 'code'}\n${codeSnippet}\n\`\`\``,
+        const prompts: Record<typeof action, string> = {
+            explain: `Explain the following code from ${activeDocument.name}. Break it down step by step:\n\n\`\`\`${activeDocument.languageMode || 'code'}\n${codeSnippet}\n\`\`\``,
+            refactor: `Suggest refactoring improvements for this code from ${activeDocument.name}:\n\n\`\`\`${activeDocument.languageMode || 'code'}\n${codeSnippet}\n\`\`\``,
+            fix: `Review this code from ${activeDocument.name} for bugs and issues:\n\n\`\`\`${activeDocument.languageMode || 'code'}\n${codeSnippet}\n\`\`\``,
+            test: `Generate unit tests for this code from ${activeDocument.name}:\n\n\`\`\`${activeDocument.languageMode || 'code'}\n${codeSnippet}\n\`\`\``,
         };
 
-        const actionNames = { explain: 'Explaining', refactor: 'Refactoring', fix: 'Finding bugs', test: 'Generating tests' };
-        setActionFeedback(`${actionNames[action]} ${activeFile.name}...`);
+        const actionNames = {
+            explain: 'Explaining',
+            refactor: 'Refactoring',
+            fix: 'Finding bugs in',
+            test: 'Generating tests for',
+        };
+        setActionFeedback(`${actionNames[action]} ${activeDocument.name}...`);
         setTimeout(() => setActionFeedback(null), 2000);
 
         sendMessage(prompts[action]);
-    }, [activeFile, sendMessage]);
+    }, [activeDocument, sendMessage]);
 
     return (
         <div ref={containerRef} className="h-screen flex flex-col bg-[color:var(--color-bg-primary)] select-none">
-            {/* Header */}
             <header className="h-12 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] flex-shrink-0">
                 <div className="h-full px-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -159,16 +160,13 @@ function BuildModePage() {
                 </div>
             </header>
 
-            {/* Main Content - 3 Panel Layout */}
             <div className="flex-1 flex overflow-hidden">
-                {/* File Explorer Panel */}
                 {projectFiles.length > 0 && (
                     <>
                         <div
                             className={`flex flex-col bg-[color:var(--color-bg-secondary)] border-r border-[color:var(--color-border)] transition-all duration-200 ${isExplorerCollapsed ? 'w-10' : ''}`}
                             style={{ width: isExplorerCollapsed ? 40 : explorerWidth }}
                         >
-                            {/* Explorer Header with Collapse Toggle */}
                             <div className="p-2 border-b border-[color:var(--color-border)] flex items-center justify-between">
                                 <button
                                     onClick={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
@@ -189,19 +187,17 @@ function BuildModePage() {
                                 )}
                             </div>
 
-                            {/* File Tree */}
                             {!isExplorerCollapsed && (
                                 <div className="flex-1 overflow-y-auto p-2">
                                     <FileExplorer
                                         files={projectFiles}
-                                        selectedFile={activeFile}
+                                        selectedFile={selectedFile}
                                         onFileSelect={handleFileSelect}
                                     />
                                 </div>
                             )}
                         </div>
 
-                        {/* Explorer Resize Handle */}
                         {!isExplorerCollapsed && (
                             <div
                                 className="w-2 bg-[color:var(--color-border)] hover:bg-primary-500 cursor-col-resize transition-colors flex-shrink-0"
@@ -214,7 +210,6 @@ function BuildModePage() {
                     </>
                 )}
 
-                {/* Chat Panel */}
                 <div
                     className="flex flex-col bg-[color:var(--color-bg-secondary)] border-r border-[color:var(--color-border)] flex-shrink-0"
                     style={{ width: chatWidth }}
@@ -222,7 +217,6 @@ function BuildModePage() {
                     <ChatPanel />
                 </div>
 
-                {/* Chat Resize Handle */}
                 <div
                     className="w-2 bg-[color:var(--color-border)] hover:bg-primary-500 cursor-col-resize transition-colors flex-shrink-0"
                     onMouseDown={(e) => {
@@ -231,33 +225,28 @@ function BuildModePage() {
                     }}
                 />
 
-                {/* Editor Panel */}
                 <div className="flex-1 flex flex-col overflow-hidden bg-[color:var(--color-bg-primary)] min-w-0">
-                    {/* Tabs */}
-                    {openTabs.length > 0 && (
+                    {editorDocuments.length > 0 && (
                         <div className="h-9 flex bg-[color:var(--color-bg-secondary)] border-b border-[color:var(--color-border)] overflow-x-auto flex-shrink-0">
-                            {openTabs.map((tab, index) => (
+                            {editorDocuments.map((doc) => (
                                 <button
-                                    key={tab.file.id}
-                                    onClick={() => {
-                                        setActiveTabIndex(index);
-                                        setSelectedFile(tab.file);
-                                    }}
+                                    key={doc.id}
+                                    onClick={() => setActiveDocument(doc.id)}
                                     className={`
                                         flex items-center gap-2 px-3 h-full border-r border-[color:var(--color-border)]
                                         text-sm whitespace-nowrap transition-colors
-                                        ${index === activeTabIndex
+                                        ${doc.id === activeDocumentId
                                             ? 'bg-[color:var(--color-bg-primary)] text-[color:var(--color-text-primary)]'
                                             : 'text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)]'
                                         }
                                     `}
                                 >
-                                    {tab.isModified && (
+                                    {doc.isDirty && (
                                         <span className="w-2 h-2 rounded-full bg-accent-500" />
                                     )}
-                                    <span>{tab.file.name}</span>
+                                    <span>{doc.name}</span>
                                     <button
-                                        onClick={(e) => closeTab(index, e)}
+                                        onClick={(e) => closeTab(doc.id, e)}
                                         className="w-4 h-4 rounded hover:bg-[color:var(--color-bg-muted)] flex items-center justify-center opacity-50 hover:opacity-100"
                                     >
                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,31 +258,50 @@ function BuildModePage() {
                         </div>
                     )}
 
-                    {/* Editor */}
                     <div className="flex-1 min-h-0">
-                        {activeFile ? (
+                        {activeDocument ? (
                             <CodeEditor
-                                key={activeFile.id}
-                                initialValue={activeFile.content || '// Select a file to view'}
-                                filename={activeFile.name}
-                                language={activeFile.language || 'javascript'}
+                                key={activeDocument.id}
+                                value={activeDocument.content}
+                                filename={activeDocument.name}
+                                languageMode={activeDocument.languageMode}
+                                onChange={(value) => updateDocumentContent(activeDocument.id, value)}
+                                onRename={(name) => renameDocument(activeDocument.id, name)}
+                                onLanguageModeChange={(mode) => setDocumentLanguageMode(activeDocument.id, mode)}
+                                onSelectionChange={(selection) => setDocumentSelection(activeDocument.id, selection)}
+                                onSelectionContextAdd={(snippet) => {
+                                    addChatContextSnippet({
+                                        documentId: activeDocument.id,
+                                        documentName: activeDocument.name,
+                                        languageMode: activeDocument.languageMode,
+                                        text: snippet.text,
+                                        startLine: snippet.startLine,
+                                        endLine: snippet.endLine,
+                                    });
+                                }}
                             />
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-[color:var(--color-text-muted)]">
                                 <svg className="w-16 h-16 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <p className="font-medium">No file selected</p>
-                                <p className="text-sm">Select a file from the explorer to edit</p>
+                                <p className="font-medium">No document open</p>
+                                <p className="text-sm mb-4">Create a scratch file or open one from the explorer</p>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => createScratchDocument({ name: 'scratch.py', languageMode: 'python' })}
+                                >
+                                    New Scratch File
+                                </Button>
                             </div>
                         )}
                     </div>
 
-                    {/* Quick Actions Bar */}
-                    {activeFile && (
+                    {activeDocument && (
                         <div className="h-10 px-4 border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] flex items-center gap-2 flex-shrink-0">
                             <span className="text-xs text-[color:var(--color-text-muted)] mr-auto truncate">
-                                {actionFeedback || `${activeFile.name} • ${activeFile.content?.split('\n').length || 0} lines`}
+                                {actionFeedback || `${activeDocument.name} - ${activeDocument.content.split('\n').length} lines`}
                             </span>
                             <Button
                                 variant="ghost"
@@ -301,9 +309,6 @@ function BuildModePage() {
                                 onClick={() => handleQuickAction('explain')}
                                 disabled={isLoading}
                             >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
                                 Explain
                             </Button>
                             <Button
@@ -312,9 +317,6 @@ function BuildModePage() {
                                 onClick={() => handleQuickAction('refactor')}
                                 disabled={isLoading}
                             >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                </svg>
                                 Refactor
                             </Button>
                             <Button
@@ -323,9 +325,6 @@ function BuildModePage() {
                                 onClick={() => handleQuickAction('fix')}
                                 disabled={isLoading}
                             >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
                                 Fix Bugs
                             </Button>
                             <Button
@@ -334,9 +333,6 @@ function BuildModePage() {
                                 onClick={() => handleQuickAction('test')}
                                 disabled={isLoading}
                             >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
                                 Add Tests
                             </Button>
                         </div>

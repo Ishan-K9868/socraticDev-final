@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 import subprocess
 import sys
 import textwrap
@@ -18,6 +19,8 @@ AnalyzerMode = Literal["graph", "execution"]
 VALID_NODE_TYPES = {"function", "class", "method", "variable", "module"}
 VALID_EDGE_TYPES = {"calls", "imports", "extends", "uses"}
 VALID_ACTIONS = {"execute", "call", "return", "assign", "condition", "loop"}
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -89,6 +92,11 @@ class _EdgeCollector(ast.NodeVisitor):
         self.edges: set[Tuple[str, str, str]] = set()
         self.scope: List[str] = ["module:main"]
         self.import_aliases: Dict[str, str] = {}
+        self.class_names = {
+            str(node.get("name", "")): node_id
+            for node_id, node in self.nodes.items()
+            if node_id.startswith("class:")
+        }
 
     def _current_scope(self) -> str:
         return self.scope[-1]
@@ -119,11 +127,60 @@ class _EdgeCollector(ast.NodeVisitor):
         if source and target and source in self.nodes and target in self.nodes:
             self.edges.add((source, target, et))
 
+    def _current_class_id(self) -> Optional[str]:
+        for sid in reversed(self.scope):
+            if sid.startswith("class:"):
+                return sid
+        return None
+
     def _resolve_name(self, name: str) -> Optional[str]:
         candidates = self.name_to_ids.get(name, [])
         if not candidates:
             return None
-        return sorted(candidates)[0]
+
+        reverse_scope = list(reversed(self.scope))
+        current_class_id = self._current_class_id()
+        current_class_name = self.nodes.get(current_class_id, {}).get("name", "") if current_class_id else ""
+        ranked: List[Tuple[int, int, str]] = []
+        for candidate_id in candidates:
+            candidate_name = str(self.nodes.get(candidate_id, {}).get("name", ""))
+            lexical_score = -1
+            for idx, scope_id in enumerate(reverse_scope):
+                scope_name = str(self.nodes.get(scope_id, {}).get("name", ""))
+                if candidate_name == f"{scope_name}.{name}":
+                    lexical_score = max(lexical_score, len(reverse_scope) - idx)
+            if candidate_name == name:
+                lexical_score = max(lexical_score, 0)
+
+            class_bonus = 0
+            if current_class_name and candidate_id.startswith("method:") and candidate_name.startswith(f"{current_class_name}."):
+                class_bonus = 100
+
+            ranked.append((lexical_score + class_bonus, -len(candidate_name.split(".")), candidate_id))
+
+        ranked.sort(reverse=True)
+        return ranked[0][2]
+
+    def _resolve_attribute_call(self, root: str, tail: str) -> Optional[str]:
+        """Resolve dotted call targets with conservative scope-aware rules."""
+        short = tail.split(".")[-1]
+
+        # ClassName.method() where ClassName is known in graph.
+        class_id = self.class_names.get(root)
+        if class_id:
+            class_name = str(self.nodes.get(class_id, {}).get("name", root))
+            method_id = f"method:{class_name}.{short}"
+            if method_id in self.nodes:
+                return method_id
+
+        # Imported module or symbol aliases.
+        if root in self.import_aliases:
+            alias_target = self.import_aliases[root]
+            return self._ensure_external(f"{alias_target}.{tail}", "function")
+
+        # Unknown attribute roots are treated as unresolved external calls
+        # instead of guessing a local symbol by tail name.
+        return None
 
     def _call_name(self, func: ast.AST) -> Optional[str]:
         if isinstance(func, ast.Name):
@@ -219,12 +276,23 @@ class _EdgeCollector(ast.NodeVisitor):
 
             if "." in call_name:
                 root = call_name.split(".", 1)[0]
-                if root in self.import_aliases:
-                    target_id = self._ensure_external(call_name, "function")
+                tail = call_name.split(".", 1)[1]
+                if root in {"self", "cls"}:
+                    current_class_id = self._current_class_id()
+                    if current_class_id:
+                        class_name = str(self.nodes[current_class_id]["name"])
+                        method_id = f"method:{class_name}.{tail.split('.')[-1]}"
+                        if method_id in self.nodes:
+                            target_id = method_id
+                    if not target_id:
+                        target_id = self._resolve_name(tail.split(".")[-1])
                 else:
-                    target_id = self._resolve_name(call_name.split(".")[-1])
+                    target_id = self._resolve_attribute_call(root, tail)
             else:
-                target_id = self._resolve_name(call_name)
+                if call_name in self.import_aliases:
+                    target_id = self._ensure_external(self.import_aliases[call_name], "function")
+                else:
+                    target_id = self._resolve_name(call_name)
 
             if not target_id:
                 target_id = self._ensure_external(call_name, "function")
@@ -387,6 +455,7 @@ _TRACE_RUNNER_SCRIPT = textwrap.dedent(
     call_stack = []
     truncated = False
     error = None
+    error_code = None
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
     output_len = 0
@@ -416,7 +485,7 @@ _TRACE_RUNNER_SCRIPT = textwrap.dedent(
         return True
 
     def tracer(frame, event, arg):
-        global truncated, error
+        global truncated, error, error_code
 
         if frame.f_code.co_filename != "<user_code>":
             return tracer
@@ -449,6 +518,7 @@ _TRACE_RUNNER_SCRIPT = textwrap.dedent(
             exc_type, exc_value, _ = arg
             append_step(frame, "execute", f"Exception {exc_type.__name__}: {exc_value}")
             error = f"{exc_type.__name__}: {exc_value}"
+            error_code = "runtime_error"
             return tracer
 
         return tracer
@@ -463,17 +533,20 @@ _TRACE_RUNNER_SCRIPT = textwrap.dedent(
     except Exception as exc:
         if not error:
             error = f"{type(exc).__name__}: {exc}"
+            error_code = "runtime_error"
     finally:
         sys.settrace(None)
 
     stderr_text = stderr_buffer.getvalue().strip()
     if stderr_text and not error:
         error = stderr_text
+        error_code = "runtime_error"
 
     print(json.dumps({
         "steps": steps,
         "finalOutput": stdout_buffer.getvalue(),
         "error": error,
+        "error_code": error_code,
         "truncated": truncated,
     }))
     """
@@ -498,6 +571,12 @@ class VisualizerAIService:
         normalized_language = (language or "").strip().lower()
         if normalized_language != "python":
             raise ValueError("Visualizer currently supports only Python")
+        if mode not in {"graph", "execution"}:
+            raise ValueError("Invalid mode")
+        if not code.strip():
+            raise ValueError("Code is required")
+        if len(code) > settings.visualizer_max_code_chars:
+            raise ValueError(f"Code exceeds maximum size ({settings.visualizer_max_code_chars} characters)")
 
         max_steps = max(1, min(int(max_steps), settings.visualizer_max_steps_cap))
         timeout_ms = max(100, min(int(timeout_ms), settings.visualizer_max_timeout_ms))
@@ -537,6 +616,9 @@ class VisualizerAIService:
             line = exc.lineno or 1
             message = exc.msg or "invalid syntax"
             raise ValueError(f"Syntax error at line {line}: {message}") from exc
+        except Exception:
+            logger.exception("Visualizer analysis failed")
+            raise
 
     def _analyze_call_graph(self, code: str) -> Dict[str, Any]:
         tree = ast.parse(code)
@@ -580,6 +662,7 @@ class VisualizerAIService:
                 "steps": [],
                 "finalOutput": "",
                 "error": f"Execution timed out after {timeout_ms} ms",
+                "error_code": "timeout",
                 "truncated": True,
             }
 
@@ -588,6 +671,7 @@ class VisualizerAIService:
                 "steps": [],
                 "finalOutput": "",
                 "error": (stderr or "Execution subprocess failed").strip(),
+                "error_code": "runtime_error",
                 "truncated": False,
             }
 
@@ -598,6 +682,7 @@ class VisualizerAIService:
                 "steps": [],
                 "finalOutput": "",
                 "error": "Failed to decode execution trace output",
+                "error_code": "internal_error",
                 "truncated": False,
             }
 
@@ -634,6 +719,7 @@ class VisualizerAIService:
             "steps": steps,
             "finalOutput": str(raw.get("finalOutput", "")),
             "error": raw.get("error"),
+            "error_code": raw.get("error_code"),
             "truncated": bool(raw.get("truncated", False) or len(steps) >= max_steps),
         }
 

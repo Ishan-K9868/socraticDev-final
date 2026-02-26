@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     
     # API settings
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = 8002
     api_prefix: str = "/api"
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     gemini_text_model: str = "gemini-2.0-flash"
     gemini_rate_limit_per_minute: int = 60
     visualizer_ai_fallback_enabled: bool = False
+    visualizer_execution_enabled: bool = True
+    visualizer_execution_allow_in_production: bool = False
+    visualizer_max_code_chars: int = 50000
+    visualizer_isolation_mode: str = "subprocess"
     visualizer_default_max_steps: int = 1000
     visualizer_max_steps_cap: int = 5000
     visualizer_default_timeout_ms: int = 3000

@@ -9,6 +9,18 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
+class APIClientError extends Error {
+  status?: number;
+  isNetworkError: boolean;
+
+  constructor(message: string, status?: number, isNetworkError = false) {
+    super(message);
+    this.name = 'APIClientError';
+    this.status = status;
+    this.isNetworkError = isNetworkError;
+  }
+}
+
 function buildAnalyzerBaseCandidates(primaryBaseUrl: string): string[] {
   const candidates: string[] = [];
   const seen = new Set<string>();
@@ -20,15 +32,32 @@ function buildAnalyzerBaseCandidates(primaryBaseUrl: string): string[] {
   };
 
   push(primaryBaseUrl);
+  const primary = (() => {
+    try {
+      return new URL(primaryBaseUrl);
+    } catch {
+      return null;
+    }
+  })();
 
-  const hostname =
-    typeof window !== 'undefined' && window.location?.hostname
-      ? window.location.hostname
-      : 'localhost';
-  push(`http://${hostname}:8002`);
-  push(`http://${hostname}:8000`);
+  const protocol = primary?.protocol || (typeof window !== 'undefined' ? window.location.protocol : 'http:');
+  const trustedHosts = ['localhost', '127.0.0.1'];
+  const trustedPorts = ['8002', '8000'];
+  for (const host of trustedHosts) {
+    for (const port of trustedPorts) {
+      push(`${protocol}//${host}:${port}`);
+    }
+  }
 
   return candidates;
+}
+
+function shouldTryNextAnalyzerCandidate(error: unknown): boolean {
+  if (error instanceof APIClientError) {
+    if (error.isNetworkError) return true;
+    return [404, 502, 503, 504].includes(error.status || 0);
+  }
+  return false;
 }
 
 // Types
@@ -102,6 +131,7 @@ export interface VisualizerAnalyzeRequest {
   language: string;
   max_steps?: number;
   timeout_ms?: number;
+  allow_execution?: boolean;
 }
 
 export interface Project {
@@ -234,12 +264,15 @@ class GraphRAGAPIClient {
 
   private handleError(error: AxiosError): Error {
     if (error.response) {
-      const message = (error.response.data as any)?.detail || error.message;
-      return new Error(`API Error (${error.response.status}): ${message}`);
+      const detail = (error.response.data as any)?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail?.message || error.message;
+      return new APIClientError(`API Error (${error.response.status}): ${message}`, error.response.status, false);
     } else if (error.request) {
-      return new Error('Network Error: No response from server');
+      return new APIClientError('Network Error: No response from server', undefined, true);
     } else {
-      return new Error(`Request Error: ${error.message}`);
+      return new APIClientError(`Request Error: ${error.message}`, undefined, false);
     }
   }
 
@@ -350,10 +383,8 @@ class GraphRAGAPIClient {
         this.analyzerBaseOverride = base;
         return response.data;
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        const is404 = msg.includes('(404)') || msg.includes('404');
         lastError = error;
-        if (is404) {
+        if (shouldTryNextAnalyzerCandidate(error)) {
           continue;
         }
         throw error;

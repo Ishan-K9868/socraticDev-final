@@ -1,64 +1,91 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import FlashcardDeck from './FlashcardDeck';
 import { useSRS } from './useSRS';
 import { Quality, Flashcard } from './types';
 import ThemeToggle from '../../components/ThemeToggle';
+import { useAnalytics } from '../analytics/useAnalytics';
+
+type SessionReason = 'active' | 'no-cards' | 'none-due' | 'complete';
 
 function ReviewSession() {
+    const { recordFlashcardReview } = useAnalytics();
     const {
         getDueCards,
         reviewCard,
         getDeckProgress,
         stats,
-        addCard,
-        createCard
-    } = useSRS();
+        cards,
+        addCards,
+        createCard,
+        isLoaded,
+        settings,
+    } = useSRS({ onReviewRecorded: recordFlashcardReview });
 
-    const [dueCards, setDueCards] = useState<Flashcard[]>([]);
+    const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [showAnswer, setShowAnswer] = useState(false);
     const [sessionComplete, setSessionComplete] = useState(false);
+    const [sessionReason, setSessionReason] = useState<SessionReason>('active');
+    const [isRating, setIsRating] = useState(false);
     const [sessionStats, setSessionStats] = useState({ reviewed: 0, correct: 0 });
+    const initializedRef = useRef(false);
 
-    // Load due cards
-    useEffect(() => {
-        const cards = getDueCards();
-        setDueCards(cards);
-        if (cards.length === 0) {
-            setSessionComplete(true);
-        }
-    }, [getDueCards]);
-
-    const currentCard = dueCards[currentIndex];
     const progress = getDeckProgress();
+    const currentCard = sessionCards[currentIndex];
+
+    const initializeSession = (due: Flashcard[], totalCards: number, resetSessionStats = true) => {
+        setSessionCards(due);
+        setCurrentIndex(0);
+        setShowAnswer(false);
+        setIsRating(false);
+        if (resetSessionStats) {
+            setSessionStats({ reviewed: 0, correct: 0 });
+        }
+
+        if (!due.length) {
+            setSessionComplete(true);
+            setSessionReason(totalCards === 0 ? 'no-cards' : 'none-due');
+        } else {
+            setSessionComplete(false);
+            setSessionReason('active');
+        }
+    };
+
+    useEffect(() => {
+        if (!isLoaded || initializedRef.current) return;
+        const due = getDueCards(settings.dailyReviewLimit);
+        initializeSession(due, cards.length);
+        initializedRef.current = true;
+    }, [cards.length, getDueCards, isLoaded, settings.dailyReviewLimit]);
 
     const handleFlip = () => {
         setShowAnswer(true);
     };
 
     const handleRate = (quality: Quality) => {
-        if (!currentCard) return;
-
+        if (!currentCard || isRating) return;
+        setIsRating(true);
         reviewCard(currentCard.id, quality);
 
-        setSessionStats(prev => ({
+        setSessionStats((prev) => ({
             reviewed: prev.reviewed + 1,
             correct: quality >= 3 ? prev.correct + 1 : prev.correct,
         }));
 
-        // Move to next card
-        if (currentIndex < dueCards.length - 1) {
-            setCurrentIndex(currentIndex + 1);
+        if (currentIndex < sessionCards.length - 1) {
+            setCurrentIndex((prev) => prev + 1);
             setShowAnswer(false);
         } else {
             setSessionComplete(true);
+            setSessionReason('complete');
         }
+
+        setTimeout(() => setIsRating(false), 180);
     };
 
     const handleAddSampleCards = () => {
-        // Add some sample cards for demo
         const samples: Flashcard[] = [
             createCard(
                 'What is the time complexity of binary search?',
@@ -66,30 +93,53 @@ function ReviewSession() {
                 { tags: ['algorithms', 'complexity'], type: 'basic' }
             ),
             createCard(
+                'In recursion, the base case prevents [...] and ends the function calls.',
+                'infinite recursion',
+                { tags: ['recursion'], type: 'cloze' }
+            ),
+            createCard(
                 'What does this code do?\n```python\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)\n```',
-                'Calculates the nth Fibonacci number using recursion. Time: O(2^n), Space: O(n)',
+                'Calculates nth Fibonacci recursively. Time O(2^n), space O(n).',
                 { tags: ['recursion', 'python'], type: 'code', language: 'python' }
             ),
             createCard(
-                'What is a closure in JavaScript?',
-                'A closure is a function that has access to variables in its outer (enclosing) scope, even after the outer function has returned.',
-                { tags: ['javascript', 'concepts'], type: 'basic' }
-            ),
-            createCard(
                 'What is the difference between == and === in JavaScript?',
-                '== performs type coercion before comparison. === compares both value AND type strictly.',
+                '== coerces types before comparison, === checks both value and type.',
                 { tags: ['javascript'], type: 'basic' }
             ),
         ];
 
-        samples.forEach(card => addCard(card));
-        setDueCards(getDueCards());
-        setSessionComplete(false);
-        setCurrentIndex(0);
+        addCards(samples);
+        initializeSession(samples.slice(0, settings.dailyReviewLimit), cards.length + samples.length);
     };
 
-    // Session complete screen
+    if (!isLoaded) {
+        return (
+            <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center p-6">
+                <div className="text-center text-[color:var(--color-text-muted)]">
+                    <div className="w-10 h-10 border-2 border-primary-500/40 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+                    <p>Loading flashcards...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const progressTotal = Math.max(1, sessionCards.length);
+    const progressPct = sessionCards.length ? Math.round((currentIndex / progressTotal) * 100) : 0;
+
     if (sessionComplete) {
+        const title = sessionReason === 'complete'
+            ? 'Session Complete!'
+            : sessionReason === 'no-cards'
+                ? 'No Cards Yet'
+                : 'No Cards Due';
+
+        const subtitle = sessionReason === 'complete'
+            ? 'Great job! Come back tomorrow for more reviews.'
+            : sessionReason === 'no-cards'
+                ? 'Add some flashcards to start learning.'
+                : 'You are caught up for now. Check back later.';
+
         return (
             <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center p-6">
                 <motion.div
@@ -102,53 +152,41 @@ function ReviewSession() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
-                    <h2 className="text-3xl font-display font-bold mb-4">
-                        {dueCards.length === 0 ? 'No Cards Due!' : 'Session Complete!'}
-                    </h2>
+                    <h2 className="text-3xl font-display font-bold mb-4">{title}</h2>
 
                     {sessionStats.reviewed > 0 && (
                         <div className="mb-6 p-4 rounded-xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)]">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="text-3xl font-bold text-primary-500">
-                                        {sessionStats.reviewed}
-                                    </div>
-                                    <div className="text-sm text-[color:var(--color-text-muted)]">
-                                        Cards Reviewed
-                                    </div>
+                                    <div className="text-3xl font-bold text-primary-500">{sessionStats.reviewed}</div>
+                                    <div className="text-sm text-[color:var(--color-text-muted)]">Cards Reviewed</div>
                                 </div>
                                 <div>
                                     <div className="text-3xl font-bold text-green-500">
-                                        {Math.round((sessionStats.correct / sessionStats.reviewed) * 100)}%
+                                        {Math.round((sessionStats.correct / Math.max(1, sessionStats.reviewed)) * 100)}%
                                     </div>
-                                    <div className="text-sm text-[color:var(--color-text-muted)]">
-                                        Accuracy
-                                    </div>
+                                    <div className="text-sm text-[color:var(--color-text-muted)]">Accuracy</div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <p className="text-[color:var(--color-text-muted)] mb-8">
-                        {dueCards.length === 0
-                            ? 'Add some flashcards to start learning!'
-                            : 'Great job! Come back tomorrow for more reviews.'}
-                    </p>
+                    <p className="text-[color:var(--color-text-muted)] mb-8">{subtitle}</p>
 
                     <div className="flex flex-col gap-3">
-                        {dueCards.length === 0 && (
+                        {(sessionReason === 'no-cards' || sessionReason === 'none-due') && (
                             <button
                                 onClick={handleAddSampleCards}
                                 className="px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
                             >
-                                Add Sample Cards (Demo)
+                                Add Sample Cards
                             </button>
                         )}
                         <Link
-                            to="/app"
+                            to="/srs"
                             className="px-6 py-3 rounded-xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] hover:border-primary-500 transition-colors"
                         >
-                            Back to App
+                            Back to SRS Dashboard
                         </Link>
                     </div>
                 </motion.div>
@@ -158,12 +196,11 @@ function ReviewSession() {
 
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex flex-col">
-            {/* Header */}
             <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]">
                 <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
-                            to="/app"
+                            to="/srs"
                             className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)] transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,29 +221,25 @@ function ReviewSession() {
                 </div>
             </header>
 
-            {/* Progress bar */}
             <div className="bg-[color:var(--color-bg-secondary)] border-b border-[color:var(--color-border)]">
                 <div className="max-w-4xl mx-auto px-6 py-3">
                     <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-[color:var(--color-text-muted)]">
-                            Card {currentIndex + 1} of {dueCards.length}
+                            Card {Math.min(currentIndex + 1, sessionCards.length)} of {sessionCards.length}
                         </span>
-                        <span className="text-primary-500 font-medium">
-                            {Math.round(((currentIndex) / dueCards.length) * 100)}% complete
-                        </span>
+                        <span className="text-primary-500 font-medium">{progressPct}% complete</span>
                     </div>
                     <div className="h-2 bg-[color:var(--color-bg-muted)] rounded-full overflow-hidden">
                         <motion.div
                             className="h-full bg-gradient-to-r from-primary-500 to-secondary-500"
                             initial={{ width: 0 }}
-                            animate={{ width: `${((currentIndex) / dueCards.length) * 100}%` }}
+                            animate={{ width: `${progressPct}%` }}
                             transition={{ duration: 0.3 }}
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Card area */}
             <div className="flex-1 flex items-center justify-center p-6">
                 <AnimatePresence mode="wait">
                     {currentCard && (
@@ -222,13 +255,13 @@ function ReviewSession() {
                                 onRate={handleRate}
                                 showAnswer={showAnswer}
                                 onFlip={handleFlip}
+                                ratingDisabled={isRating}
                             />
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
-            {/* Footer stats */}
             <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] px-6 py-4">
                 <div className="max-w-4xl mx-auto flex items-center justify-between text-sm">
                     <div className="flex items-center gap-6 text-[color:var(--color-text-muted)]">

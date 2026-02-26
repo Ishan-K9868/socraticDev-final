@@ -39,8 +39,14 @@ function CodeVisualizer() {
     const activeMeta = viewMode === 'graph' ? callGraph?.meta : executionTrace?.meta;
 
     return (
-        <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex flex-col">
-            <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]">
+        <div className="h-screen bg-[color:var(--color-bg-primary)] flex flex-col relative overflow-hidden">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+                <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-gradient-to-br from-primary-500/15 to-transparent blur-3xl" />
+                <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-secondary-500/15 to-transparent blur-3xl" />
+                <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-gradient-to-br from-accent-500/12 to-transparent blur-3xl" />
+            </div>
+
+            <header className="relative z-20 border-b border-[color:var(--color-border)] backdrop-blur-xl bg-[color:var(--color-bg-primary)]/80">
                 <div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
@@ -67,7 +73,7 @@ function CodeVisualizer() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center bg-[color:var(--color-bg-muted)] rounded-lg p-1">
+                        <div className="glass rounded-xl p-1">
                             <button
                                 onClick={() => setViewMode('graph')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'graph'
@@ -104,7 +110,7 @@ function CodeVisualizer() {
                 </div>
             </header>
 
-            <div className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/70 px-6 py-2">
+            <div className="relative z-20 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/70 px-6 py-2">
                 <div className="max-w-[1800px] mx-auto flex items-center justify-end">
                     {isAnalyzing ? (
                         <span className="px-3 py-1 rounded-full border border-primary-500/40 bg-primary-500/10 text-primary-300 text-xs font-medium">
@@ -129,7 +135,7 @@ function CodeVisualizer() {
             </div>
 
             {error && (
-                <div className="bg-red-500/10 border-b border-red-500/30 px-6 py-3">
+                <div className="relative z-20 bg-red-500/10 border-b border-red-500/30 px-6 py-3">
                     <div className="max-w-[1800px] mx-auto flex items-center gap-2 text-red-400">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -139,30 +145,32 @@ function CodeVisualizer() {
                 </div>
             )}
 
-            <div className="flex-1 flex min-h-0">
-                <div className="w-1/2 border-r border-[color:var(--color-border)] flex flex-col">
-                    <CodeInputPanel
-                        code={code}
-                        language={language}
-                        onCodeChange={handleCodeChange}
-                        onAnalyze={handleAnalyze}
-                        isAnalyzing={isAnalyzing}
-                    />
-                </div>
-
-                <div className="w-1/2 flex flex-col bg-[color:var(--color-bg-secondary)]">
-                    {viewMode === 'graph' ? (
-                        <CallGraphView graph={callGraph || { nodes: [], edges: [] }} />
-                    ) : (
-                        <ExecutionAnimator
-                            trace={executionTrace || { steps: [], finalOutput: '' }}
+            <div className="relative z-10 flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
+                <div className="h-full rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]/65 backdrop-blur-sm overflow-hidden flex min-h-0">
+                    <div className="w-1/2 border-r border-[color:var(--color-border)] flex flex-col min-h-0">
+                        <CodeInputPanel
                             code={code}
+                            language={language}
+                            onCodeChange={handleCodeChange}
+                            onAnalyze={handleAnalyze}
+                            isAnalyzing={isAnalyzing}
                         />
-                    )}
+                    </div>
+
+                    <div className="w-1/2 flex flex-col bg-[color:var(--color-bg-secondary)]/40 min-h-0">
+                        {viewMode === 'graph' ? (
+                            <CallGraphView graph={callGraph || { nodes: [], edges: [] }} />
+                        ) : (
+                            <ExecutionAnimator
+                                trace={executionTrace || { steps: [], finalOutput: '' }}
+                                code={code}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
 
-            <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] px-6 py-3">
+            <footer className="relative z-20 border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-primary)]/80 backdrop-blur-xl px-6 py-3">
                 <div className="max-w-[1800px] mx-auto flex items-center justify-between text-sm text-[color:var(--color-text-muted)]">
                     <div className="flex items-center gap-4">
                         <span>Server-side deterministic analyzer</span>
