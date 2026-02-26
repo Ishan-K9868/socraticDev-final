@@ -26,6 +26,10 @@ function AppPage() {
     const {
         projectContext,
         theme,
+        cursorEnabled,
+        cursorStyle,
+        setCursorEnabled,
+        setCursorStyle,
         selectedFile,
         activeDocumentId,
         editorDocuments,
@@ -315,6 +319,47 @@ function AppPage() {
                                                 <p className="text-sm text-[color:var(--color-text-secondary)] mb-2">
                                                     Current theme: {theme === 'dark' ? 'Dark' : 'Light'}
                                                 </p>
+
+                                                <div className="mt-4 space-y-3">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div>
+                                                            <p className="text-sm font-medium">Custom Cursor</p>
+                                                            <p className="text-xs text-[color:var(--color-text-muted)]">
+                                                                Show interactive technical cursor effects on desktop.
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={cursorEnabled}
+                                                            onClick={() => setCursorEnabled(!cursorEnabled)}
+                                                            className={`relative h-6 w-11 rounded-full transition-colors ${cursorEnabled ? 'bg-primary-500' : 'bg-[color:var(--color-border)]'
+                                                                }`}
+                                                            data-cursor="interactive"
+                                                            data-cursor-label="toggle"
+                                                        >
+                                                            <span
+                                                                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${cursorEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                                                                    }`}
+                                                            />
+                                                        </button>
+                                                    </div>
+
+                                                    <label className="block">
+                                                        <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">Cursor Style</span>
+                                                        <select
+                                                            value={cursorStyle}
+                                                            onChange={(event) => setCursorStyle(event.target.value as 'showcase' | 'minimal')}
+                                                            className="mt-1 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elevated)] px-3 py-2 text-sm"
+                                                            disabled={!cursorEnabled}
+                                                            data-cursor="interactive"
+                                                            data-cursor-label="style"
+                                                        >
+                                                            <option value="showcase">Showcase</option>
+                                                            <option value="minimal">Minimal</option>
+                                                        </select>
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             {/* About Section */}

@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: SRSSettings = {
 };
 
 interface UseSRSOptions {
-    onReviewRecorded?: (count: number) => void;
+    onReviewRecorded?: (count: number, meta?: { reviewedAt?: number; success?: boolean }) => void;
 }
 
 function safeParse<T>(raw: string | null): T | null {
@@ -402,7 +402,7 @@ export function useSRS(options?: UseSRSOptions) {
         }));
 
         setReviewLog((prev) => ([...prev, { cardId, quality, reviewedAt, dayKey }]));
-        options?.onReviewRecorded?.(1);
+        options?.onReviewRecorded?.(1, { reviewedAt, success: quality >= 3 });
 
         return { cardId, quality, reviewedAt, dayKey };
     }, [options]);

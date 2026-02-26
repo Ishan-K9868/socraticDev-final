@@ -1,125 +1,111 @@
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
+import { Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
+import { useAnalytics } from '../analytics/useAnalytics';
 import Badge from '../../ui/Badge';
 
 function MetricsDashboard() {
     const containerRef = useRef<HTMLDivElement>(null);
-    const { metrics, mode } = useStore();
+    const { mode } = useStore();
+    const { metrics, isLoaded, getLevel } = useAnalytics();
+    const level = getLevel();
 
     useGSAP(() => {
         gsap.from('.metric-card', {
-            y: 20,
+            y: 16,
             opacity: 0,
-            stagger: 0.1,
-            duration: 0.5,
+            stagger: 0.08,
+            duration: 0.45,
             ease: 'power3.out',
         });
-    }, { scope: containerRef });
+    }, { scope: containerRef, dependencies: [isLoaded, metrics.totalXP] });
+
+    if (!isLoaded) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+            </div>
+        );
+    }
 
     const metricItems = [
         {
-            label: 'Questions Asked',
-            value: metrics.questionsAsked,
-            icon: '❓',
-            color: 'primary',
-            description: 'Guiding questions that helped you understand',
+            label: 'Challenges',
+            value: metrics.totalChallengesCompleted,
+            color: 'text-cyan-400',
+            description: 'Completed Dojo challenges',
         },
         {
-            label: 'Code Explanations',
-            value: metrics.codeExplanations,
-            icon: '💡',
-            color: 'accent',
-            description: 'Code snippets explained step by step',
+            label: 'Flashcards',
+            value: metrics.totalFlashcardsReviewed,
+            color: 'text-violet-400',
+            description: 'Cards reviewed in SRS',
         },
         {
-            label: 'Bugs Caught',
-            value: metrics.bugsCaught,
-            icon: '🐛',
-            color: 'error',
-            description: 'Potential issues identified before shipping',
+            label: 'Time Spent',
+            value: `${Math.max(0, Math.round(metrics.totalTimeSpent / 60))}h`,
+            color: 'text-orange-400',
+            description: 'Tracked challenge time',
         },
         {
-            label: 'Learning Time',
-            value: `${metrics.learningModeTime}m`,
-            icon: '⏱️',
-            color: 'secondary',
-            description: 'Time spent in learning mode',
+            label: 'Avg Score',
+            value: `${Math.max(0, metrics.averageScore).toFixed(0)}%`,
+            color: 'text-green-400',
+            description: 'Challenge performance',
         },
     ];
 
     return (
-        <div ref={containerRef} className="p-6">
-            {/* Header */}
+        <div ref={containerRef} className="p-6 h-full overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h2 className="font-display text-xl font-bold">Your Progress</h2>
+                    <h2 className="font-display text-xl font-bold">Learning Progress</h2>
                     <p className="text-sm text-[color:var(--color-text-muted)]">
-                        Track your learning and building journey
+                        Live summary from Analytics events
                     </p>
                 </div>
                 <Badge variant={mode === 'learning' ? 'accent' : 'secondary'}>
-                    {mode === 'learning' ? '🎓 Learning' : '🚀 Building'}
+                    {mode === 'learning' ? 'Learning' : 'Build'} Mode
                 </Badge>
             </div>
 
-            {/* Metrics Grid */}
+            <div className="metric-card p-4 rounded-xl bg-gradient-to-r from-primary-500/10 to-secondary-500/10 border border-primary-500/30 mb-5">
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-[color:var(--color-text-muted)]">Level {level.level}</p>
+                    <p className="font-semibold">{level.xp} XP</p>
+                </div>
+                <div className="h-2 rounded-full bg-[color:var(--color-bg-muted)] overflow-hidden">
+                    <div
+                        className="h-full bg-gradient-to-r from-primary-500 to-secondary-500"
+                        style={{ width: `${level.progress}%` }}
+                    />
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4 mb-6">
                 {metricItems.map((metric) => (
                     <div
                         key={metric.label}
                         className="metric-card p-4 rounded-xl bg-[color:var(--color-bg-muted)] border border-[color:var(--color-border)]"
                     >
-                        <div className="flex items-start justify-between mb-2">
-                            <span className="text-2xl">{metric.icon}</span>
-                            <span className="font-display text-2xl font-bold">
-                                {metric.value}
-                            </span>
-                        </div>
-                        <p className="font-medium text-sm">{metric.label}</p>
-                        <p className="text-xs text-[color:var(--color-text-muted)]">
-                            {metric.description}
-                        </p>
+                        <p className="text-xs text-[color:var(--color-text-muted)] mb-1">{metric.label}</p>
+                        <p className={`text-2xl font-bold ${metric.color}`}>{metric.value}</p>
+                        <p className="text-xs text-[color:var(--color-text-muted)] mt-1">{metric.description}</p>
                     </div>
                 ))}
             </div>
 
-            {/* Achievement Banner */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-primary-500/10 to-secondary-500/10 border border-primary-500/30">
-                <div className="flex items-center gap-4">
-                    <div className="text-3xl">🏆</div>
-                    <div>
-                        <p className="font-display font-semibold">Keep Going!</p>
-                        <p className="text-sm text-[color:var(--color-text-secondary)]">
-                            {metrics.questionsAsked >= 10
-                                ? "You're becoming a true learner! Keep asking great questions."
-                                : `Ask ${10 - metrics.questionsAsked} more questions to earn the Curious Coder badge!`}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Learning Tips */}
-            <div className="mt-6 space-y-3">
-                <h3 className="font-medium text-sm text-[color:var(--color-text-secondary)]">
-                    Learning Tips
-                </h3>
-                <div className="space-y-2">
-                    {[
-                        'Try explaining the code back to the AI in your own words',
-                        'When stuck, ask "why" before asking "how"',
-                        'Use Build Mode for quick prototyping, Learning Mode for deep understanding',
-                    ].map((tip, i) => (
-                        <div
-                            key={i}
-                            className="flex items-start gap-2 p-3 rounded-lg bg-[color:var(--color-bg-elevated)]"
-                        >
-                            <span className="text-accent-500">→</span>
-                            <p className="text-sm">{tip}</p>
-                        </div>
-                    ))}
-                </div>
+            <div className="metric-card p-4 rounded-xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)]">
+                <p className="text-sm font-medium mb-1">Current Streak</p>
+                <p className="text-2xl font-bold text-orange-400">{metrics.currentStreak} days</p>
+                <p className="text-xs text-[color:var(--color-text-muted)] mt-1">
+                    Last activity: {metrics.lastActivityDate || 'No activity yet'}
+                </p>
+                <Link to="/analytics" className="inline-block mt-3 text-sm text-primary-400 hover:text-primary-300">
+                    Open full Learning Analytics →
+                </Link>
             </div>
         </div>
     );

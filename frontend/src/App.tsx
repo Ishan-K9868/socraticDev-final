@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from './store/useStore';
 import LandingPage from './pages/LandingPage';
 import AppPage from './pages/AppPage';
@@ -12,6 +12,8 @@ import { AnalyticsDashboard } from './features/analytics';
 import { GamificationHub } from './features/gamification';
 import CustomCursor from './components/CustomCursor';
 import Loader from './components/Loader';
+import { useDeviceType } from './hooks/useDeviceType';
+import { useReducedMotion } from './hooks/useReducedMotion';
 
 // Info pages
 import {
@@ -29,7 +31,10 @@ import {
 } from './pages';
 
 function App() {
-    const { theme, isLoading, setLoading } = useStore();
+    const { theme, isLoading, setLoading, cursorEnabled } = useStore();
+    const { isMobile, isTablet } = useDeviceType();
+    const prefersReducedMotion = useReducedMotion();
+    const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
     // Apply theme class to document
     useEffect(() => {
@@ -47,6 +52,34 @@ function App() {
         }, 2000);
         return () => clearTimeout(timer);
     }, [setLoading]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(pointer: coarse)');
+        const syncPointerMode = () => setIsCoarsePointer(media.matches);
+
+        syncPointerMode();
+        if (media.addEventListener) {
+            media.addEventListener('change', syncPointerMode);
+            return () => media.removeEventListener('change', syncPointerMode);
+        }
+
+        media.addListener(syncPointerMode);
+        return () => media.removeListener(syncPointerMode);
+    }, []);
+
+    useEffect(() => {
+        const shouldUseEnhancedCursor =
+            cursorEnabled &&
+            !isMobile &&
+            !isTablet &&
+            !isCoarsePointer &&
+            !prefersReducedMotion;
+
+        document.documentElement.classList.toggle('cursor-enhanced', shouldUseEnhancedCursor);
+        return () => {
+            document.documentElement.classList.remove('cursor-enhanced');
+        };
+    }, [cursorEnabled, isCoarsePointer, isMobile, isTablet, prefersReducedMotion]);
 
     return (
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

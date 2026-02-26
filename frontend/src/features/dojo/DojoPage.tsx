@@ -15,6 +15,7 @@ import { useSRS } from '../srs/useSRS';
 import { generateFlashcardsWithGemini } from '../../services/gemini';
 import { GeneratedCardCandidate } from '../srs/types';
 import GeneratedCardReviewModal from '../srs/GeneratedCardReviewModal';
+import { useAnalytics } from '../analytics/useAnalytics';
 
 // Re-export for convenience
 export { SUPPORTED_LANGUAGES } from './constants';
@@ -130,6 +131,7 @@ function DojoPage() {
     type HintCurve = { d: string; arrowD: string };
     type Viewport = { width: number; height: number };
     const { settings, addGeneratedCards } = useSRS();
+    const { recordChallenge } = useAnalytics();
     const [activeChallenge, setActiveChallenge] = useState<ChallengeType | null>(null);
     const [activeTopic, setActiveTopic] = useState('');
     const [completionContext, setCompletionContext] = useState<CompletionContext | null>(null);
@@ -148,6 +150,7 @@ function DojoPage() {
     const [hintCurve, setHintCurve] = useState<HintCurve | null>(null);
     const [viewport, setViewport] = useState<Viewport>({ width: 1440, height: 900 });
     const toastTimeoutRef = useRef<number | null>(null);
+    const challengeStartedAtRef = useRef<number | null>(null);
     const hintTextRef = useRef<HTMLSpanElement | null>(null);
     const generateButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -266,6 +269,7 @@ function DojoPage() {
         setActiveTopic(useAI ? getRandomTopic(challenge) : getDefaultTopicForChallenge(challenge));
         setActiveChallenge(challenge);
         setCompletionContext(null);
+        challengeStartedAtRef.current = Date.now();
     }, [useAI]);
 
     const handleChallengeComplete = useCallback((score: number) => {
@@ -299,6 +303,30 @@ function DojoPage() {
         setStats(newStats);
         localStorage.setItem('dojo-stats', JSON.stringify(newStats));
 
+        const durationSec = challengeStartedAtRef.current
+            ? Math.max(0, Math.round((Date.now() - challengeStartedAtRef.current) / 1000))
+            : 0;
+        const skillMap: Record<ChallengeType, string[]> = {
+            parsons: ['Algorithms', 'Code Reading'],
+            surgery: ['Debugging', 'Code Reading'],
+            eli5: ['Code Reading'],
+            faded: ['Code Reading', 'Data Structures'],
+            mental: ['Algorithms', 'Debugging'],
+            translation: ['Code Reading', 'Design Patterns'],
+            pattern: ['Design Patterns'],
+            tdd: ['Debugging', 'Code Reading'],
+            bigo: ['Big-O Analysis', 'Algorithms'],
+            'rubber-duck': ['Debugging', 'Code Reading'],
+        };
+
+        recordChallenge({
+            challengeType: activeChallenge,
+            score,
+            durationSec,
+            skills: skillMap[activeChallenge] || [],
+        });
+        challengeStartedAtRef.current = null;
+
         setCompletionContext({
             challenge: activeChallenge,
             topic: resolvedTopic,
@@ -306,11 +334,12 @@ function DojoPage() {
             score,
         });
         setActiveChallenge(null);
-    }, [activeChallenge, activeTopic, selectedLanguage, stats]);
+    }, [activeChallenge, activeTopic, recordChallenge, selectedLanguage, stats]);
 
     const handleBack = useCallback(() => {
         setActiveChallenge(null);
         setCompletionContext(null);
+        challengeStartedAtRef.current = null;
     }, []);
 
     const handleGenerateFromCompletion = useCallback(async () => {

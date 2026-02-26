@@ -5,6 +5,7 @@ import { ProjectFile, getLanguageFromExtension } from '../utils/projectAnalyzer'
 // Types
 export type Theme = 'light' | 'dark';
 export type Mode = 'learning' | 'building';
+export type CursorStyle = 'showcase' | 'minimal';
 
 export interface Message {
     id: string;
@@ -105,6 +106,8 @@ interface AppState {
     theme: Theme;
     isLoading: boolean;
     isSidebarOpen: boolean;
+    cursorEnabled: boolean;
+    cursorStyle: CursorStyle;
 
     // Mode State
     mode: Mode;
@@ -138,6 +141,9 @@ interface AppState {
     toggleTheme: () => void;
     setLoading: (loading: boolean) => void;
     setSidebarOpen: (open: boolean) => void;
+    setCursorEnabled: (enabled: boolean) => void;
+    toggleCursorEnabled: () => void;
+    setCursorStyle: (style: CursorStyle) => void;
     setMode: (mode: Mode) => void;
     toggleMode: () => void;
     addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
@@ -234,6 +240,8 @@ export const useStore = create<AppState>()(
             theme: 'dark',
             isLoading: true,
             isSidebarOpen: true,
+            cursorEnabled: true,
+            cursorStyle: 'showcase',
 
             // Initial Mode
             mode: 'learning',
@@ -269,6 +277,9 @@ export const useStore = create<AppState>()(
             })),
             setLoading: (isLoading) => set({ isLoading }),
             setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
+            setCursorEnabled: (cursorEnabled) => set({ cursorEnabled }),
+            toggleCursorEnabled: () => set((state) => ({ cursorEnabled: !state.cursorEnabled })),
+            setCursorStyle: (cursorStyle) => set({ cursorStyle }),
 
             // Mode Actions
             setMode: (mode) => set({ mode }),
@@ -603,6 +614,8 @@ export const useStore = create<AppState>()(
             name: 'socraticdev-storage',
             partialize: (state) => ({
                 theme: state.theme,
+                cursorEnabled: state.cursorEnabled,
+                cursorStyle: state.cursorStyle,
                 mode: state.mode,
                 projectContext: state.projectContext,
                 projectFiles: state.projectFiles,

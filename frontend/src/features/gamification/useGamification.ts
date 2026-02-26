@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GamificationStats, LEAGUES, ACHIEVEMENTS, DailyQuest } from './types';
+import { useAnalytics } from '../analytics/useAnalytics';
 
 const STORAGE_KEY = 'socraticdev-gamification';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const generateDailyQuests = (): DailyQuest[] => {
     const questTemplates = [
@@ -11,7 +13,6 @@ const generateDailyQuests = (): DailyQuest[] => {
         { type: 'streak' as const, title: 'Keep It Going', description: 'Maintain your streak', icon: '🔥', targets: [1, 1, 1] },
     ];
 
-    // Pick 3 random quests
     const shuffled = [...questTemplates].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 3);
 
@@ -38,144 +39,165 @@ const getDefaultStats = (): GamificationStats => ({
     weeklyXP: 0,
     dailyQuests: generateDailyQuests(),
     unlockedAchievements: [],
-    questsResetAt: Date.now() + 24 * 60 * 60 * 1000,
+    questsResetAt: Date.now() + DAY_MS,
 });
 
+function getUniqueDojoTypes(events: { kind: string; payload: { challengeType?: string } }[]): number {
+    const types = new Set<string>();
+    events.forEach((event) => {
+        if (event.kind === 'dojo_challenge_completed' && event.payload.challengeType) {
+            types.add(event.payload.challengeType);
+        }
+    });
+    return types.size;
+}
+
 export function useGamification() {
+    const { metrics, events } = useAnalytics();
     const [stats, setStats] = useState<GamificationStats>(getDefaultStats());
     const [isLoaded, setIsLoaded] = useState(false);
+    const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
-    // Load from localStorage
     useEffect(() => {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
-                const parsed = JSON.parse(saved);
-                // Check if quests need to be reset
-                if (parsed.questsResetAt < Date.now()) {
-                    parsed.dailyQuests = generateDailyQuests();
-                    parsed.questsResetAt = Date.now() + 24 * 60 * 60 * 1000;
-                }
-                setStats({ ...getDefaultStats(), ...parsed });
+                const parsed = JSON.parse(saved) as Partial<GamificationStats>;
+                const needsQuestReset = Number(parsed.questsResetAt || 0) < Date.now();
+                setStats({
+                    ...getDefaultStats(),
+                    ...parsed,
+                    dailyQuests: needsQuestReset ? generateDailyQuests() : (parsed.dailyQuests || generateDailyQuests()),
+                    questsResetAt: needsQuestReset ? Date.now() + DAY_MS : Number(parsed.questsResetAt || Date.now() + DAY_MS),
+                });
+            } else {
+                setStats(getDefaultStats());
             }
         } catch (e) {
             console.error('Error loading gamification data:', e);
+            setStats(getDefaultStats());
         }
         setIsLoaded(true);
     }, []);
 
-    // Save to localStorage
     useEffect(() => {
-        if (isLoaded) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-        }
+        if (!isLoaded) return;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
     }, [stats, isLoaded]);
 
-    // Calculate current league
-    const getCurrentLeague = useCallback(() => {
-        const league = [...LEAGUES].reverse().find(l => stats.totalXP >= l.minXP);
-        return league || LEAGUES[0];
-    }, [stats.totalXP]);
+    useEffect(() => {
+        if (!isLoaded) return;
 
-    // Calculate progress to next league
+        const totalXP = metrics.totalXP;
+        const currentLeague = [...LEAGUES].reverse().find((league) => totalXP >= league.minXP)?.tier || 'bronze';
+        const weekStart = Date.now() - (7 * DAY_MS);
+        const weeklyXP = events
+            .filter((event) => event.timestamp >= weekStart)
+            .reduce((sum, event) => {
+                if (event.kind === 'dojo_challenge_completed') {
+                    const count = Math.max(1, Number(event.payload.count || 1));
+                    return sum + count * 100;
+                }
+                if (event.kind === 'flashcard_reviewed') {
+                    const count = Math.max(1, Number(event.payload.count || 1));
+                    return sum + count * 10;
+                }
+                return sum;
+            }, 0);
+
+        const challengeCount = metrics.totalChallengesCompleted;
+        const flashcardCount = metrics.totalFlashcardsReviewed;
+        const streak = metrics.currentStreak;
+        const dojoTypes = getUniqueDojoTypes(events);
+
+        setStats((prev) => {
+            const newUnlocked = [...prev.unlockedAchievements];
+            ACHIEVEMENTS.forEach((achievement) => {
+                if (newUnlocked.includes(achievement.id)) return;
+                const type = achievement.condition.type;
+                const threshold = achievement.condition.value;
+
+                const value = type === 'challenges'
+                    ? challengeCount
+                    : type === 'flashcards'
+                        ? flashcardCount
+                        : type === 'streak'
+                            ? streak
+                            : type === 'xp'
+                                ? totalXP
+                                : type === 'dojo_types'
+                                    ? dojoTypes
+                                    : 0;
+
+                if (value >= threshold) {
+                    newUnlocked.push(achievement.id);
+                }
+            });
+
+            const resetQuests = prev.questsResetAt < Date.now();
+            const baseQuests = resetQuests ? generateDailyQuests() : prev.dailyQuests;
+            const updatedQuests = baseQuests.map((quest) => {
+                const current = quest.type === 'challenges'
+                    ? challengeCount
+                    : quest.type === 'flashcards'
+                        ? flashcardCount
+                        : quest.type === 'streak'
+                            ? streak
+                            : Math.round(metrics.totalTimeSpent);
+                const normalized = Math.min(current, quest.target);
+                return {
+                    ...quest,
+                    current: normalized,
+                    completed: normalized >= quest.target,
+                };
+            });
+
+            return {
+                ...prev,
+                totalXP,
+                weeklyXP,
+                currentLeague,
+                dailyQuests: updatedQuests,
+                unlockedAchievements: newUnlocked,
+                questsResetAt: resetQuests ? Date.now() + DAY_MS : prev.questsResetAt,
+            };
+        });
+
+        setLastSyncedAt(Date.now());
+    }, [events, isLoaded, metrics.currentStreak, metrics.totalChallengesCompleted, metrics.totalFlashcardsReviewed, metrics.totalTimeSpent, metrics.totalXP]);
+
+    const getCurrentLeague = useCallback(() => {
+        return LEAGUES.find((league) => league.tier === stats.currentLeague) || LEAGUES[0];
+    }, [stats.currentLeague]);
+
     const getLeagueProgress = useCallback(() => {
         const current = getCurrentLeague();
-        const currentIdx = LEAGUES.findIndex(l => l.tier === current.tier);
+        const currentIdx = LEAGUES.findIndex((league) => league.tier === current.tier);
         const next = LEAGUES[currentIdx + 1];
 
         if (!next) return { progress: 100, nextLeague: null };
 
         const xpInLeague = stats.totalXP - current.minXP;
         const xpNeeded = next.minXP - current.minXP;
-        const progress = Math.min(100, (xpInLeague / xpNeeded) * 100);
+        const progress = Math.min(100, (xpInLeague / Math.max(1, xpNeeded)) * 100);
 
         return { progress, nextLeague: next };
-    }, [stats.totalXP, getCurrentLeague]);
+    }, [getCurrentLeague, stats.totalXP]);
 
-    // Award XP
-    const awardXP = useCallback((amount: number) => {
-        setStats(prev => {
-            const newTotal = prev.totalXP + amount;
-            const newWeekly = prev.weeklyXP + amount;
-            const newLeague = [...LEAGUES].reverse().find(l => newTotal >= l.minXP)?.tier || 'bronze';
-
-            return {
-                ...prev,
-                totalXP: newTotal,
-                weeklyXP: newWeekly,
-                currentLeague: newLeague,
-            };
-        });
-    }, []);
-
-    // Update quest progress
-    const updateQuestProgress = useCallback((type: DailyQuest['type'], increment: number = 1) => {
-        setStats(prev => {
-            const updatedQuests = prev.dailyQuests.map(quest => {
-                if (quest.type === type && !quest.completed) {
-                    const newCurrent = Math.min(quest.current + increment, quest.target);
-                    const completed = newCurrent >= quest.target;
-                    return { ...quest, current: newCurrent, completed };
-                }
-                return quest;
-            });
-
-            // Award XP for completed quests
-            const newlyCompleted = updatedQuests.filter(
-                (q, i) => q.completed && !prev.dailyQuests[i].completed
-            );
-            const bonusXP = newlyCompleted.reduce((sum, q) => sum + q.xpReward, 0);
-
-            return {
-                ...prev,
-                dailyQuests: updatedQuests,
-                totalXP: prev.totalXP + bonusXP,
-                weeklyXP: prev.weeklyXP + bonusXP,
-            };
-        });
-    }, []);
-
-    // Check and unlock achievements
-    const checkAchievements = useCallback((metrics: { challenges?: number; flashcards?: number; streak?: number; xp?: number }) => {
-        setStats(prev => {
-            const newUnlocked: string[] = [];
-
-            ACHIEVEMENTS.forEach(achievement => {
-                if (prev.unlockedAchievements.includes(achievement.id)) return;
-
-                const value = metrics[achievement.condition.type as keyof typeof metrics] || 0;
-                if (value >= achievement.condition.value) {
-                    newUnlocked.push(achievement.id);
-                }
-            });
-
-            if (newUnlocked.length === 0) return prev;
-
-            return {
-                ...prev,
-                unlockedAchievements: [...prev.unlockedAchievements, ...newUnlocked],
-            };
-        });
-    }, []);
-
-    // Get unlocked achievements with details
     const getUnlockedAchievements = useCallback(() => {
-        return ACHIEVEMENTS.filter(a => stats.unlockedAchievements.includes(a.id));
+        return ACHIEVEMENTS.filter((achievement) => stats.unlockedAchievements.includes(achievement.id));
     }, [stats.unlockedAchievements]);
 
-    // Get locked achievements
     const getLockedAchievements = useCallback(() => {
-        return ACHIEVEMENTS.filter(a => !stats.unlockedAchievements.includes(a.id));
+        return ACHIEVEMENTS.filter((achievement) => !stats.unlockedAchievements.includes(achievement.id));
     }, [stats.unlockedAchievements]);
 
     return {
         stats,
         isLoaded,
+        lastSyncedAt,
         getCurrentLeague,
         getLeagueProgress,
-        awardXP,
-        updateQuestProgress,
-        checkAchievements,
         getUnlockedAchievements,
         getLockedAchievements,
     };

@@ -8,6 +8,17 @@ function AnalyticsDashboard() {
     const { metrics, getActivityRange, getLevel, isLoaded } = useAnalytics();
     const { level, xp, progress } = getLevel();
     const weekActivity = getActivityRange(7);
+    const hasChallenges = metrics.totalChallengesCompleted > 0;
+    const hasFlashcards = metrics.totalFlashcardsReviewed > 0;
+    const hasAnyActivity = metrics.hasAnyActivity;
+
+    const emptyStateText = !hasAnyActivity
+        ? 'No learning activity yet. Start with Dojo or Flashcards to populate insights.'
+        : hasChallenges && !hasFlashcards
+            ? 'Challenge data is flowing. Add Flashcard reviews to enrich retention analytics.'
+            : !hasChallenges && hasFlashcards
+                ? 'Flashcard activity is tracked. Complete Dojo challenges to unlock skill depth.'
+                : null;
 
     if (!isLoaded) {
         return (
@@ -103,6 +114,16 @@ function AnalyticsDashboard() {
                     ))}
                 </div>
 
+                {emptyStateText && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-8 p-4 rounded-xl border border-warning/30 bg-warning/10 text-sm text-[color:var(--color-text-secondary)]"
+                    >
+                        {emptyStateText}
+                    </motion.div>
+                )}
+
                 <div className="grid lg:grid-cols-2 gap-8">
                     {/* Skill Radar */}
                     <motion.div
@@ -127,21 +148,29 @@ function AnalyticsDashboard() {
                             {weekActivity.map((day, i) => {
                                 const total = day.challenges + day.flashcards;
                                 const maxHeight = 120;
-                                const height = total > 0 ? Math.max(20, Math.min(maxHeight, total * 10)) : 8;
+                                const baseHeight = total > 0 ? Math.max(16, Math.min(maxHeight, total * 10)) : 8;
+                                const challengeRatio = total > 0 ? day.challenges / total : 0;
+                                const flashRatio = total > 0 ? day.flashcards / total : 0;
                                 const dayName = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
 
                                 return (
                                     <div key={day.date} className="flex-1 flex flex-col items-center gap-2">
                                         <motion.div
-                                            className="w-full rounded-lg bg-primary-500/20 relative overflow-hidden"
+                                            className="w-full rounded-lg bg-[color:var(--color-bg-muted)] relative overflow-hidden border border-[color:var(--color-border)]"
                                             initial={{ height: 0 }}
-                                            animate={{ height }}
+                                            animate={{ height: baseHeight }}
                                             transition={{ delay: i * 0.05, duration: 0.4 }}
                                         >
                                             <motion.div
+                                                className="absolute bottom-0 left-0 right-0 bg-violet-400/40"
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${flashRatio * 100}%` }}
+                                                transition={{ delay: i * 0.05 + 0.1, duration: 0.25 }}
+                                            />
+                                            <motion.div
                                                 className="absolute bottom-0 left-0 right-0 bg-primary-500"
                                                 initial={{ height: 0 }}
-                                                animate={{ height: `${(day.challenges / (total || 1)) * 100}%` }}
+                                                animate={{ height: `${(challengeRatio + flashRatio) * 100}%` }}
                                                 transition={{ delay: i * 0.05 + 0.2, duration: 0.3 }}
                                             />
                                         </motion.div>
@@ -158,7 +187,7 @@ function AnalyticsDashboard() {
                                 Challenges
                             </div>
                             <div className="flex items-center gap-1">
-                                <div className="w-3 h-3 rounded bg-primary-500/30" />
+                                <div className="w-3 h-3 rounded bg-violet-400/40" />
                                 Flashcards
                             </div>
                         </div>
@@ -194,7 +223,13 @@ function AnalyticsDashboard() {
                                 <div className="flex justify-between text-sm">
                                     <span className="text-[color:var(--color-text-muted)]">Last Activity</span>
                                     <span className="font-medium">
-                                        {metrics.lastActivityDate || 'Never'}
+                                        {metrics.lastActivityDate
+                                            ? (() => {
+                                                const [y, m, d] = metrics.lastActivityDate.split('-').map((part) => Number(part));
+                                                if (!y || !m || !d) return metrics.lastActivityDate;
+                                                return new Date(y, m - 1, d).toLocaleDateString();
+                                            })()
+                                            : 'Never'}
                                     </span>
                                 </div>
                             </div>
@@ -264,6 +299,35 @@ function AnalyticsDashboard() {
                         </div>
                     </motion.div>
                 </div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.55 }}
+                    className="mt-8 p-6 rounded-xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)]"
+                >
+                    <h3 className="text-lg font-semibold mb-4">Recent Challenges</h3>
+                    {metrics.recentChallenges.length === 0 ? (
+                        <p className="text-sm text-[color:var(--color-text-muted)]">No challenge completions recorded yet.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {metrics.recentChallenges.slice(0, 6).map((challenge) => (
+                                <div key={challenge.id} className="flex items-center justify-between rounded-lg bg-[color:var(--color-bg-muted)] px-3 py-2">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">{challenge.challengeType}</p>
+                                        <p className="text-xs text-[color:var(--color-text-muted)]">
+                                            {new Date(challenge.completedAt).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-semibold text-primary-400">{Math.round(challenge.score)}%</p>
+                                        <p className="text-xs text-[color:var(--color-text-muted)]">{challenge.timeSpent}m</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
             </main>
         </div>
     );

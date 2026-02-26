@@ -15,7 +15,6 @@ import HowItWorksSection from '../components/HowItWorksSection';
 import TechStackSection from '../components/TechStackSection';
 import CTASection from '../components/CTASection';
 import Footer from '../components/Footer';
-import CustomCursor from '../components/CustomCursor';
 import ScrollProgress from '../components/ScrollProgress';
 import SectionIndicators from '../components/SectionIndicators';
 
@@ -62,9 +61,6 @@ function LandingPage() {
         <main ref={mainRef} className="relative">
             {/* Scroll Progress Bar */}
             <ScrollProgress />
-
-            {/* Custom Cursor (Desktop Only) */}
-            <CustomCursor />
 
             {/* Section Indicators */}
             <SectionIndicators />

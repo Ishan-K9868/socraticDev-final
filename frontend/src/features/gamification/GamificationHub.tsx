@@ -10,6 +10,7 @@ function GamificationHub() {
     const {
         stats,
         isLoaded,
+        lastSyncedAt,
         getCurrentLeague,
         getLeagueProgress,
         getUnlockedAchievements,
@@ -58,6 +59,9 @@ function GamificationHub() {
             </header>
 
             <main className="max-w-5xl mx-auto px-6 py-8">
+                <div className="mb-4 text-xs text-[color:var(--color-text-muted)] text-right">
+                    Last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : 'Not synced yet'}
+                </div>
                 {/* League Card */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

@@ -12,6 +12,97 @@ interface ChatMessageProps {
     isGeneratingFlashcards?: boolean;
 }
 
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatInlineMarkdown(line: string): string {
+    let text = escapeHtml(line);
+
+    text = text.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-black/20 font-mono text-[0.9em]">$1</code>');
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    text = text.replace(/\*([^*\n]+)\*/g, '<em class="italic">$1</em>');
+
+    return text;
+}
+
+function renderMarkdownLite(content: string): string {
+    const lines = content.replace(/\r\n/g, '\n').split('\n');
+    const html: string[] = [];
+    let inUl = false;
+    let inOl = false;
+
+    const closeLists = () => {
+        if (inUl) {
+            html.push('</ul>');
+            inUl = false;
+        }
+        if (inOl) {
+            html.push('</ol>');
+            inOl = false;
+        }
+    };
+
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+        const trimmed = line.trim();
+
+        if (!trimmed) {
+            closeLists();
+            html.push('<div class="h-3"></div>');
+            continue;
+        }
+
+        const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+        if (headingMatch) {
+            closeLists();
+            const level = headingMatch[1].length;
+            const text = formatInlineMarkdown(headingMatch[2]);
+            html.push(`<h${level} class="font-semibold mt-2 mb-1">${text}</h${level}>`);
+            continue;
+        }
+
+        const unorderedMatch = trimmed.match(/^[-*+]\s+(.+)$/);
+        if (unorderedMatch) {
+            if (!inUl) {
+                if (inOl) {
+                    html.push('</ol>');
+                    inOl = false;
+                }
+                html.push('<ul class="list-disc pl-5 space-y-1 my-1">');
+                inUl = true;
+            }
+            html.push(`<li>${formatInlineMarkdown(unorderedMatch[1])}</li>`);
+            continue;
+        }
+
+        const orderedMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+        if (orderedMatch) {
+            if (!inOl) {
+                if (inUl) {
+                    html.push('</ul>');
+                    inUl = false;
+                }
+                html.push('<ol class="list-decimal pl-5 space-y-1 my-1">');
+                inOl = true;
+            }
+            html.push(`<li>${formatInlineMarkdown(orderedMatch[2])}</li>`);
+            continue;
+        }
+
+        closeLists();
+        html.push(`<p class="my-1">${formatInlineMarkdown(trimmed)}</p>`);
+    }
+
+    closeLists();
+    return html.join('');
+}
+
 function ChatMessage({
     message,
     isLatest = false,
@@ -113,10 +204,10 @@ function ChatMessage({
                     {contentParts.map((part, index) => (
                         <div key={index}>
                             {part.type === 'text' ? (
-                                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${isUser ? '' : 'text-[color:var(--color-text-primary)]'
-                                    }`}>
-                                    {part.content}
-                                </div>
+                                <div
+                                    className={`text-sm leading-relaxed ${isUser ? '' : 'text-[color:var(--color-text-primary)]'}`}
+                                    dangerouslySetInnerHTML={{ __html: renderMarkdownLite(part.content) }}
+                                />
                             ) : (
                                 <div className="my-3 -mx-2">
                                     <CodeBlock

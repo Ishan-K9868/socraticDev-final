@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { SkillScore } from './types';
 
 interface SkillRadarProps {
@@ -7,38 +7,57 @@ interface SkillRadarProps {
 }
 
 function SkillRadar({ skills, size = 300 }: SkillRadarProps) {
-    const center = size / 2;
-    const radius = (size - 60) / 2;
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [renderSize, setRenderSize] = useState(size);
+    const safeSkills = skills.filter((skill) => skill && typeof skill.name === 'string');
 
-    const { points, labels, gridLines } = useMemo(() => {
-        const angleStep = (2 * Math.PI) / skills.length;
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const el = containerRef.current;
 
-        // Calculate points for the skill polygon
-        const pts = skills.map((skill, i) => {
-            const angle = i * angleStep - Math.PI / 2; // Start from top
-            const r = (skill.score / 100) * radius;
+        const resizeObserver = new ResizeObserver((entries) => {
+            const width = entries[0]?.contentRect?.width || size;
+            const clamped = Math.max(220, Math.min(420, Math.floor(width - 12)));
+            setRenderSize(clamped);
+        });
+        resizeObserver.observe(el);
+
+        return () => resizeObserver.disconnect();
+    }, [size]);
+
+    const center = renderSize / 2;
+    const radius = Math.max(72, (renderSize - 88) / 2);
+
+    const chart = useMemo(() => {
+        if (safeSkills.length < 3) return null;
+        const angleStep = (2 * Math.PI) / safeSkills.length;
+
+        const points = safeSkills.map((skill, index) => {
+            const angle = index * angleStep - Math.PI / 2;
+            const normalized = Math.max(0, Math.min(100, skill.score)) / 100;
+            const r = normalized * radius;
             return {
                 x: center + r * Math.cos(angle),
                 y: center + r * Math.sin(angle),
             };
         });
 
-        // Calculate label positions
-        const lbls = skills.map((skill, i) => {
-            const angle = i * angleStep - Math.PI / 2;
-            const r = radius + 30;
+        const labels = safeSkills.map((skill, index) => {
+            const angle = index * angleStep - Math.PI / 2;
+            const baseR = radius + 30;
+            const x = center + baseR * Math.cos(angle);
+            const y = center + baseR * Math.sin(angle);
             return {
-                x: center + r * Math.cos(angle),
-                y: center + r * Math.sin(angle),
+                x: Math.max(44, Math.min(renderSize - 44, x)),
+                y: Math.max(22, Math.min(renderSize - 22, y)),
                 skill,
             };
         });
 
-        // Grid lines (20%, 40%, 60%, 80%, 100%)
-        const grid = [0.2, 0.4, 0.6, 0.8, 1].map(pct => {
+        const gridLines = [0.2, 0.4, 0.6, 0.8, 1].map((pct) => {
             const r = radius * pct;
-            return skills.map((_, i) => {
-                const angle = i * angleStep - Math.PI / 2;
+            return safeSkills.map((_, index) => {
+                const angle = index * angleStep - Math.PI / 2;
                 return {
                     x: center + r * Math.cos(angle),
                     y: center + r * Math.sin(angle),
@@ -46,82 +65,83 @@ function SkillRadar({ skills, size = 300 }: SkillRadarProps) {
             });
         });
 
-        return { points: pts, labels: lbls, gridLines: grid };
-    }, [skills, center, radius]);
+        return { points, labels, gridLines, angleStep };
+    }, [center, radius, renderSize, safeSkills]);
 
-    // Convert points to SVG path
-    const polygonPath = points.map((p, i) =>
-        `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-    ).join(' ') + ' Z';
+    if (!chart) {
+        return (
+            <div ref={containerRef} className="w-full min-h-[260px] flex items-center justify-center text-sm text-[color:var(--color-text-muted)]">
+                Skill data will appear after completing a few activities.
+            </div>
+        );
+    }
+
+    const polygonPath = chart.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ') + ' Z';
 
     return (
-        <div className="relative">
-            <svg width={size} height={size} className="mx-auto">
-                {/* Grid circles */}
-                {gridLines.map((line, i) => (
+        <div ref={containerRef} className="relative w-full min-h-[260px]">
+            <svg width={renderSize} height={renderSize} viewBox={`0 0 ${renderSize} ${renderSize}`} className="mx-auto max-w-full">
+                {chart.gridLines.map((line, index) => (
                     <polygon
-                        key={i}
-                        points={line.map(p => `${p.x},${p.y}`).join(' ')}
+                        key={index}
+                        points={line.map((point) => `${point.x},${point.y}`).join(' ')}
                         fill="none"
                         stroke="currentColor"
-                        strokeOpacity={0.1}
+                        strokeOpacity={0.12}
                         strokeWidth={1}
                     />
                 ))}
 
-                {/* Axis lines */}
-                {skills.map((_, i) => {
-                    const angle = (i * 2 * Math.PI) / skills.length - Math.PI / 2;
+                {safeSkills.map((_, index) => {
+                    const angle = index * chart.angleStep - Math.PI / 2;
                     const endX = center + radius * Math.cos(angle);
                     const endY = center + radius * Math.sin(angle);
                     return (
                         <line
-                            key={i}
+                            key={index}
                             x1={center}
                             y1={center}
                             x2={endX}
                             y2={endY}
                             stroke="currentColor"
-                            strokeOpacity={0.1}
+                            strokeOpacity={0.12}
                             strokeWidth={1}
                         />
                     );
                 })}
 
-                {/* Skill polygon */}
                 <path
                     d={polygonPath}
-                    fill="rgba(var(--color-primary-rgb), 0.2)"
-                    stroke="rgb(var(--color-primary-rgb))"
+                    fill="#E07A5F33"
+                    stroke="#E07A5F"
                     strokeWidth={2}
                 />
 
-                {/* Skill points */}
-                {points.map((p, i) => (
+                {chart.points.map((point, index) => (
                     <circle
-                        key={i}
-                        cx={p.x}
-                        cy={p.y}
+                        key={index}
+                        cx={point.x}
+                        cy={point.y}
                         r={4}
-                        fill="rgb(var(--color-primary-rgb))"
+                        fill="#E07A5F"
                     />
                 ))}
             </svg>
 
-            {/* Labels */}
-            {labels.map((label, i) => (
+            {chart.labels.map((label, index) => (
                 <div
-                    key={i}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 text-center"
-                    style={{ left: label.x, top: label.y }}
+                    key={index}
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none"
+                    style={{ left: `${label.x}px`, top: `${label.y}px`, maxWidth: '120px' }}
                 >
-                    <div className="text-xs font-medium whitespace-nowrap">
-                        {label.skill.name}
-                    </div>
-                    <div className={`text-xs ${label.skill.trend === 'up' ? 'text-green-400' :
-                            label.skill.trend === 'down' ? 'text-red-400' :
-                                'text-[color:var(--color-text-muted)]'
-                        }`}>
+                    <div className="text-xs font-medium truncate">{label.skill.name}</div>
+                    <div className={`text-xs ${
+                        label.skill.trend === 'up'
+                            ? 'text-green-400'
+                            : label.skill.trend === 'down'
+                                ? 'text-red-400'
+                                : 'text-[color:var(--color-text-muted)]'
+                    }`}>
                         {label.skill.score.toFixed(0)}%
                         {label.skill.trend === 'up' && ' ↑'}
                         {label.skill.trend === 'down' && ' ↓'}

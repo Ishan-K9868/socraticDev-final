@@ -24,6 +24,9 @@
   --color-accent-primary: theme('colors.primary.500');
   --color-accent-secondary: theme('colors.secondary.500');
   --color-accent-tertiary: theme('colors.accent.500');
+  --color-primary-rgb: 224, 122, 95;
+  --color-secondary-rgb: 61, 90, 128;
+  --color-accent-rgb: 129, 147, 106;
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -53,6 +56,9 @@
   
   --color-border: theme('colors.neutral.700');
   --color-border-hover: theme('colors.neutral.600');
+  --color-primary-rgb: 224, 122, 95;
+  --color-secondary-rgb: 61, 90, 128;
+  --color-accent-rgb: 129, 147, 106;
   
   /* Shadows in dark mode - more subtle, with glow */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
@@ -324,25 +330,119 @@ body {
    CUSTOM CURSOR STYLES
    ============================================ */
 
-.cursor-custom {
-  @apply fixed pointer-events-none mix-blend-difference;
-  z-index: 9999;
-  width: 40px;
-  height: 40px;
-  border: 2px solid white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
+.cursor-enhanced,
+.cursor-enhanced * {
+  cursor: none !important;
 }
 
-.cursor-dot {
-  @apply fixed pointer-events-none;
-  z-index: 9999;
+.cursor-enhanced input,
+.cursor-enhanced textarea,
+.cursor-enhanced [contenteditable="true"],
+.cursor-enhanced [data-cursor="text"],
+.cursor-enhanced .cursor-native,
+.cursor-enhanced .monaco-editor textarea,
+.cursor-enhanced .monaco-editor .inputarea {
+  cursor: text !important;
+}
+
+.cursor-tech-dot {
+  position: fixed;
   width: 8px;
   height: 8px;
-  background: white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 10020;
   mix-blend-mode: difference;
+}
+
+.cursor-tech-ring {
+  position: fixed;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  pointer-events: none;
+  z-index: 10019;
+}
+
+.cursor-tech-crosshair {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  z-index: 10021;
+}
+
+.cursor-tech-crosshair-line {
+  position: absolute;
+  display: block;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.cursor-tech-crosshair-top,
+.cursor-tech-crosshair-bottom {
+  width: 1px;
+  height: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.cursor-tech-crosshair-top {
+  top: 0;
+}
+
+.cursor-tech-crosshair-bottom {
+  bottom: 0;
+}
+
+.cursor-tech-crosshair-left,
+.cursor-tech-crosshair-right {
+  width: 7px;
+  height: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.cursor-tech-crosshair-left {
+  left: 0;
+}
+
+.cursor-tech-crosshair-right {
+  right: 0;
+}
+
+.cursor-tech-label {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10022;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.25);
+  background: rgba(var(--color-bg-secondary-rgb, 255, 255, 255), 0.88);
+  color: rgba(var(--color-primary-rgb), 0.92);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+.dark .cursor-tech-label {
+  background: rgba(20, 20, 20, 0.84);
+  border-color: rgba(var(--color-primary-rgb), 0.4);
+}
+
+.cursor-tech-pulse {
+  position: fixed;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  pointer-events: none;
+  z-index: 10018;
+  transform: translate(-50%, -50%);
 }
 
 /* ============================================
