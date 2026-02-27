@@ -52,9 +52,9 @@ function getCursorPalette(mode: CursorMode, style: 'showcase' | 'minimal') {
     const showcase = style === 'showcase';
 
     const base = {
-        dotColor: 'rgba(var(--color-primary-rgb), 0.92)',
-        ringColor: 'rgba(var(--color-primary-rgb), 0.52)',
-        ringBg: 'rgba(var(--color-primary-rgb), 0.08)',
+        dotColor: 'rgba(255, 255, 255, 0.96)',
+        ringColor: 'rgba(255, 255, 255, 0.9)',
+        ringBg: 'rgba(255, 255, 255, 0.06)',
         dotScale: 1,
         ringScale: 1,
         showCrosshair: showcase,
@@ -65,18 +65,14 @@ function getCursorPalette(mode: CursorMode, style: 'showcase' | 'minimal') {
         case 'interactive':
             return {
                 ...base,
-                dotColor: 'rgba(var(--color-accent-rgb), 0.95)',
-                ringColor: 'rgba(var(--color-accent-rgb), 0.72)',
-                ringBg: 'rgba(var(--color-accent-rgb), 0.16)',
+                ringBg: 'rgba(255, 255, 255, 0.14)',
                 dotScale: 1.2,
                 ringScale: 1.25,
             };
         case 'text':
             return {
                 ...base,
-                dotColor: 'rgba(var(--color-primary-rgb), 0.9)',
-                ringColor: 'rgba(var(--color-primary-rgb), 0.6)',
-                ringBg: 'rgba(var(--color-primary-rgb), 0.02)',
+                ringBg: 'rgba(255, 255, 255, 0.01)',
                 dotScale: 0.9,
                 ringScale: 0.82,
                 showCrosshair: false,
@@ -85,18 +81,14 @@ function getCursorPalette(mode: CursorMode, style: 'showcase' | 'minimal') {
         case 'drag':
             return {
                 ...base,
-                dotColor: 'rgba(var(--color-secondary-rgb), 0.95)',
-                ringColor: 'rgba(var(--color-secondary-rgb), 0.78)',
-                ringBg: 'rgba(var(--color-secondary-rgb), 0.18)',
+                ringBg: 'rgba(255, 255, 255, 0.22)',
                 dotScale: 1.1,
                 ringScale: 1.35,
             };
         case 'busy':
             return {
                 ...base,
-                dotColor: 'rgba(var(--color-primary-rgb), 0.95)',
-                ringColor: 'rgba(var(--color-primary-rgb), 0.75)',
-                ringBg: 'rgba(var(--color-primary-rgb), 0.15)',
+                ringBg: 'rgba(255, 255, 255, 0.18)',
                 dotScale: 1.05,
                 ringScale: 1.12,
             };

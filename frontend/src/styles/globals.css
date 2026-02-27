@@ -353,6 +353,7 @@ body {
   pointer-events: none;
   z-index: 10020;
   mix-blend-mode: difference;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.95));
 }
 
 .cursor-tech-ring {
@@ -363,6 +364,8 @@ body {
   border: 1px solid transparent;
   pointer-events: none;
   z-index: 10019;
+  mix-blend-mode: difference;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.95));
 }
 
 .cursor-tech-crosshair {
@@ -371,6 +374,8 @@ body {
   height: 24px;
   pointer-events: none;
   z-index: 10021;
+  mix-blend-mode: difference;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.95));
 }
 
 .cursor-tech-crosshair-line {
@@ -443,6 +448,8 @@ body {
   pointer-events: none;
   z-index: 10018;
   transform: translate(-50%, -50%);
+  mix-blend-mode: difference;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.95));
 }
 
 /* ============================================
