@@ -7,8 +7,8 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 const FloatingSteps = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Gradient blobs */}
-        <div className="absolute -top-20 left-1/4 w-[400px] h-[400px] bg-gradient-to-br from-primary-500/10 via-transparent to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 right-1/4 w-[350px] h-[350px] bg-gradient-to-tl from-accent-500/10 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute -top-20 left-1/4 w-[400px] h-[400px] bg-gradient-to-br from-primary-500/10 via-transparent to-transparent rounded-full blur-2xl" />
+        <div className="absolute -bottom-20 right-1/4 w-[350px] h-[350px] bg-gradient-to-tl from-accent-500/10 via-transparent to-transparent rounded-full blur-2xl" />
 
         {/* Floating step numbers */}
         <svg className="absolute top-[20%] left-[5%] w-12 h-12 text-primary-500/10 animate-float" viewBox="0 0 48 48" fill="currentColor">
@@ -50,7 +50,7 @@ const steps = [
     {
         number: '01',
         title: 'Upload Your Codebase',
-        description: 'Drop in your project files or connect your AWS CodeCommit repository. Our system scans and understands your entire codebase structure.',
+        description: 'Drop in your project folder or connect your repository. Our system scans and understands your entire codebase structure, mapping every file and dependency.',
         icon: (
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -61,8 +61,8 @@ const steps = [
     },
     {
         number: '02',
-        title: 'GraphRAG Builds Understanding',
-        description: 'AI analyzes relationships between files, functions, and components to build a comprehensive knowledge graph of your project.',
+        title: 'GraphRAG Maps Your Code',
+        description: 'AI maps every file, function, and dependency into a knowledge graph. Visualize the architecture, explore connections, and give the AI full context about your codebase.',
         icon: (
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -74,7 +74,7 @@ const steps = [
     {
         number: '03',
         title: 'Ask Questions, Get Guidance',
-        description: 'Chat with the AI about your code. It asks clarifying questions that help you discover solutions rather than just giving answers.',
+        description: 'Chat with the AI about your code. It asks clarifying questions that help you discover solutions — with context management that lets you control exactly what the AI sees.',
         icon: (
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -85,8 +85,20 @@ const steps = [
     },
     {
         number: '04',
+        title: 'Visualize & Debug',
+        description: 'Open the Code Visualizer to see call graphs and execution traces for any Python code. Understand function relationships and trace variable flow visually.',
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+        ),
+        color: 'secondary',
+    },
+    {
+        number: '05',
         title: 'Practice & Master',
-        description: 'Reinforce your learning with interactive challenges in The Dojo. Spaced repetition ensures concepts stick long-term.',
+        description: 'Reinforce your learning with 10 interactive challenge types in The Dojo. AI generates targeted flashcards from every challenge, and spaced repetition ensures concepts stick.',
         icon: (
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -101,7 +113,7 @@ function HowItWorksSection() {
     const prefersReducedMotion = useReducedMotion();
     const headerRef = useRef(null);
     const headerInView = useInView(headerRef, { once: true, amount: 0.1, margin: "0px 0px -150px 0px" });
-    
+
     return (
         <section
             id="how-it-works"
@@ -115,11 +127,11 @@ function HowItWorksSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <motion.div 
+                <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
                     animate={headerInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ 
+                    transition={{
                         duration: prefersReducedMotion ? 0.3 : 0.5,
                         type: "tween",
                         ease: [0.25, 0.1, 0.25, 1]
@@ -151,7 +163,7 @@ function HowItWorksSection() {
                     </h2>
 
                     <p className="text-lg text-[color:var(--color-text-secondary)]">
-                        A simple four-step process that transforms how you learn and build.
+                        A simple five-step process that transforms how you learn and build.
                     </p>
                 </motion.div>
 
@@ -160,92 +172,92 @@ function HowItWorksSection() {
                     {steps.map((step, index) => {
                         const stepRef = useRef(null);
                         const stepInView = useInView(stepRef, { once: true, amount: 0.2, margin: "0px 0px -200px 0px" });
-                        
+
                         return (
-                        <div key={step.number} className="relative" ref={stepRef}>
-                            {/* Connector line */}
-                            {index < steps.length - 1 && (
-                                <motion.div 
-                                    initial={{ scaleY: 0 }}
-                                    animate={stepInView ? { scaleY: 1 } : {}}
-                                    transition={{ 
-                                        duration: 0.4,
-                                        delay: 0.2,
+                            <div key={step.number} className="relative" ref={stepRef}>
+                                {/* Connector line */}
+                                {index < steps.length - 1 && (
+                                    <motion.div
+                                        initial={{ scaleY: 0 }}
+                                        animate={stepInView ? { scaleY: 1 } : {}}
+                                        transition={{
+                                            duration: 0.4,
+                                            delay: 0.2,
+                                            type: "tween",
+                                            ease: [0.25, 0.1, 0.25, 1]
+                                        }}
+                                        style={{ originY: 0 }}
+                                        className="absolute left-[39px] top-24 w-0.5 h-16 bg-gradient-to-b from-[color:var(--color-border)] to-transparent hidden md:block"
+                                    />
+                                )}
+
+                                <motion.div
+                                    initial={{ opacity: 0, x: prefersReducedMotion ? 0 : (index % 2 === 0 ? -40 : 40) }}
+                                    animate={stepInView ? { opacity: 1, x: 0 } : {}}
+                                    transition={{
+                                        duration: prefersReducedMotion ? 0.3 : 0.5,
+                                        delay: index * 0.1,
                                         type: "tween",
                                         ease: [0.25, 0.1, 0.25, 1]
                                     }}
-                                    style={{ originY: 0 }}
-                                    className="absolute left-[39px] top-24 w-0.5 h-16 bg-gradient-to-b from-[color:var(--color-border)] to-transparent hidden md:block"
-                                />
-                            )}
-
-                            <motion.div 
-                                initial={{ opacity: 0, x: prefersReducedMotion ? 0 : (index % 2 === 0 ? -40 : 40) }}
-                                animate={stepInView ? { opacity: 1, x: 0 } : {}}
-                                transition={{ 
-                                    duration: prefersReducedMotion ? 0.3 : 0.5,
-                                    delay: index * 0.1,
-                                    type: "tween",
-                                    ease: [0.25, 0.1, 0.25, 1]
-                                }}
-                                className={`flex flex-col md:flex-row gap-6 mb-8 md:mb-12 group ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
-                            >
-                                {/* Step number and icon */}
-                                <div className="flex-shrink-0 flex items-start gap-4">
-                                    <motion.div 
-                                        initial={{ scale: 0, opacity: 0 }}
-                                        animate={stepInView ? { scale: 1, opacity: 1 } : {}}
-                                        transition={{
-                                            type: "spring",
-                                            stiffness: 200,
-                                            damping: 15,
-                                            delay: index * 0.1 + 0.1
-                                        }}
-                                        className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110
+                                    className={`flex flex-col md:flex-row gap-6 mb-8 md:mb-12 group ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
+                                >
+                                    {/* Step number and icon */}
+                                    <div className="flex-shrink-0 flex items-start gap-4">
+                                        <motion.div
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            animate={stepInView ? { scale: 1, opacity: 1 } : {}}
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 200,
+                                                damping: 15,
+                                                delay: index * 0.1 + 0.1
+                                            }}
+                                            className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110
                                         ${step.color === 'primary' ? 'bg-primary-500/10 text-primary-500' : ''}
                                         ${step.color === 'secondary' ? 'bg-secondary-500/10 text-secondary-500' : ''}
                                         ${step.color === 'accent' ? 'bg-accent-500/10 text-accent-500' : ''}`}
-                                    >
-                                        <motion.div
-                                            initial={{ opacity: 0, rotate: 0, scale: 0.8 }}
-                                            animate={stepInView ? { opacity: 1, rotate: prefersReducedMotion ? 0 : 360, scale: 1 } : {}}
-                                            transition={{
-                                                duration: prefersReducedMotion ? 0.3 : 0.5,
-                                                delay: index * 0.1 + 0.15,
-                                                type: "tween",
-                                                ease: [0.25, 0.1, 0.25, 1]
-                                            }}
                                         >
-                                            {step.icon}
-                                        </motion.div>
-                                        {/* Glow effect */}
-                                        <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl
+                                            <motion.div
+                                                initial={{ opacity: 0, rotate: 0, scale: 0.8 }}
+                                                animate={stepInView ? { opacity: 1, rotate: prefersReducedMotion ? 0 : 360, scale: 1 } : {}}
+                                                transition={{
+                                                    duration: prefersReducedMotion ? 0.3 : 0.5,
+                                                    delay: index * 0.1 + 0.15,
+                                                    type: "tween",
+                                                    ease: [0.25, 0.1, 0.25, 1]
+                                                }}
+                                            >
+                                                {step.icon}
+                                            </motion.div>
+                                            {/* Glow effect */}
+                                            <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl
                                             ${step.color === 'primary' ? 'bg-primary-500/20' : ''}
                                             ${step.color === 'secondary' ? 'bg-secondary-500/20' : ''}
                                             ${step.color === 'accent' ? 'bg-accent-500/20' : ''}`}
-                                        />
-                                    </motion.div>
-                                </div>
+                                            />
+                                        </motion.div>
+                                    </div>
 
-                                {/* Content */}
-                                <div className={`flex-1 p-6 rounded-2xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] group-hover:border-${step.color}-500/30 transition-colors`}>
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <span className={`text-3xl font-display font-bold opacity-30
+                                    {/* Content */}
+                                    <div className={`flex-1 p-6 rounded-2xl bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)] group-hover:border-${step.color}-500/30 transition-colors`}>
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <span className={`text-3xl font-display font-bold opacity-30
                                             ${step.color === 'primary' ? 'text-primary-500' : ''}
                                             ${step.color === 'secondary' ? 'text-secondary-500' : ''}
                                             ${step.color === 'accent' ? 'text-accent-500' : ''}`}>
-                                            {step.number}
-                                        </span>
-                                        <h3 className="font-display text-xl font-semibold">
-                                            {step.title}
-                                        </h3>
+                                                {step.number}
+                                            </span>
+                                            <h3 className="font-display text-xl font-semibold">
+                                                {step.title}
+                                            </h3>
+                                        </div>
+                                        <p className="text-[color:var(--color-text-secondary)]">
+                                            {step.description}
+                                        </p>
                                     </div>
-                                    <p className="text-[color:var(--color-text-secondary)]">
-                                        {step.description}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        </div>
+                                </motion.div>
+                            </div>
                         );
                     })}
                 </div>

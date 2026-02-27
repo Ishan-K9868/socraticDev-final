@@ -8,8 +8,8 @@ import Card from '../ui/Card';
 const FloatingSolutions = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large gradient blob */}
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-gradient-to-br from-primary-500/15 via-accent-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] bg-gradient-to-tl from-secondary-500/15 via-primary-500/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-gradient-to-br from-primary-500/15 via-accent-500/10 to-transparent rounded-full blur-2xl" />
+        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] bg-gradient-to-tl from-secondary-500/15 via-primary-500/5 to-transparent rounded-full blur-2xl" />
 
         {/* Floating lightbulb icons */}
         <svg className="absolute top-[15%] left-[8%] w-10 h-10 text-accent-500/20 animate-float" viewBox="0 0 24 24" fill="currentColor">

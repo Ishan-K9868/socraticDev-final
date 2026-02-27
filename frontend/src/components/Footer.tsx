@@ -105,8 +105,8 @@ function Footer() {
             {/* Background decorations */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 {/* Subtle gradient blobs */}
-                <div className="absolute bottom-0 left-[10%] w-[300px] h-[300px] bg-gradient-to-tr from-primary-500/5 to-transparent rounded-full blur-3xl" />
-                <div className="absolute bottom-0 right-[10%] w-[250px] h-[250px] bg-gradient-to-tl from-secondary-500/5 to-transparent rounded-full blur-3xl" />
+                <div className="absolute bottom-0 left-[10%] w-[300px] h-[300px] bg-gradient-to-tr from-primary-500/5 to-transparent rounded-full blur-2xl" />
+                <div className="absolute bottom-0 right-[10%] w-[250px] h-[250px] bg-gradient-to-tl from-secondary-500/5 to-transparent rounded-full blur-2xl" />
 
                 {/* Code bracket decorations */}
                 <svg className="absolute top-16 left-[5%] w-8 h-12 text-[color:var(--color-border)]" viewBox="0 0 32 48" fill="none" stroke="currentColor" strokeWidth="2">

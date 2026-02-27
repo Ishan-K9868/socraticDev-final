@@ -722,40 +722,34 @@ body {
 
 /* ===== CONTINUOUS ANIMATIONS ===== */
 
-/* Enhanced float with subtle rotation */
+/* Enhanced float — GPU‑accelerated (translate3d promotes to own layer) */
 @keyframes float-enhanced {
   0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-10px) rotate(1deg);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translateY(-20px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(-10px) rotate(-1deg);
+    transform: translate3d(0, -16px, 0);
   }
 }
 
 .animate-float {
   animation: float-enhanced 6s ease-in-out infinite;
+  will-change: transform;
 }
 
-/* Slow pulse for gradient orbs */
+/* Slow pulse for gradient orbs — opacity only (cheapest GPU op) */
 @keyframes pulse-slow {
   0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
+    opacity: 0.5;
   }
   50% {
-    opacity: 1;
-    transform: scale(1.05);
+    opacity: 0.85;
   }
 }
 
 .animate-pulse-slow {
   animation: pulse-slow 8s ease-in-out infinite;
+  will-change: opacity;
 }
 
 /* Pulse glow effect */

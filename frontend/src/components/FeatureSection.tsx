@@ -9,8 +9,8 @@ import { staggerContainer } from '../utils/animationVariants';
 const FloatingFeatures = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Gradient blobs */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-accent-500/15 via-primary-500/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-secondary-500/15 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-accent-500/15 via-primary-500/5 to-transparent rounded-full blur-2xl" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-secondary-500/15 via-transparent to-transparent rounded-full blur-2xl" />
 
         {/* Floating icons */}
         <svg className="absolute top-[15%] left-[6%] w-10 h-10 text-accent-500/20 animate-float" viewBox="0 0 24 24" fill="currentColor">
@@ -99,7 +99,7 @@ const features = [
             </svg>
         ),
         title: 'GraphRAG Architecture',
-        description: 'Understands your entire codebase through a knowledge graph, giving context-aware assistance.',
+        description: 'Upload your project and AI maps every file, function, and dependency into a knowledge graph — giving context-aware assistance that understands your entire codebase.',
         color: 'secondary',
         gradient: 'from-secondary-500/20 to-secondary-500/5',
     },
@@ -135,7 +135,7 @@ const features = [
             </svg>
         ),
         title: 'Spaced Repetition',
-        description: 'Built-in review system ensures concepts you learn actually stick in long-term memory.',
+        description: 'AI-generated flashcards from chat and Dojo challenges, reviewed through a spaced repetition system that ensures concepts stick in long-term memory.',
         color: 'secondary',
         gradient: 'from-secondary-500/20 to-secondary-500/5',
     },
@@ -148,6 +148,42 @@ const features = [
         ),
         title: 'Progress Analytics',
         description: 'Track your learning journey with detailed insights on concepts mastered and areas to improve.',
+        color: 'primary',
+        gradient: 'from-primary-500/20 to-primary-500/5',
+    },
+    {
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+        ),
+        title: 'Code Visualizer',
+        description: 'Paste Python code and instantly see its call graph and execution trace. Understand function relationships and debug visually.',
+        color: 'secondary',
+        gradient: 'from-secondary-500/20 to-secondary-500/5',
+    },
+    {
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+        ),
+        title: 'AI Card Generation',
+        description: 'Generate targeted revision flashcards from any chat conversation or Dojo challenge. Review, edit, and save them to your personal deck.',
+        color: 'accent',
+        gradient: 'from-accent-500/20 to-accent-500/5',
+    },
+    {
+        icon: (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+        ),
+        title: 'Context Management',
+        description: 'Control exactly what code context the AI sees with a token-budgeted panel. Precise context means precise answers.',
         color: 'primary',
         gradient: 'from-primary-500/20 to-primary-500/5',
     },

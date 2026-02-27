@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
+const getAbsoluteTop = (element: HTMLElement) => element.getBoundingClientRect().top + window.scrollY;
+
 // Section color scheme - each section gets its own color
 const getSectionColor = (icon: string, isActive: boolean) => {
     const colors = {
@@ -10,6 +12,7 @@ const getSectionColor = (icon: string, isActive: boolean) => {
         'socratic-demo': isActive ? 'text-blue-500' : 'text-blue-400/50',
         comparison: isActive ? 'text-green-500' : 'text-green-400/50',
         features: isActive ? 'text-indigo-500' : 'text-indigo-400/50',
+        'graphrag-pipeline': isActive ? 'text-teal-500' : 'text-teal-400/50',
         demo: isActive ? 'text-orange-500' : 'text-orange-400/50',
         'how-it-works': isActive ? 'text-cyan-500' : 'text-cyan-400/50',
         tech: isActive ? 'text-pink-500' : 'text-pink-400/50',
@@ -26,6 +29,7 @@ const getSectionBgColor = (icon: string) => {
         'socratic-demo': 'bg-blue-500',
         comparison: 'bg-green-500',
         features: 'bg-indigo-500',
+        'graphrag-pipeline': 'bg-teal-500',
         demo: 'bg-orange-500',
         'how-it-works': 'bg-cyan-500',
         tech: 'bg-pink-500',
@@ -81,6 +85,13 @@ const SectionIcon = ({ type, isActive }: { type: string; isActive: boolean }) =>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
             );
+        case 'graphrag-pipeline':
+            // Network/Graph icon for GraphRAG
+            return (
+                <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                </svg>
+            );
         case 'demo':
             // Dojo/Training icon (fire/flame)
             return (
@@ -126,6 +137,7 @@ const sections = [
     { id: 'socratic-demo', label: 'See It In Action', icon: 'socratic-demo' },
     { id: 'comparison', label: 'Before & After', icon: 'comparison' },
     { id: 'features', label: 'Features', icon: 'features' },
+    { id: 'graphrag-pipeline', label: 'GraphRAG Pipeline', icon: 'graphrag-pipeline' },
     { id: 'demo', label: 'The Dojo', icon: 'demo' },
     { id: 'how-it-works', label: 'How It Works', icon: 'how-it-works' },
     { id: 'tech', label: 'Tech Stack', icon: 'tech' },
@@ -143,7 +155,7 @@ export const SectionIndicators = () => {
                 .map((section, index) => {
                     const element = document.getElementById(section.id);
                     if (!element) return null;
-                    return { index, top: element.offsetTop };
+                    return { index, top: getAbsoluteTop(element) };
                 })
                 .filter((item): item is { index: number; top: number } => item !== null)
                 .sort((a, b) => a.top - b.top);
@@ -190,16 +202,17 @@ export const SectionIndicators = () => {
         const element = document.getElementById(sectionId);
         if (!element && sectionId !== 'hero') return;
 
+        const elementTop = element ? getAbsoluteTop(element) : 0;
         const targetTop = sectionId === 'hero'
-            ? Math.max(0, (element?.offsetTop ?? 0) - navbarOffset)
-            : Math.max(0, element!.offsetTop - navbarOffset);
+            ? Math.max(0, elementTop - navbarOffset)
+            : Math.max(0, elementTop - navbarOffset);
 
         window.scrollTo({ top: targetTop, behavior: 'smooth' });
     };
 
     return (
         <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden lg:block">
-            <div className="flex flex-col gap-4 bg-[color:var(--color-bg-secondary)]/80 backdrop-blur-md border border-[color:var(--color-border)] rounded-2xl p-3 shadow-lg">
+            <div className="flex flex-col gap-2.5 bg-[color:var(--color-bg-secondary)]/80 backdrop-blur-md border border-[color:var(--color-border)] rounded-3xl p-2.5 shadow-lg">
                 {sections.map((section, index) => {
                     const isActive = activeSection === index;
                     return (
@@ -223,7 +236,7 @@ export const SectionIndicators = () => {
                                 {/* Active indicator line */}
                                 {isActive && (
                                     <motion.div
-                                        className={`absolute -left-3 w-1 h-6 ${getSectionBgColor(section.icon)} rounded-full`}
+                                        className={`absolute -left-2.5 w-1 h-6 ${getSectionBgColor(section.icon)} rounded-full`}
                                         style={{ top: '50%', y: '-50%' }}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}

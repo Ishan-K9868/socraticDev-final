@@ -238,8 +238,8 @@ function TechStackSection() {
                 }}
             />
 
-            <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-primary-500/10 blur-3xl" />
-            <div className="pointer-events-none absolute bottom-0 right-[8%] h-64 w-64 rounded-full bg-secondary-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-primary-500/10 blur-2xl" />
+            <div className="pointer-events-none absolute bottom-0 right-[8%] h-64 w-64 rounded-full bg-secondary-500/10 blur-2xl" />
 
             <div className="container-custom relative z-10">
                 <motion.div

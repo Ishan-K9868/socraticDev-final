@@ -6,7 +6,8 @@ import { useStore } from '../store/useStore';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import ProblemSection from '../components/ProblemSection';
-import SolutionSection from '../components/SolutionSection';
+import SolutionHorizontalScroll from '../components/SolutionHorizontalScroll';
+import GraphRAGPipelineSection from '../components/GraphRAGPipelineSection';
 import SocraticDemoSection from '../components/SocraticDemoSection';
 import ComparisonSection from '../components/ComparisonSection';
 import FeatureSection from '../components/FeatureSection';
@@ -74,8 +75,8 @@ function LandingPage() {
             {/* Problem Section */}
             <ProblemSection />
 
-            {/* Solution Section */}
-            <SolutionSection />
+            {/* Solution Section — Horizontal Scroll with 3 panels */}
+            <SolutionHorizontalScroll />
 
             {/* Socratic Demo Section - Interactive Dialogue */}
             <section id="socratic-demo">
@@ -89,6 +90,9 @@ function LandingPage() {
 
             {/* Features Section */}
             <FeatureSection />
+
+            {/* GraphRAG Pipeline Section */}
+            <GraphRAGPipelineSection />
 
             {/* The Dojo - Interactive Challenges */}
             <DojoSection />

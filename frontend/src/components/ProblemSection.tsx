@@ -8,7 +8,7 @@ import { staggerContainer } from '../utils/animationVariants';
 const FloatingWarnings = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large gradient blob */}
-        <div className="absolute top-1/4 -right-20 w-[400px] h-[400px] bg-gradient-to-br from-error/10 via-primary-500/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-20 w-[400px] h-[400px] bg-gradient-to-br from-error/10 via-primary-500/5 to-transparent rounded-full blur-2xl" />
 
         {/* Floating warning symbols */}
         <svg className="absolute top-20 left-[8%] w-8 h-8 text-error/20 animate-float" viewBox="0 0 24 24" fill="currentColor">

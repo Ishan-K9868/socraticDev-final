@@ -8,9 +8,9 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 const FloatingCTA = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large gradient orbs */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary-500/20 via-primary-500/5 to-transparent rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute -top-20 -left-20 w-[400px] h-[400px] bg-gradient-to-br from-accent-500/15 to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-gradient-to-tl from-secondary-500/15 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary-500/20 via-primary-500/5 to-transparent rounded-full blur-2xl animate-pulse-slow" />
+        <div className="absolute -top-20 -left-20 w-[400px] h-[400px] bg-gradient-to-br from-accent-500/15 to-transparent rounded-full blur-2xl" />
+        <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-gradient-to-tl from-secondary-500/15 to-transparent rounded-full blur-2xl" />
 
         {/* Floating rocket icons */}
         <svg className="absolute top-[20%] left-[10%] w-10 h-10 text-primary-500/20 animate-float" viewBox="0 0 24 24" fill="currentColor">

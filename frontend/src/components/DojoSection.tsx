@@ -65,14 +65,23 @@ const BENEFITS = [
         title: 'Instant Feedback',
         description: 'Learn from mistakes in real-time.'
     },
+    {
+        icon: (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+        ),
+        title: 'AI Flashcards',
+        description: 'Auto-generate revision cards from every challenge.'
+    },
 ];
 
 // Floating dojo elements
 const FloatingDojoElements = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Gradient blobs */}
-        <div className="absolute top-1/4 left-0 w-[400px] h-[400px] bg-gradient-to-br from-accent-500/15 via-primary-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-0 w-[350px] h-[350px] bg-gradient-to-tl from-secondary-500/15 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-0 w-[400px] h-[400px] bg-gradient-to-br from-accent-500/15 via-primary-500/10 to-transparent rounded-full blur-2xl" />
+        <div className="absolute bottom-1/4 right-0 w-[350px] h-[350px] bg-gradient-to-tl from-secondary-500/15 via-transparent to-transparent rounded-full blur-2xl" />
 
         {/* Floating martial arts / training icons */}
         <svg className="absolute top-[15%] left-[8%] w-10 h-10 text-accent-500/15 animate-float" viewBox="0 0 24 24" fill="currentColor">
@@ -141,11 +150,11 @@ function DojoSection() {
 
             <div className="container-custom relative z-10">
                 {/* Header */}
-                <motion.div 
+                <motion.div
                     ref={headerRef}
                     initial={{ opacity: 0, y: prefersReducedMotion ? 10 : 30 }}
                     animate={headerInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ 
+                    transition={{
                         duration: prefersReducedMotion ? 0.3 : 0.5,
                         type: "tween",
                         ease: [0.25, 0.1, 0.25, 1]
@@ -171,17 +180,17 @@ function DojoSection() {
                         </h2>
                         <p className="text-lg lg:text-xl text-[color:var(--color-text-secondary)]">
                             Train your programming muscles with 10 unique challenge types.
-                            Interactive exercises that build real coding intuition.
+                            Interactive exercises that build real coding intuition, with AI-generated flashcards from every challenge.
                         </p>
                     </div>
                 </motion.div>
 
                 {/* Featured Challenge Showcase */}
-                <motion.div 
+                <motion.div
                     ref={featuredRef}
                     initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.95, y: prefersReducedMotion ? 20 : 30 }}
                     animate={featuredInView ? { opacity: 1, scale: 1, y: 0 } : {}}
-                    transition={{ 
+                    transition={{
                         duration: prefersReducedMotion ? 0.4 : 0.6,
                         type: "tween",
                         ease: [0.25, 0.1, 0.25, 1]
@@ -270,7 +279,7 @@ function DojoSection() {
                 </div>
 
                 {/* Benefits Grid */}
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
                     {BENEFITS.map((benefit) => (
                         <div
                             key={benefit.title}

@@ -8,8 +8,8 @@ import Card from '../ui/Card';
 const FloatingShapes = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large gradient orbs */}
-        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-gradient-to-br from-primary-500/30 via-primary-400/20 to-transparent rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] bg-gradient-to-tr from-secondary-500/25 via-accent-500/15 to-transparent rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-gradient-to-br from-primary-500/30 via-primary-400/20 to-transparent rounded-full blur-2xl animate-pulse-slow" />
+        <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] bg-gradient-to-tr from-secondary-500/25 via-accent-500/15 to-transparent rounded-full blur-2xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
         {/* Floating geometric shapes */}
         <svg className="absolute top-20 left-[10%] w-16 h-16 text-primary-500/20 animate-float" viewBox="0 0 64 64" fill="currentColor">
@@ -104,7 +104,7 @@ function Hero() {
     return (
         <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
             {/* Background Elements */}
-            <motion.div 
+            <motion.div
                 className="absolute inset-0 hero-gradient"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -118,18 +118,18 @@ function Hero() {
             <div className="container-custom relative z-10">
                 <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
                     {/* Left Content */}
-                    <motion.div 
+                    <motion.div
                         className="hero-content text-center lg:text-left"
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
                     >
                         {/* Badge with glow */}
-                        <motion.div 
+                        <motion.div
                             className="inline-block mb-6 relative"
                             variants={itemVariants}
                         >
-                            <motion.div 
+                            <motion.div
                                 className="absolute inset-0 bg-primary-500/20 blur-xl rounded-full"
                                 animate={{
                                     scale: [1, 1.2, 1],
@@ -164,19 +164,19 @@ function Hero() {
                                 <span className="inline-block">
                                     Start Understanding It.
                                 </span>
-                                <motion.svg 
-                                    className="absolute -bottom-2 left-0 w-full h-3 text-primary-500/30" 
-                                    viewBox="0 0 200 12" 
+                                <motion.svg
+                                    className="absolute -bottom-2 left-0 w-full h-3 text-primary-500/30"
+                                    viewBox="0 0 200 12"
                                     preserveAspectRatio="none"
                                     initial={{ pathLength: 0, opacity: 0 }}
                                     animate={{ pathLength: 1, opacity: 1 }}
                                     transition={{ duration: 1, delay: 0.8, ease: "easeInOut" }}
                                 >
-                                    <motion.path 
-                                        d="M0 6 Q50 0, 100 6 T200 6" 
-                                        fill="none" 
-                                        stroke="currentColor" 
-                                        strokeWidth="3" 
+                                    <motion.path
+                                        d="M0 6 Q50 0, 100 6 T200 6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
                                         strokeLinecap="round"
                                     />
                                 </motion.svg>
@@ -184,16 +184,16 @@ function Hero() {
                         </h1>
 
                         {/* Subtitle */}
-                        <motion.p 
+                        <motion.p
                             className="text-lg lg:text-xl text-[color:var(--color-text-secondary)] mb-8 max-w-xl mx-auto lg:mx-0"
                             variants={itemVariants}
                         >
-                            The AI coding assistant that teaches you through questions,
-                            understands your entire codebase, and catches bugs before they ship.
+                            The AI coding assistant that teaches through questions,
+                            maps your entire codebase, visualizes code architecture, and turns every session into lasting knowledge.
                         </motion.p>
 
                         {/* CTAs with decoration */}
-                        <motion.div 
+                        <motion.div
                             className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start relative"
                             variants={itemVariants}
                         >
@@ -205,10 +205,10 @@ function Hero() {
                                     <Button size="lg" className="group relative overflow-hidden">
                                         <span className="relative z-10 flex items-center gap-2">
                                             Start Learning
-                                            <motion.svg 
-                                                className="w-5 h-5" 
-                                                fill="none" 
-                                                viewBox="0 0 24 24" 
+                                            <motion.svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
                                                 stroke="currentColor"
                                                 animate={{ x: [0, 5, 0] }}
                                                 transition={{ duration: 1.5, repeat: Infinity }}
@@ -239,7 +239,7 @@ function Hero() {
                         </motion.div>
 
                         {/* Stats with visual enhancement */}
-                        <motion.div 
+                        <motion.div
                             className="mt-12 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0"
                             variants={containerVariants}
                         >
@@ -248,19 +248,19 @@ function Hero() {
                                 { value: '90%', label: 'Bug Detection', color: 'secondary' },
                                 { value: '50k+', label: 'Developers', color: 'accent' },
                             ].map((stat, index) => (
-                                <motion.div 
-                                    key={stat.label} 
+                                <motion.div
+                                    key={stat.label}
                                     className="text-center lg:text-left relative group"
                                     variants={itemVariants}
                                     whileHover={{ scale: 1.1 }}
                                     transition={{ type: "spring", stiffness: 300 }}
                                 >
                                     <div className={`absolute -inset-2 rounded-lg bg-${stat.color}-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                                    <motion.div 
+                                    <motion.div
                                         className={`font-display text-2xl lg:text-3xl font-bold text-${stat.color}-500 relative`}
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        transition={{ 
+                                        transition={{
                                             type: "spring",
                                             stiffness: 200,
                                             delay: 1 + index * 0.1
@@ -279,7 +279,7 @@ function Hero() {
                     {/* Right - Enhanced Floating Cards */}
                     <div className="relative hidden lg:block h-[600px]">
                         {/* Background glow for cards */}
-                        <motion.div 
+                        <motion.div
                             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-primary-500/10 via-secondary-500/5 to-transparent rounded-full blur-2xl"
                             animate={{
                                 scale: [1, 1.2, 1],
@@ -293,7 +293,7 @@ function Hero() {
                         />
 
                         {/* Code Card with decoration */}
-                        <motion.div 
+                        <motion.div
                             className="absolute top-0 right-0 w-80"
                             variants={cardVariants}
                             initial="hidden"
@@ -324,7 +324,7 @@ function Hero() {
                         </motion.div>
 
                         {/* Question Card with pulse ring */}
-                        <motion.div 
+                        <motion.div
                             className="absolute top-40 left-0 w-72"
                             variants={cardVariants}
                             initial="hidden"
@@ -333,7 +333,7 @@ function Hero() {
                             whileHover={{ scale: 1.05, rotate: -2 }}
                             transition={{ type: "spring", stiffness: 300 }}
                         >
-                            <motion.div 
+                            <motion.div
                                 className="absolute -inset-1 bg-accent-500/20 rounded-2xl blur-md"
                                 animate={{
                                     scale: [1, 1.1, 1],
@@ -367,7 +367,7 @@ function Hero() {
                         </motion.div>
 
                         {/* Graph Card with animated connections */}
-                        <motion.div 
+                        <motion.div
                             className="absolute bottom-20 right-20 w-64"
                             variants={cardVariants}
                             initial="hidden"
@@ -384,7 +384,7 @@ function Hero() {
                                                 d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                                         </svg>
                                     </div>
-                                    <span className="text-sm font-medium">Dependency Graph</span>
+                                    <span className="text-sm font-medium">Knowledge Graph</span>
                                 </div>
                                 {/* Enhanced graph visualization */}
                                 <div className="flex items-center justify-center h-24 relative">
@@ -415,7 +415,7 @@ function Hero() {
                         </motion.div>
 
                         {/* Mode Toggle Card */}
-                        <motion.div 
+                        <motion.div
                             className="absolute bottom-0 left-10 w-56"
                             variants={cardVariants}
                             initial="hidden"
@@ -443,7 +443,7 @@ function Hero() {
                         </motion.div>
 
                         {/* Extra floating code snippet */}
-                        <motion.div 
+                        <motion.div
                             className="absolute top-[45%] right-[60%] w-48"
                             variants={cardVariants}
                             initial="hidden"
@@ -467,7 +467,7 @@ function Hero() {
             </div>
 
             {/* Scroll Indicator */}
-            <motion.div 
+            <motion.div
                 className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -475,7 +475,7 @@ function Hero() {
             >
                 <span className="text-xs text-[color:var(--color-text-muted)]">Scroll to explore</span>
                 <div className="w-6 h-10 rounded-full border-2 border-[color:var(--color-border)] flex justify-center pt-2">
-                    <motion.div 
+                    <motion.div
                         className="w-1.5 h-3 rounded-full bg-primary-500"
                         animate={{ y: [0, 12, 0] }}
                         transition={{
