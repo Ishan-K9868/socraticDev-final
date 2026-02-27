@@ -8,6 +8,9 @@ from datetime import datetime
 import logging
 from pathlib import Path
 import threading
+import shutil
+import subprocess
+import tempfile
 
 from ..models.base import UploadSession, Project, ParseResult
 from ..config.settings import settings
@@ -74,6 +77,190 @@ class UploadService:
             target=_runner,
             daemon=True,
             name=f"upload-local-{session_id}",
+        )
+        worker_thread.start()
+
+    def _dispatch_processing_task(
+        self,
+        session_id: str,
+        project_id: str,
+        project_name: str,
+        file_data: List[tuple],
+        user_id: str,
+    ) -> None:
+        """Dispatch processing through Celery, with local fallback."""
+        from ..tasks.upload_tasks import process_project_upload
+
+        queued_with_celery = False
+        if self._has_active_celery_workers():
+            try:
+                logger.info(f"Queueing Celery task for session {session_id}")
+                task = process_project_upload.delay(
+                    session_id=session_id,
+                    project_id=project_id,
+                    project_name=project_name,
+                    files=file_data,
+                    user_id=user_id
+                )
+                logger.info(f"Celery task queued with ID: {task.id}")
+                queued_with_celery = True
+            except Exception as e:
+                logger.warning(f"Celery dispatch failed for session {session_id}: {e}")
+
+        if not queued_with_celery:
+            logger.warning(
+                f"No active Celery worker for session {session_id}; using local background processing fallback"
+            )
+            self.update_session_status(session_id=session_id, status="processing", progress=0.0)
+            self._start_local_processing(
+                session_id=session_id,
+                project_id=project_id,
+                project_name=project_name,
+                files=file_data,
+                user_id=user_id,
+            )
+
+    def _normalize_github_repo_url(self, github_url: str) -> str:
+        """Validate and normalize GitHub URL to clone form."""
+        cleaned = (github_url or "").strip()
+        if not cleaned.startswith("https://github.com/"):
+            raise InvalidRequestError("Invalid GitHub URL")
+
+        cleaned = cleaned.rstrip("/")
+        if cleaned.endswith(".git"):
+            cleaned = cleaned[:-4]
+
+        parts = cleaned.split("/")
+        # https://github.com/{owner}/{repo}
+        if len(parts) < 5 or not parts[3] or not parts[4]:
+            raise InvalidRequestError("Invalid GitHub URL")
+
+        owner = parts[3]
+        repo = parts[4].split("?")[0].split("#")[0]
+        if not owner or not repo:
+            raise InvalidRequestError("Invalid GitHub URL")
+
+        return f"https://github.com/{owner}/{repo}.git"
+
+    def _collect_repository_files(self, repo_dir: Path) -> List[tuple]:
+        """Collect UTF-8 source files from cloned repo as (path, content)."""
+        skip_dirs = {
+            ".git",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "dist",
+            "build",
+            ".next",
+            ".idea",
+            ".vscode",
+        }
+
+        max_file_size_bytes = settings.max_file_size_mb * 1024 * 1024
+        collected: List[tuple] = []
+
+        for path in repo_dir.rglob("*"):
+            if not path.is_file():
+                continue
+
+            rel_parts = set(path.relative_to(repo_dir).parts)
+            if rel_parts & skip_dirs:
+                continue
+
+            if len(collected) >= settings.max_files_per_project:
+                raise FileSizeExceededError(
+                    f"Project exceeds maximum file limit of {settings.max_files_per_project}"
+                )
+
+            try:
+                if path.stat().st_size > max_file_size_bytes:
+                    logger.debug(f"Skipping large file: {path}")
+                    continue
+            except OSError:
+                continue
+
+            try:
+                content = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                # Skip binary/non-utf8 files.
+                continue
+            except OSError:
+                continue
+
+            relative = path.relative_to(repo_dir).as_posix()
+            collected.append((relative, content))
+
+        return collected
+
+    def _start_github_processing(
+        self,
+        session_id: str,
+        project_id: str,
+        project_name: str,
+        github_url: str,
+        user_id: str,
+        branch: str,
+    ) -> None:
+        """Clone GitHub repo in background and dispatch regular processing."""
+
+        def _runner():
+            temp_root = Path(tempfile.mkdtemp(prefix="socraticdev-github-"))
+            clone_dir = temp_root / "repo"
+            try:
+                clone_url = self._normalize_github_repo_url(github_url)
+                self.update_session_status(session_id=session_id, status="processing", progress=0.05)
+
+                clone_cmd = [
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
+                    "--single-branch",
+                    "--branch",
+                    branch,
+                    clone_url,
+                    str(clone_dir),
+                ]
+                result = subprocess.run(clone_cmd, capture_output=True, text=True, check=False)
+                if result.returncode != 0:
+                    # Fallback to default branch if requested branch fails.
+                    fallback_cmd = ["git", "clone", "--depth", "1", clone_url, str(clone_dir)]
+                    result = subprocess.run(fallback_cmd, capture_output=True, text=True, check=False)
+                    if result.returncode != 0:
+                        stderr = (result.stderr or "").strip()
+                        raise InvalidRequestError(f"Failed to clone repository: {stderr or 'unknown git error'}")
+
+                file_data = self._collect_repository_files(clone_dir)
+                if not file_data:
+                    raise InvalidRequestError("No readable source files found in repository")
+
+                self.update_session_status(
+                    session_id=session_id,
+                    progress=0.1,
+                    total_files=len(file_data),
+                )
+                self._dispatch_processing_task(
+                    session_id=session_id,
+                    project_id=project_id,
+                    project_name=project_name,
+                    file_data=file_data,
+                    user_id=user_id,
+                )
+            except Exception as e:
+                logger.error(f"GitHub upload processing failed for {session_id}: {e}", exc_info=True)
+                self.update_session_status(
+                    session_id=session_id,
+                    status="failed",
+                    errors=[f"GitHub processing failed: {str(e)}"],
+                )
+            finally:
+                shutil.rmtree(temp_root, ignore_errors=True)
+
+        worker_thread = threading.Thread(
+            target=_runner,
+            daemon=True,
+            name=f"upload-github-{session_id}",
         )
         worker_thread.start()
     
@@ -163,9 +350,6 @@ class UploadService:
             f"with {len(files)} files"
         )
         
-        # Queue the processing task with Celery
-        from ..tasks.upload_tasks import process_project_upload
-        
         # Convert UploadFile objects to (filename, content) tuples
         file_data = []
         for file in files:
@@ -176,36 +360,14 @@ class UploadService:
             file_data.append((file.filename, content))
             # Reset file pointer
             file.file.seek(0)
-        
-        # Trigger async processing, with local fallback when no worker is available.
-        queued_with_celery = False
-        if self._has_active_celery_workers():
-            try:
-                logger.info(f"Queueing Celery task for session {session_id}")
-                task = process_project_upload.delay(
-                    session_id=session_id,
-                    project_id=project_id,
-                    project_name=project_name,
-                    files=file_data,
-                    user_id=user_id
-                )
-                logger.info(f"Celery task queued with ID: {task.id}")
-                queued_with_celery = True
-            except Exception as e:
-                logger.warning(f"Celery dispatch failed for session {session_id}: {e}")
 
-        if not queued_with_celery:
-            logger.warning(
-                f"No active Celery worker for session {session_id}; using local background processing fallback"
-            )
-            self.update_session_status(session_id=session_id, status="processing", progress=0.0)
-            self._start_local_processing(
-                session_id=session_id,
-                project_id=project_id,
-                project_name=project_name,
-                files=file_data,
-                user_id=user_id,
-            )
+        self._dispatch_processing_task(
+            session_id=session_id,
+            project_id=project_id,
+            project_name=project_name,
+            file_data=file_data,
+            user_id=user_id,
+        )
         
         return session
     
@@ -230,7 +392,7 @@ class UploadService:
         Raises:
             InvalidRequestError: If GitHub URL is invalid
         """
-        if not github_url or not github_url.startswith("https://github.com/"):
+        if not github_url:
             raise InvalidRequestError("Invalid GitHub URL")
         
         # Use provided project name instead of extracting from URL
@@ -246,7 +408,7 @@ class UploadService:
         session = UploadSession(
             session_id=session_id,
             project_id=project_id,
-            status="pending",
+            status="processing",
             progress=0.0,
             files_processed=0,
             total_files=0,  # Will be determined after cloning
@@ -261,9 +423,15 @@ class UploadService:
         logger.info(
             f"Created upload session {session_id} for GitHub project {github_url}"
         )
-        
-        # Queue the GitHub cloning and processing task
-        # Will be implemented with Celery in task 7.4
+
+        self._start_github_processing(
+            session_id=session_id,
+            project_id=project_id,
+            project_name=project_name,
+            github_url=github_url,
+            user_id=user_id,
+            branch=branch,
+        )
         
         return session
     
@@ -284,6 +452,7 @@ class UploadService:
         status: Optional[str] = None,
         progress: Optional[float] = None,
         files_processed: Optional[int] = None,
+        total_files: Optional[int] = None,
         entities_extracted: Optional[int] = None,
         errors: Optional[List[str]] = None,
         statistics: Optional[Dict[str, Any]] = None
@@ -310,6 +479,8 @@ class UploadService:
             session.progress = progress
         if files_processed is not None:
             session.files_processed = files_processed
+        if total_files is not None:
+            session.total_files = total_files
         if entities_extracted is not None:
             session.entities_extracted = entities_extracted
         if errors is not None:

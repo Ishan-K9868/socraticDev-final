@@ -119,6 +119,8 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ENVIRONMENT=production
       - DEBUG=false
+      - VISUALIZER_EXECUTION_ENABLED=true
+      - VISUALIZER_EXECUTION_ALLOW_IN_PRODUCTION=true
     ports:
       - "8000:8000"
     depends_on:
@@ -155,6 +157,8 @@ services:
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ENVIRONMENT=production
+      - VISUALIZER_EXECUTION_ENABLED=true
+      - VISUALIZER_EXECUTION_ALLOW_IN_PRODUCTION=true
     depends_on:
       - neo4j
       - postgres

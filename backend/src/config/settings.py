@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     gemini_rate_limit_per_minute: int = 60
     visualizer_ai_fallback_enabled: bool = False
     visualizer_execution_enabled: bool = True
-    visualizer_execution_allow_in_production: bool = False
+    visualizer_execution_allow_in_production: bool = True
     visualizer_max_code_chars: int = 50000
     visualizer_isolation_mode: str = "subprocess"
     visualizer_default_max_steps: int = 1000

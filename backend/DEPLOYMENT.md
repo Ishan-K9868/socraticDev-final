@@ -148,6 +148,12 @@ Gemini API rate limiting is configured via token bucket algorithm:
 
 ## Deployment
 
+### AWS Load Balancer Choice (Important)
+
+- For this project, use an **Application Load Balancer (ALB)** in front of backend services.
+- Do **not** use API Gateway for upload endpoints, because API Gateway request payload limits are too small for the current upload flow.
+- Keep uploads routed through ALB -> backend service.
+
 ### Development Deployment
 
 ```bash

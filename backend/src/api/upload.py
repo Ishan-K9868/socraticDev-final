@@ -5,7 +5,6 @@ from typing import List, Dict
 from pydantic import BaseModel, Field
 
 from ..services.upload_service import get_upload_service
-from ..tasks.upload_tasks import process_project_upload
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -59,7 +58,8 @@ async def upload_project(
 async def upload_from_github(
     project_name: str = Form(...),
     github_url: str = Form(...),
-    user_id: str = Form("default_user")
+    user_id: str = Form("default_user"),
+    branch: str = Form("main"),
 ):
     """Upload project from GitHub URL."""
     upload_service = get_upload_service()
@@ -68,7 +68,8 @@ async def upload_from_github(
         session = upload_service.upload_from_github(
             project_name=project_name,
             github_url=github_url,
-            user_id=user_id
+            user_id=user_id,
+            branch=branch,
         )
         
         return UploadResponse(
