@@ -231,28 +231,28 @@ Alt text: Pipeline showing validation, policy gating, data persistence, and resp
 ```mermaid
 flowchart LR
     LAND[Landing] --> HUB[Learning Hub]
-    LAND --> APP[/app]
-    LAND --> BUILD[/build]
-    LAND --> DOJO[/dojo]
-    LAND --> VIS[/visualizer]
+    LAND --> APP["/app"]
+    LAND --> BUILD["/build"]
+    LAND --> DOJO["/dojo"]
+    LAND --> VIS["/visualizer"]
 
-    subgraph Learner[Role: Learner/User]
+    subgraph Learner["Role: Learner User"]
       HUB --> DOJO
-      DOJO --> SRS[/srs]
-      SRS --> ANALYTICS[/analytics]
-      ANALYTICS --> ACH[/achievements]
+      DOJO --> SRS["/srs"]
+      SRS --> ANALYTICS["/analytics"]
+      ANALYTICS --> ACH["/achievements"]
     end
 
-    subgraph Builder[Role: Builder/IDE user]
+    subgraph Builder["Role: Builder IDE User"]
       APP --> BUILD
       BUILD --> CHAT[Chat + CodeEditor]
       CHAT --> GRAPH[Graph Panel]
       CHAT --> VIS
     end
 
-    subgraph Maintainer[Role: Project Maintainer/Admin-like]
+    subgraph Maintainer["Role: Project Maintainer Admin-like"]
       UPLOAD[ProjectUpload] --> STATUS[Upload Status Polling]
-      STATUS --> PROJECTS[/api/projects]
+      STATUS --> PROJECTS["/api/projects"]
       PROJECTS --> DELETE[Delete/Update project data]
     end
 
