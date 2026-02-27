@@ -38,7 +38,7 @@ const stackTracks: StackTrack[] = [
         summary: 'Question-driven reasoning pipeline that grounds answers in code context.',
         metricLabel: 'Reasoning + retrieval path',
         metricValue: 'Graph + semantic merge',
-        techs: ['Gemini Pro', 'LangChain', 'GraphRAG', 'Embeddings'],
+        techs: ['Amazon Bedrock', 'LangChain', 'GraphRAG', 'Embeddings'],
         tone: 'accent',
         icon: (
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -68,7 +68,7 @@ const stackTracks: StackTrack[] = [
         summary: 'Delivery, container runtime, and monitoring guardrails for production stability.',
         metricLabel: 'Release discipline',
         metricValue: 'CI/CD with observability',
-        techs: ['Vercel Edge', 'Docker', 'GitHub Actions', 'Monitoring'],
+        techs: ['Amazon CloudFront', 'Docker', 'AWS CodePipeline', 'Monitoring'],
         tone: 'neutral',
         icon: (
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

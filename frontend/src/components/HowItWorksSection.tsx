@@ -50,7 +50,7 @@ const steps = [
     {
         number: '01',
         title: 'Upload Your Codebase',
-        description: 'Drop in your project files or connect your GitHub repository. Our system scans and understands your entire codebase structure.',
+        description: 'Drop in your project files or connect your AWS CodeCommit repository. Our system scans and understands your entire codebase structure.',
         icon: (
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
