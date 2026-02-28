@@ -1,393 +1,308 @@
-# 🚀 SocraticDev — AWS Deployment Guide
+# SocraticDev AWS Deployment Guide (Single Host Full Stack)
 
-Deploy the **backend (Docker on EC2)** + **frontend (Vercel/Netlify)** and connect them.
+This guide deploys the entire project together on AWS:
+- Frontend (Vite build served by Nginx)
+- Backend API (FastAPI)
+- Celery worker
+- Neo4j, PostgreSQL, ChromaDB, Redis, RabbitMQ
 
----
+No split frontend hosting (no Vercel/Netlify required).
 
-## Architecture Overview
+## 1. Which AWS Service Should You Use?
 
-```
-                    🌍 Users
-                       │
-                       ▼
-        ┌──────────────────────────┐
-        │    Vercel / Netlify      │
-        │    (Frontend - React)    │
-        │    https://your-app.com  │
-        └──────────┬───────────────┘
-                   │ API calls
-                   ▼
-        ┌──────────────────────────┐
-        │     AWS EC2 Instance     │
-        │     (Ubuntu 22.04)       │
-        │                          │
-        │  🐳 Docker Compose:      │
-        │  ├── FastAPI Backend     │
-        │  ├── Celery Worker       │
-        │  ├── Neo4j               │
-        │  ├── PostgreSQL          │
-        │  ├── ChromaDB            │
-        │  ├── Redis               │
-        │  └── RabbitMQ            │
-        └──────────────────────────┘
-```
+Use `EC2` for this codebase right now.
 
----
+Why:
+- Your backend already runs as a multi-container Docker Compose stack with stateful services.
+- You want frontend + backend together in one deployment.
+- EC2 gives full host control and is the lowest-friction path.
 
-## Part 1 — Launch an EC2 Instance
+Use this target:
+- `EC2 t3.large` minimum (2 vCPU, 8 GB RAM), `50 GB gp3` disk.
 
-### 1.1 Go to AWS Console
-- Log in at [console.aws.amazon.com](https://console.aws.amazon.com)
-- Navigate to **EC2** → **Launch Instance**
+When to choose something else:
+- `ECS/Fargate`: better for long-term managed operations, but more setup and best when databases are moved out to managed services.
+- `App Runner`: best for stateless web services, not a full stateful compose stack like this one.
 
-### 1.2 Configure the Instance
+## 2. Target Architecture
 
-| Setting | Recommended Value |
-|---------|------------------|
-| **Name** | `socraticdev-backend` |
-| **AMI** | Ubuntu Server 22.04 LTS (free tier eligible) |
-| **Instance type** | `t3.large` (2 vCPU, 8 GB RAM) — minimum for all the databases |
-| **Key pair** | Create new → download `.pem` file (you'll need this to SSH in) |
-| **Storage** | 30 GB gp3 (minimum — 50 GB recommended) |
+Single EC2 instance:
+- Nginx on host:
+  - serves frontend static files
+  - reverse proxies API traffic to Docker backend
+- Docker Compose (`backend/docker-compose.prod.yml`) runs:
+  - backend
+  - celery-worker
+  - neo4j
+  - postgres
+  - chroma
+  - redis
+  - rabbitmq
 
-> [!IMPORTANT]
-> A `t2.micro` (free tier) won't work — Neo4j + ChromaDB + PostgreSQL + Redis + RabbitMQ + Backend need at least **8 GB RAM**. Use `t3.large` or bigger.
+Public ports:
+- `80` and `443` only
+- Keep service ports (8000, 7474, 15672, etc.) private
 
-### 1.3 Configure Security Group (Firewall)
+## 3. Launch EC2
 
-Add these **inbound rules**:
+In AWS Console:
+1. Launch instance: Ubuntu 22.04 LTS
+2. Instance type: `t3.large` (or bigger)
+3. Storage: `50 GB gp3`
+4. Security Group inbound rules:
+   - SSH `22` from your IP only
+   - HTTP `80` from `0.0.0.0/0`
+   - HTTPS `443` from `0.0.0.0/0`
+5. (Recommended) Allocate and attach an Elastic IP
 
-| Type | Port | Source | Purpose |
-|------|------|--------|---------|
-| SSH | 22 | Your IP | SSH access |
-| Custom TCP | 8000 | 0.0.0.0/0 | Backend API |
-| Custom TCP | 7474 | Your IP | Neo4j Browser (optional) |
-| Custom TCP | 15672 | Your IP | RabbitMQ UI (optional) |
-
-> [!CAUTION]
-> Only open ports 7474 and 15672 to **your IP** (not 0.0.0.0/0) — these are admin UIs.
-
-### 1.4 Launch & Connect
+SSH:
 
 ```bash
-# From your local machine (where you downloaded the .pem file)
-chmod 400 your-key.pem
-ssh -i your-key.pem ubuntu@<your-ec2-public-ip>
+ssh -i /path/to/key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
-On Windows, use PowerShell:
-```powershell
-ssh -i .\your-key.pem ubuntu@<your-ec2-public-ip>
-```
-
----
-
-## Part 2 — Set Up Docker on EC2
-
-Run these commands **on the EC2 instance** after SSHing in:
-
-### 2.1 Install Docker & Docker Compose
+## 4. Install Runtime Dependencies on EC2
 
 ```bash
-# Update system
 sudo apt update && sudo apt upgrade -y
-
-# Install Docker
-sudo apt install -y docker.io docker-compose-v2
-
-# Add your user to the docker group (avoids needing sudo)
+sudo apt install -y docker.io docker-compose-v2 nginx certbot python3-certbot-nginx git curl rsync ca-certificates gnupg
 sudo usermod -aG docker $USER
-
-# Log out and back in for group change to take effect
 exit
 ```
 
-SSH back in:
+Reconnect via SSH after logout.
+
+Install Node.js 20 (required to build frontend):
+
 ```bash
-ssh -i your-key.pem ubuntu@<your-ec2-public-ip>
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 ```
 
 Verify:
+
 ```bash
 docker --version
 docker compose version
+nginx -v
+node -v
+npm -v
 ```
 
-### 2.2 Clone Your Repository
+## 5. Clone Project and Prepare Env
 
 ```bash
-git clone <your-repo-url> socraticDev
-cd socraticDev/backend
+git clone <YOUR_REPO_URL> ~/socraticDev
+cd ~/socraticDev
 ```
 
-### 2.3 Create the `.env` File
+Create backend env:
 
 ```bash
-nano .env
+cp backend/.env.example backend/.env
+nano backend/.env
 ```
 
-Paste the following (update values as needed):
+Set secure values at minimum:
 
 ```env
-# Passwords
-NEO4J_PASSWORD=your_secure_password_here
-POSTGRES_PASSWORD=your_secure_password_here
+NEO4J_PASSWORD=<strong-password>
+POSTGRES_PASSWORD=<strong-password>
 RABBITMQ_USER=admin
-RABBITMQ_PASSWORD=your_secure_password_here
-
-# Gemini API
-GEMINI_API_KEY=your-actual-gemini-api-key
-
-# CORS — add your frontend domain
-CORS_ORIGINS=["https://your-frontend-domain.vercel.app","http://localhost:5173"]
+RABBITMQ_PASSWORD=<strong-password>
+GEMINI_API_KEY=<your-key>
+ENVIRONMENT=production
+DEBUG=false
+CORS_ORIGINS=["https://<YOUR_DOMAIN_OR_EC2_HOSTNAME>"]
 ```
 
-> [!WARNING]
-> Use **strong passwords** in production, not `password` or `guest`!
+Set frontend env (single-domain deployment):
 
-### 2.4 Start Everything
+```bash
+cp frontend/.env.example frontend/.env.local
+nano frontend/.env.local
+```
+
+Use:
+
+```env
+VITE_API_BASE_URL=https://<YOUR_DOMAIN_OR_EC2_HOSTNAME>
+VITE_GEMINI_API_KEY=<your-key>
+```
+
+## 6. Build Frontend
+
+```bash
+cd ~/socraticDev/frontend
+npm ci
+npm run build
+```
+
+Publish static files to Nginx web root:
+
+```bash
+sudo mkdir -p /var/www/socraticdev
+sudo rsync -a --delete ~/socraticDev/frontend/dist/ /var/www/socraticdev/
+```
+
+## 7. Start Full Backend Stack (Docker Compose)
 
 ```bash
 cd ~/socraticDev/backend
 docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml ps
 ```
 
-This will take 5-10 minutes the first time.
-
-### 2.5 Verify
+Health check:
 
 ```bash
-# Check all containers are running
-docker compose -f docker-compose.prod.yml ps
-
-# Test the health endpoint
 curl http://localhost:8000/health
 ```
 
-You should get a JSON response. Also test from your local browser:
+## 8. Configure Nginx (Frontend + API Reverse Proxy)
 
-```
-http://<your-ec2-public-ip>:8000/health
-```
-
----
-
-## Part 3 — Deploy the Frontend (Vercel)
-
-Your project already has a [vercel.json](file:///b:/software/temp/socraticDev-final/frontend/vercel.json) configured. Vercel is the easiest option.
-
-### 3.1 Push Frontend to GitHub
-
-Make sure your frontend code is pushed to a GitHub repo.
-
-### 3.2 Deploy on Vercel
-
-1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-2. Click **"Add New" → "Project"**
-3. Import your GitHub repository
-4. Set the **Root Directory** to `frontend`
-5. Vercel will auto-detect Vite — framework settings are already in [vercel.json](file:///b:/software/temp/socraticDev-final/frontend/vercel.json)
-
-### 3.3 Set Environment Variables in Vercel
-
-In Vercel → Project Settings → **Environment Variables**, add:
-
-| Key | Value |
-|-----|-------|
-| `VITE_GEMINI_API_KEY` | Your Gemini API key |
-| `VITE_API_BASE_URL` | `http://<your-ec2-public-ip>:8000` |
-
-> [!IMPORTANT]
-> `VITE_API_BASE_URL` is the critical variable that **connects the frontend to your EC2 backend**. The frontend code reads this from [graphrag-api.ts](file:///b:/software/temp/socraticDev-final/frontend/src/services/graphrag-api.ts):
-> ```ts
-> const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
-> ```
-
-### 3.4 Deploy
-
-Click **"Deploy"** — Vercel will build and give you a URL like `https://socraticdev.vercel.app`.
-
----
-
-## Part 4 — Connect Frontend ↔ Backend
-
-### 4.1 Update Backend CORS
-
-SSH into your EC2 and update `.env` to allow your Vercel domain:
+Create Nginx site config:
 
 ```bash
-nano ~/socraticDev/backend/.env
-```
-
-Update:
-```env
-CORS_ORIGINS=["https://your-app.vercel.app","http://localhost:5173"]
-```
-
-Restart the backend:
-```bash
-cd ~/socraticDev/backend
-docker compose -f docker-compose.prod.yml restart backend
-```
-
-### 4.2 Verify the Connection
-
-1. Open `https://your-app.vercel.app` in your browser
-2. Open **DevTools → Network** tab
-3. Interact with the app — you should see API calls going to `http://<your-ec2-ip>:8000`
-4. If calls succeed → ✅ connected!
-
-### Connection Flow
-
-```
-Browser (your-app.vercel.app)
-   │
-   │  VITE_API_BASE_URL = http://<ec2-ip>:8000
-   │
-   ▼
-EC2 Backend (FastAPI :8000)
-   │
-   │ CORS allows: your-app.vercel.app
-   │
-   ├──► Neo4j     (internal Docker network)
-   ├──► ChromaDB  (internal Docker network)
-   ├──► Redis     (internal Docker network)
-   ├──► RabbitMQ  (internal Docker network)
-   └──► PostgreSQL(internal Docker network)
-```
-
----
-
-## Part 5 — (Optional) Add HTTPS with a Domain
-
-For production, you should use HTTPS. The simplest way:
-
-### Option A: Elastic IP + Domain + Nginx
-
-```bash
-# Install Nginx as reverse proxy
-sudo apt install -y nginx certbot python3-certbot-nginx
-
-# Configure Nginx
 sudo nano /etc/nginx/sites-available/socraticdev
 ```
 
+Paste:
+
 ```nginx
 server {
-    server_name api.yourdomain.com;
+    listen 80;
+    server_name <YOUR_DOMAIN_OR_EC2_HOSTNAME>;
+
+    root /var/www/socraticdev;
+    index index.html;
 
     location / {
-        proxy_pass http://localhost:8000;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/api/;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # For file uploads
         client_max_body_size 100M;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8000/health;
+    }
+
+    location /docs {
+        proxy_pass http://127.0.0.1:8000/docs;
+    }
+
+    location /openapi.json {
+        proxy_pass http://127.0.0.1:8000/openapi.json;
     }
 }
 ```
 
+Enable and reload:
+
 ```bash
-sudo ln -s /etc/nginx/sites-available/socraticdev /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/socraticdev /etc/nginx/sites-enabled/socraticdev
 sudo nginx -t
 sudo systemctl restart nginx
-
-# Get free SSL certificate
-sudo certbot --nginx -d api.yourdomain.com
 ```
 
-Then update Vercel env vars:
-```
-VITE_API_BASE_URL=https://api.yourdomain.com
-```
+Now test:
+- Frontend: `http://<YOUR_DOMAIN_OR_EC2_HOSTNAME>`
+- API: `http://<YOUR_DOMAIN_OR_EC2_HOSTNAME>/health`
 
-### Option B: Use an AWS Elastic IP
+## 9. Enable HTTPS (Recommended)
 
-By default, your EC2 public IP changes on restart. To keep a fixed IP:
-
-1. Go to **EC2 → Elastic IPs → Allocate**
-2. Associate it with your EC2 instance
-3. Use this IP in `VITE_API_BASE_URL`
-
----
-
-## Quick Reference — Useful Commands on EC2
+If you have a domain pointing to your EC2/Elastic IP:
 
 ```bash
-# Check status
+sudo certbot --nginx -d <YOUR_DOMAIN>
+```
+
+Then update:
+
+```env
+# frontend/.env.local
+VITE_API_BASE_URL=https://<YOUR_DOMAIN>
+VITE_GEMINI_API_KEY=<your-key>
+```
+
+Rebuild/redeploy frontend:
+
+```bash
+cd ~/socraticDev/frontend
+npm run build
+sudo rsync -a --delete ~/socraticDev/frontend/dist/ /var/www/socraticdev/
+```
+
+## 10. Deploy Updates
+
+Code updates:
+
+```bash
+cd ~/socraticDev
+git pull
+```
+
+Backend updates:
+
+```bash
+cd ~/socraticDev/backend
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Frontend updates:
+
+```bash
+cd ~/socraticDev/frontend
+npm ci
+npm run build
+sudo rsync -a --delete ~/socraticDev/frontend/dist/ /var/www/socraticdev/
+```
+
+## 11. Ops Commands
+
+```bash
+# Backend stack status
+cd ~/socraticDev/backend
 docker compose -f docker-compose.prod.yml ps
 
-# View backend logs
+# Follow backend logs
 docker logs graphrag-backend-prod -f
 
-# View all logs
+# Follow all compose logs
 docker compose -f docker-compose.prod.yml logs -f
 
-# Restart everything
+# Restart stack
 docker compose -f docker-compose.prod.yml restart
 
-# Stop everything
+# Stop stack
 docker compose -f docker-compose.prod.yml down
 
-# Rebuild after code changes
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Check disk space
-df -h
-
-# Check memory
+# Host resources
 free -h
+df -h
 ```
 
----
+## 12. Cost Snapshot (Typical)
 
-## Cost Estimate
+- EC2 `t3.large`: roughly mid double-digit USD/month on-demand (region dependent)
+- EBS `50 GB gp3`: low single-digit USD/month
+- Elastic IP: charged when not attached/running; generally no charge while correctly attached to a running instance
 
-| Resource | Monthly Cost |
-|----------|-------------|
-| EC2 `t3.large` (on-demand) | ~$60/month |
-| EC2 `t3.large` (1-yr reserved) | ~$35/month |
-| Elastic IP (if associated) | Free |
-| EBS 50 GB gp3 | ~$4/month |
-| Vercel (free tier) | $0 |
-| **Total** | **~$40-65/month** |
+Check AWS Pricing Calculator for your exact region and expected uptime.
 
-> [!TIP]
-> For testing, you can use a `t3.medium` (4 GB RAM, ~$30/mo) if you reduce Neo4j memory settings in [docker-compose.prod.yml](file:///b:/software/temp/socraticDev-final/backend/docker-compose.prod.yml).
+## 13. Notes on Future Migration
 
----
+If you later want higher reliability and easier scaling:
+1. Move databases/broker to managed AWS services (RDS, ElastiCache, etc.)
+2. Move app containers to ECS/Fargate
+3. Put CloudFront in front of the frontend
 
-## Frontend on EC2 HTTP: BrowserRouter Fix
-
-If you host the frontend directly on EC2 with Nginx (instead of Vercel/Netlify), you must enable SPA fallback for React Router.
-
-Use this template from the repo:
-
-- `deploy/nginx/socraticdev-http.conf`
-
-Key requirement:
-
-```nginx
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
-
-Without this, direct reloads or deep links like `/app` and `/build` may return 404 or blank screens depending on server behavior.
-
-Apply on EC2:
-
-```bash
-sudo cp ~/socraticDev/deploy/nginx/socraticdev-http.conf /etc/nginx/sites-available/socraticdev
-sudo ln -sf /etc/nginx/sites-available/socraticdev /etc/nginx/sites-enabled/socraticdev
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Notes:
-
-- Keep frontend HTTP for now if needed, but HTTPS is still recommended for production hardening.
-- Frontend now includes UUID fallback logic so `crypto.randomUUID` absence does not crash navigation flows.
+For now, one EC2 instance is the right pragmatic deployment for this repository and your "single startup" requirement.
