@@ -12,6 +12,7 @@ import { AnalyticsDashboard } from './features/analytics';
 import { GamificationHub } from './features/gamification';
 import CustomCursor from './components/CustomCursor';
 import Loader from './components/Loader';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import { useDeviceType } from './hooks/useDeviceType';
 import { useReducedMotion } from './hooks/useReducedMotion';
 
@@ -82,47 +83,49 @@ function App() {
     }, [cursorEnabled, isCoarsePointer, isMobile, isTablet, prefersReducedMotion]);
 
     return (
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            {/* Noise overlay for texture */}
-            <div className="noise-overlay" aria-hidden="true" />
+        <AppErrorBoundary>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                {/* Noise overlay for texture */}
+                <div className="noise-overlay" aria-hidden="true" />
 
-            {/* Custom cursor - renders above modals with z-9999 */}
-            <CustomCursor />
+                {/* Custom cursor - renders above modals with z-9999 */}
+                <CustomCursor />
 
-            {/* Loading screen */}
-            {isLoading && <Loader />}
+                {/* Loading screen */}
+                {isLoading && <Loader />}
 
-            {/* Main content */}
-            <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/app" element={<AppPage />} />
-                <Route path="/build" element={<BuildModePage />} />
-                <Route path="/learn" element={<LearningHub />} />
-                <Route path="/dojo" element={<DojoPage />} />
-                <Route path="/visualizer" element={<CodeVisualizer />} />
-                <Route path="/srs" element={<SRSDashboard />} />
-                <Route path="/srs/review" element={<ReviewSession />} />
-                <Route path="/analytics" element={<AnalyticsDashboard />} />
-                <Route path="/achievements" element={<GamificationHub />} />
+                {/* Main content */}
+                <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/app" element={<AppPage />} />
+                    <Route path="/build" element={<BuildModePage />} />
+                    <Route path="/learn" element={<LearningHub />} />
+                    <Route path="/dojo" element={<DojoPage />} />
+                    <Route path="/visualizer" element={<CodeVisualizer />} />
+                    <Route path="/srs" element={<SRSDashboard />} />
+                    <Route path="/srs/review" element={<ReviewSession />} />
+                    <Route path="/analytics" element={<AnalyticsDashboard />} />
+                    <Route path="/achievements" element={<GamificationHub />} />
 
-                {/* Resources pages */}
-                <Route path="/docs" element={<DocsPage />} />
-                <Route path="/api" element={<APIPage />} />
-                <Route path="/blog" element={<BlogPage />} />
-                <Route path="/changelog" element={<ChangelogPage />} />
+                    {/* Resources pages */}
+                    <Route path="/docs" element={<DocsPage />} />
+                    <Route path="/api" element={<APIPage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+                    <Route path="/changelog" element={<ChangelogPage />} />
 
-                {/* Company pages */}
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/careers" element={<CareersPage />} />
-                <Route path="/contact" element={<ContactPage />} />
-                <Route path="/press" element={<PressPage />} />
+                    {/* Company pages */}
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/careers" element={<CareersPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/press" element={<PressPage />} />
 
-                {/* Legal pages */}
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/cookies" element={<CookiePage />} />
-            </Routes>
-        </Router>
+                    {/* Legal pages */}
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route path="/cookies" element={<CookiePage />} />
+                </Routes>
+            </Router>
+        </AppErrorBoundary>
     );
 }
 

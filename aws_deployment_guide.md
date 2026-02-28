@@ -357,3 +357,37 @@ free -h
 
 > [!TIP]
 > For testing, you can use a `t3.medium` (4 GB RAM, ~$30/mo) if you reduce Neo4j memory settings in [docker-compose.prod.yml](file:///b:/software/temp/socraticDev-final/backend/docker-compose.prod.yml).
+
+---
+
+## Frontend on EC2 HTTP: BrowserRouter Fix
+
+If you host the frontend directly on EC2 with Nginx (instead of Vercel/Netlify), you must enable SPA fallback for React Router.
+
+Use this template from the repo:
+
+- `deploy/nginx/socraticdev-http.conf`
+
+Key requirement:
+
+```nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+Without this, direct reloads or deep links like `/app` and `/build` may return 404 or blank screens depending on server behavior.
+
+Apply on EC2:
+
+```bash
+sudo cp ~/socraticDev/deploy/nginx/socraticdev-http.conf /etc/nginx/sites-available/socraticdev
+sudo ln -sf /etc/nginx/sites-available/socraticdev /etc/nginx/sites-enabled/socraticdev
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Notes:
+
+- Keep frontend HTTP for now if needed, but HTTPS is still recommended for production hardening.
+- Frontend now includes UUID fallback logic so `crypto.randomUUID` absence does not crash navigation flows.

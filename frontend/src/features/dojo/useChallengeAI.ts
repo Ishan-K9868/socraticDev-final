@@ -12,8 +12,9 @@ import {
     TraceStep,
     ChallengeSource,
 } from './types';
+import { generateId } from '../../utils/generateId';
 
-const generateId = () => crypto.randomUUID().slice(0, 8);
+const generateChallengeId = () => generateId().slice(0, 8);
 
 const CHALLENGE_PROMPTS = {
     parsons: (topic: string, language: string) => `
@@ -140,20 +141,20 @@ export function useChallengeAI() {
             if (solution.length < 2) throw new Error('Invalid solution lines');
 
             const solutionLines: CodeLine[] = solution.map((content, idx) => ({
-                id: generateId(),
+                id: generateChallengeId(),
                 content,
                 isDistractor: false,
                 correctPosition: idx,
             }));
             const distractorLines: CodeLine[] = distractors.map((content) => ({
-                id: generateId(),
+                id: generateChallengeId(),
                 content,
                 isDistractor: true,
             }));
 
             return {
                 challenge: {
-                    id: generateId(),
+                    id: generateChallengeId(),
                     type: 'parsons',
                     title: ensureString(data.title, 'Parsons Problem'),
                     description: ensureString(data.description, 'Reorder the code to create a valid solution.'),
@@ -204,7 +205,7 @@ export function useChallengeAI() {
 
             return {
                 challenge: {
-                    id: generateId(),
+                    id: generateChallengeId(),
                     type: 'surgery',
                     title: ensureString(data.title, 'Code Surgery'),
                     description: ensureString(data.description, 'Find and fix bugs in this code.'),
@@ -243,7 +244,7 @@ export function useChallengeAI() {
 
             return {
                 challenge: {
-                    id: generateId(),
+                    id: generateChallengeId(),
                     type: 'eli5',
                     title: ensureString(data.title, `Explain: ${topic}`),
                     description: ensureString(data.description, 'Explain this code in very simple words.'),
@@ -293,7 +294,7 @@ export function useChallengeAI() {
 
             return {
                 challenge: {
-                    id: generateId(),
+                    id: generateChallengeId(),
                     type: 'faded',
                     title: ensureString(data.title, 'Fill in the Blanks'),
                     description: ensureString(data.description, 'Complete the missing code parts.'),
@@ -340,7 +341,7 @@ export function useChallengeAI() {
 
             return {
                 challenge: {
-                    id: generateId(),
+                    id: generateChallengeId(),
                     type: 'mental',
                     title: ensureString(data.title, "What's the output?"),
                     description: ensureString(data.description, 'Predict the output by tracing the code.'),

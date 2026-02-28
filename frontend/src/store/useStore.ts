@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ProjectFile, getLanguageFromExtension } from '../utils/projectAnalyzer';
+import { generateId } from '../utils/generateId';
 
 // Types
 export type Theme = 'light' | 'dark';
@@ -292,7 +293,7 @@ export const useStore = create<AppState>()(
                 const state = get();
                 const newMessage: Message = {
                     ...message,
-                    id: crypto.randomUUID(),
+                    id: generateId(),
                     timestamp: new Date(),
                 };
 
@@ -306,7 +307,7 @@ export const useStore = create<AppState>()(
                     });
                 } else {
                     const newConversation: Conversation = {
-                        id: crypto.randomUUID(),
+                        id: generateId(),
                         messages: [newMessage],
                         createdAt: new Date(),
                     };
@@ -388,7 +389,7 @@ export const useStore = create<AppState>()(
                     return existing.id;
                 }
 
-                const documentId = `doc_${crypto.randomUUID()}`;
+                const documentId = `doc_${generateId()}`;
                 const newDoc: EditorDocument = {
                     id: documentId,
                     name: file.name,
@@ -419,7 +420,7 @@ export const useStore = create<AppState>()(
                     return existing.id;
                 }
 
-                const documentId = `doc_${crypto.randomUUID()}`;
+                const documentId = `doc_${generateId()}`;
                 const newDoc: EditorDocument = {
                     id: documentId,
                     name: sanitizeFilename(example.filename),
@@ -441,7 +442,7 @@ export const useStore = create<AppState>()(
                 const state = get();
                 const name = sanitizeFilename(initial?.name || 'scratch.py');
                 const languageMode = initial?.languageMode || getLanguageFromExtension(name);
-                const documentId = `doc_${crypto.randomUUID()}`;
+                const documentId = `doc_${generateId()}`;
                 const doc: EditorDocument = {
                     id: documentId,
                     name,
@@ -593,7 +594,7 @@ export const useStore = create<AppState>()(
 
                 const next = [...state.chatContextSnippets, {
                     ...snippet,
-                    id: `ctx_${crypto.randomUUID()}`,
+                    id: `ctx_${generateId()}`,
                     text: cleanText,
                 }];
 

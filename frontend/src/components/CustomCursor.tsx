@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDeviceType } from '../hooks/useDeviceType';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useStore } from '../store/useStore';
+import { generateId } from '../utils/generateId';
 
 type CursorMode = 'default' | 'interactive' | 'text' | 'drag' | 'busy' | 'hidden';
 
@@ -204,7 +205,7 @@ export const CustomCursor = () => {
             const targetElement = event.target instanceof HTMLElement ? event.target : null;
             const activeMode = resolveCursorMode(targetElement, isLoading);
             const pulseColor = getCursorPalette(activeMode, cursorStyle).ringColor;
-            const pulseId = crypto.randomUUID();
+            const pulseId = generateId();
 
             setPulses((current) => [
                 ...current,
