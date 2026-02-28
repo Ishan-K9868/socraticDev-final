@@ -90,7 +90,6 @@ function SolutionSection() {
     
     return (
         <section
-            id="solution"
             className="section-padding relative overflow-hidden"
         >
             {/* Floating decorative elements */}

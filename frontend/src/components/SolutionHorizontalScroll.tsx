@@ -1,4 +1,4 @@
-import { motion, useInView, useMotionValue, useScroll, useTransform } from 'framer-motion';
+import { motion, useInView, useMotionValue } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import SolutionSection from './SolutionSection';
@@ -356,71 +356,85 @@ function CodeVisualizerSection() {
 
 /* ═══════════════════════════════════════════════════════════════════
  *  MAIN WRAPPER
- *  - SolutionSection: untouched, renders standalone
- *  - CardGenSection + CodeVisualizerSection: horizontal scroll panels
- *    driven by vertical scroll (sticky pin + translateX)
+ *  Mobile:  Only SolutionSection — no horizontal scroll machinery.
+ *  Desktop: CSS scroll-snap horizontal scroll (compositor-thread,
+ *           zero JS overhead vs. useScroll/useTransform approach).
  * ═══════════════════════════════════════════════════════════════════ */
 
-const PANEL_COUNT = 3;
-
 function SolutionHorizontalScroll() {
-    const prefersReducedMotion = useReducedMotion();
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    const { scrollYProgress } = useScroll({
-        target: scrollContainerRef,
-        offset: ['start start', 'end end'],
-    });
-
-    const x = useTransform(
-        scrollYProgress,
-        [0, 1],
-        ['0vw', `-${(PANEL_COUNT - 1) * 100}vw`]
-    );
-
-    const activePanel = useTransform(scrollYProgress, (v) =>
-        Math.min(Math.floor(v * PANEL_COUNT), PANEL_COUNT - 1)
-    );
-
+    const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
     const [activePanelIndex, setActivePanelIndex] = useState(0);
+
+    // Sync indicator dots via IntersectionObserver (no scroll listener cost)
     useEffect(() => {
-        const unsub = activePanel.on('change', (v) => setActivePanelIndex(Math.round(v)));
-        return unsub;
-    }, [activePanel]);
+        const observers: IntersectionObserver[] = [];
+        panelRefs.current.forEach((el, i) => {
+            if (!el) return;
+            const obs = new IntersectionObserver(
+                ([entry]) => { if (entry.isIntersecting) setActivePanelIndex(i); },
+                { threshold: 0.6 }
+            );
+            obs.observe(el);
+            observers.push(obs);
+        });
+        return () => observers.forEach((o) => o.disconnect());
+    }, []);
+
+    const labels = ['The Solution', 'AI Flashcards', 'Code Visualizer'];
 
     return (
-        <div
-            ref={scrollContainerRef}
-            style={{ height: `${PANEL_COUNT * 100}vh` }}
-            className="relative"
-        >
-            <div className="sticky top-0 h-screen overflow-hidden">
-                <motion.div
-                    className="flex h-full"
+        <section id="solution" className="relative">
+            {/* ── Mobile: only show SolutionSection, hide feature panels ── */}
+            <div className="lg:hidden">
+                <SolutionSection />
+            </div>
+
+            {/* ── Desktop: CSS horizontal scroll-snap at section depth ── */}
+            <div
+                className="hidden lg:block relative"
+                style={{ height: '100vh' }}
+            >
+                {/* Horizontal scroll track — overflow-x scroll on the wrapper */}
+                <div
+                    className="flex h-full overflow-x-scroll overflow-y-hidden"
                     style={{
-                        x: prefersReducedMotion ? undefined : x,
-                        width: `${PANEL_COUNT * 100}vw`,
+                        scrollSnapType: 'x mandatory',
+                        WebkitOverflowScrolling: 'touch',
+                        scrollbarWidth: 'none',       // Firefox
+                        msOverflowStyle: 'none',      // IE/Edge
                     }}
                 >
-                    {/* Panel 1: Original Solution Section */}
-                    <div className="w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden">
+                    {/* Panel 1: Solution */}
+                    <div
+                        ref={(el) => { panelRefs.current[0] = el; }}
+                        className="flex-shrink-0 w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden"
+                        style={{ scrollSnapAlign: 'start' }}
+                    >
                         <SolutionSection />
                     </div>
 
-                    {/* Panel 2: Card Gen Section */}
-                    <div className="w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden">
+                    {/* Panel 2: Card Gen */}
+                    <div
+                        ref={(el) => { panelRefs.current[1] = el; }}
+                        className="flex-shrink-0 w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden"
+                        style={{ scrollSnapAlign: 'start' }}
+                    >
                         <CardGenSection />
                     </div>
 
-                    {/* Panel 3: Code Visualizer Section */}
-                    <div className="w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden">
+                    {/* Panel 3: Code Visualizer */}
+                    <div
+                        ref={(el) => { panelRefs.current[2] = el; }}
+                        className="flex-shrink-0 w-screen h-screen flex flex-col justify-start overflow-y-auto overflow-x-hidden"
+                        style={{ scrollSnapAlign: 'start' }}
+                    >
                         <CodeVisualizerSection />
                     </div>
-                </motion.div>
+                </div>
 
                 {/* Panel indicators */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20">
-                    {['The Solution', 'AI Flashcards', 'Code Visualizer'].map((label, i) => (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20 pointer-events-none">
+                    {labels.map((label, i) => (
                         <div key={label} className="flex items-center gap-2">
                             <div
                                 className={`h-1.5 rounded-full transition-all duration-500 ${i === activePanelIndex
@@ -441,10 +455,9 @@ function SolutionHorizontalScroll() {
                     ))}
                 </div>
             </div>
-        </div>
+        </section>
     );
 }
 
 export default SolutionHorizontalScroll;
-
 

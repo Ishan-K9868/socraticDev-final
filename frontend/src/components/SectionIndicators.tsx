@@ -40,7 +40,7 @@ const getSectionBgColor = (icon: string) => {
 
 // Custom SVG Icons for each section
 const SectionIcon = ({ type, isActive }: { type: string; isActive: boolean }) => {
-    const iconClass = `w-6 h-6 transition-colors duration-300 ${getSectionColor(type, isActive)}`;
+    const iconClass = `w-7 h-7 transition-colors duration-300 ${getSectionColor(type, isActive)}`;
 
     switch (type) {
         case 'hero':
@@ -212,7 +212,7 @@ export const SectionIndicators = () => {
 
     return (
         <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden lg:block">
-            <div className="flex flex-col gap-2.5 bg-[color:var(--color-bg-secondary)]/80 backdrop-blur-md border border-[color:var(--color-border)] rounded-3xl p-2.5 shadow-lg">
+            <div className="flex flex-col gap-3 bg-[color:var(--color-bg-secondary)]/80 backdrop-blur-md border border-[color:var(--color-border)] rounded-3xl p-3 shadow-lg">
                 {sections.map((section, index) => {
                     const isActive = activeSection === index;
                     return (
@@ -225,7 +225,7 @@ export const SectionIndicators = () => {
                                 whileHover={{ scale: 1.15 }}
                                 whileTap={{ scale: 0.95 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                                className={`relative p-2 rounded-xl transition-colors duration-200 ${isActive
+                                className={`relative p-2.5 rounded-xl transition-colors duration-200 ${isActive
                                     ? `${getSectionBgColor(section.icon)}/10 shadow-md`
                                     : 'hover:bg-[color:var(--color-bg-muted)]'
                                     }`}
@@ -236,7 +236,7 @@ export const SectionIndicators = () => {
                                 {/* Active indicator line */}
                                 {isActive && (
                                     <motion.div
-                                        className={`absolute -left-2.5 w-1 h-6 ${getSectionBgColor(section.icon)} rounded-full`}
+                                        className={`absolute -left-3 w-1 h-7 ${getSectionBgColor(section.icon)} rounded-full`}
                                         style={{ top: '50%', y: '-50%' }}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
