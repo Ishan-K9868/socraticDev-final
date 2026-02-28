@@ -2,7 +2,13 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { useStore } from '../../store/useStore';
-import { processUploadedFiles, buildDependencyGraph, ProjectFile } from '../../utils/projectAnalyzer';
+import {
+    processUploadedFiles,
+    buildDependencyGraph,
+    ProjectFile,
+    shouldIgnoreUploadPath,
+    isBackendSupportedUploadFile
+} from '../../utils/projectAnalyzer';
 import { FileExplorer } from '../explorer';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
@@ -22,6 +28,12 @@ function ProjectUpload() {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [uploadStatus, setUploadStatus] = useState<UploadStatusResponse | null>(null);
     const [pendingFiles, setPendingFiles] = useState<ProjectFile[]>([]);  // Store files until backend completes
+    const [selectionSummary, setSelectionSummary] = useState<{
+        selected: number;
+        uploadable: number;
+        ignored: number;
+        unsupported: number;
+    } | null>(null);
     const pollFailureCountRef = useRef(0);
     const pendingSinceRef = useRef<number | null>(null);
 
@@ -130,6 +142,7 @@ function ProjectUpload() {
         setIsProcessing(true);
         setProgress(0);
         setError(null);
+        setSelectionSummary(null);
 
         try {
             // Process files locally for preview
@@ -156,7 +169,30 @@ function ProjectUpload() {
             setProjectName(detectedProjectName);
 
             // Upload to backend
-            const fileArray = Array.from(fileList);
+            const rawFiles = Array.from(fileList);
+            const fileArray = rawFiles.filter((file) => {
+                const path = file.webkitRelativePath || file.name;
+                if (shouldIgnoreUploadPath(path)) return false;
+                return isBackendSupportedUploadFile(path);
+            });
+
+            const ignoredCount = rawFiles.filter((file) =>
+                shouldIgnoreUploadPath(file.webkitRelativePath || file.name)
+            ).length;
+            const unsupportedCount = rawFiles.length - ignoredCount - fileArray.length;
+            setSelectionSummary({
+                selected: rawFiles.length,
+                uploadable: fileArray.length,
+                ignored: ignoredCount,
+                unsupported: unsupportedCount,
+            });
+
+            if (fileArray.length === 0) {
+                setError('No supported uploadable files found after filtering ignored folders and unsupported file types.');
+                setIsProcessing(false);
+                return;
+            }
+
             const response = await graphragAPI.uploadProject({
                 files: fileArray as File[],
                 projectName: detectedProjectName,
@@ -251,6 +287,7 @@ function ProjectUpload() {
         setUploadStatus(null);
         setProjectStats(null);
         setPendingFiles([]);
+        setSelectionSummary(null);
         setGithubUrl('');
         setProjectName('');
         setProgress(0);
@@ -405,6 +442,14 @@ function ProjectUpload() {
                                         </svg>
                                         Supports Python, JavaScript, TypeScript, Java, and more
                                     </p>
+                                    <p className="mt-3 text-xs text-[color:var(--color-text-muted)]">
+                                        Browser may show total folder file count first. SocraticDev filters out `.git`, `node_modules`, `dist`, `build`, and unsupported file types before upload.
+                                    </p>
+                                    {selectionSummary && (
+                                        <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
+                                            Selected: {selectionSummary.selected} • Uploading: {selectionSummary.uploadable} • Ignored folders: {selectionSummary.ignored} • Unsupported: {selectionSummary.unsupported}
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>

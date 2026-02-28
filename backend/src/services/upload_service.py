@@ -15,12 +15,20 @@ import tempfile
 from ..models.base import UploadSession, Project, ParseResult
 from ..config.settings import settings
 from ..utils.errors import InvalidRequestError, FileSizeExceededError
+from .code_parser import LanguageDetector
 
 logger = logging.getLogger(__name__)
 
 # Session storage directory
 SESSION_STORAGE_DIR = Path("./upload_sessions")
 SESSION_STORAGE_DIR.mkdir(exist_ok=True)
+
+IGNORED_UPLOAD_PATH_SEGMENTS = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+}
 
 
 class UploadService:
@@ -79,6 +87,18 @@ class UploadService:
             name=f"upload-local-{session_id}",
         )
         worker_thread.start()
+
+    def _should_ignore_upload_path(self, file_path: str) -> bool:
+        """Return True if upload path should be ignored for ingestion."""
+        normalized = (file_path or "").replace("\\", "/").strip("/")
+        if not normalized:
+            return False
+        parts = [part for part in normalized.split("/") if part]
+        return any(part in IGNORED_UPLOAD_PATH_SEGMENTS for part in parts)
+
+    def _is_supported_source_file(self, file_path: str) -> bool:
+        """Return True when file extension is supported by parser service."""
+        return LanguageDetector.is_supported(file_path or "")
 
     def _dispatch_processing_task(
         self,
@@ -168,6 +188,10 @@ class UploadService:
             if rel_parts & skip_dirs:
                 continue
 
+            relative = path.relative_to(repo_dir).as_posix()
+            if not self._is_supported_source_file(relative):
+                continue
+
             if len(collected) >= settings.max_files_per_project:
                 raise FileSizeExceededError(
                     f"Project exceeds maximum file limit of {settings.max_files_per_project}"
@@ -188,7 +212,6 @@ class UploadService:
             except OSError:
                 continue
 
-            relative = path.relative_to(repo_dir).as_posix()
             collected.append((relative, content))
 
         return collected
@@ -233,7 +256,7 @@ class UploadService:
 
                 file_data = self._collect_repository_files(clone_dir)
                 if not file_data:
-                    raise InvalidRequestError("No readable source files found in repository")
+                    raise InvalidRequestError("No supported source files found in repository")
 
                 self.update_session_status(
                     session_id=session_id,
@@ -321,9 +344,26 @@ class UploadService:
         if not project_name or not project_name.strip():
             raise InvalidRequestError("Project name cannot be empty")
         
-        if len(files) > settings.max_files_per_project:
+        eligible_files = []
+        ignored_files = 0
+        unsupported_files = 0
+        for file in files:
+            filename = getattr(file, "filename", "")
+            if self._should_ignore_upload_path(filename):
+                ignored_files += 1
+                continue
+            if not self._is_supported_source_file(filename):
+                unsupported_files += 1
+                continue
+            eligible_files.append(file)
+
+        if len(eligible_files) > settings.max_files_per_project:
             raise FileSizeExceededError(
                 f"Project exceeds maximum file limit of {settings.max_files_per_project}"
+            )
+        if len(eligible_files) == 0:
+            raise InvalidRequestError(
+                "No supported source files found after excluding .git/build folders"
             )
         
         # Create project and session
@@ -336,7 +376,7 @@ class UploadService:
             status="pending",
             progress=0.0,
             files_processed=0,
-            total_files=len(files),
+            total_files=len(eligible_files),
             entities_extracted=0,
             errors=[],
             created_at=datetime.utcnow(),
@@ -347,12 +387,13 @@ class UploadService:
         
         logger.info(
             f"Created upload session {session_id} for project {project_name} "
-            f"with {len(files)} files"
+            f"with {len(eligible_files)} files "
+            f"(ignored paths: {ignored_files}, unsupported: {unsupported_files})"
         )
         
         # Convert UploadFile objects to (filename, content) tuples
         file_data = []
-        for file in files:
+        for file in eligible_files:
             # Read file content
             content = file.file.read()
             if isinstance(content, bytes):

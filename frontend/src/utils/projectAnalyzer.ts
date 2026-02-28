@@ -26,6 +26,25 @@ export interface CodeAnalysis {
 // Supported file extensions for code analysis
 const CODE_EXTENSIONS = ['py', 'js', 'ts', 'tsx', 'jsx', 'java', 'go', 'rs', 'c', 'cpp', 'h'];
 const TEXT_EXTENSIONS = [...CODE_EXTENSIONS, 'json', 'md', 'txt', 'yaml', 'yml', 'toml', 'html', 'css', 'scss', 'xml'];
+const IGNORED_UPLOAD_PATH_SEGMENTS = new Set(['.git', 'node_modules', 'dist', 'build']);
+const BACKEND_SUPPORTED_UPLOAD_EXTENSIONS = new Set(['py', 'js', 'jsx', 'ts', 'tsx', 'java']);
+
+// Check if uploaded path should be excluded from processing/upload.
+export function shouldIgnoreUploadPath(rawPath: string): boolean {
+    const normalized = (rawPath || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+    if (!normalized) return false;
+    return normalized.split('/').some((segment) => IGNORED_UPLOAD_PATH_SEGMENTS.has(segment));
+}
+
+// Check if file is supported by backend parser upload pipeline.
+export function isBackendSupportedUploadFile(rawPath: string): boolean {
+    const normalized = (rawPath || '').replace(/\\/g, '/');
+    const fileName = normalized.split('/').pop() || '';
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return BACKEND_SUPPORTED_UPLOAD_EXTENSIONS.has(ext);
+}
 
 // Get language from file extension
 export function getLanguageFromExtension(filename: string): string {
@@ -88,6 +107,12 @@ export async function processUploadedFiles(
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
         const relativePath = file.webkitRelativePath || file.name;
+        if (shouldIgnoreUploadPath(relativePath)) {
+            if (onProgress) {
+                onProgress(Math.round(((i + 1) / total) * 100));
+            }
+            continue;
+        }
         const parts = relativePath.split('/');
 
         // Read file content for text files
