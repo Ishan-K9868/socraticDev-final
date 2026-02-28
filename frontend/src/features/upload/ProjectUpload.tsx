@@ -7,7 +7,8 @@ import {
     buildDependencyGraph,
     ProjectFile,
     shouldIgnoreUploadPath,
-    isBackendSupportedUploadFile
+    isBackendSupportedUploadFile,
+    getLanguageFromExtension
 } from '../../utils/projectAnalyzer';
 import { FileExplorer } from '../explorer';
 import Button from '../../ui/Button';
@@ -59,6 +60,93 @@ function ProjectUpload() {
         });
     }, { scope: containerRef });
 
+    const buildProjectTreeFromPaths = useCallback((paths: string[]): ProjectFile[] => {
+        const roots: ProjectFile[] = [];
+        const nodeMap = new Map<string, ProjectFile>();
+        const seenFiles = new Set<string>();
+
+        const normalizedPaths = Array.from(new Set(paths))
+            .map((path) => path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''))
+            .filter(Boolean)
+            .sort();
+
+        for (const filePath of normalizedPaths) {
+            const parts = filePath.split('/').filter(Boolean);
+            if (parts.length === 0) continue;
+
+            let currentPath = '';
+            for (let i = 0; i < parts.length - 1; i += 1) {
+                const dirName = parts[i];
+                const parentPath = currentPath;
+                currentPath = currentPath ? `${currentPath}/${dirName}` : dirName;
+
+                if (!nodeMap.has(currentPath)) {
+                    const dirNode: ProjectFile = {
+                        id: currentPath,
+                        name: dirName,
+                        path: currentPath,
+                        type: 'directory',
+                        size: 0,
+                        children: [],
+                    };
+                    nodeMap.set(currentPath, dirNode);
+
+                    if (parentPath && nodeMap.has(parentPath)) {
+                        nodeMap.get(parentPath)!.children!.push(dirNode);
+                    } else if (!parentPath) {
+                        roots.push(dirNode);
+                    }
+                }
+            }
+
+            if (seenFiles.has(filePath)) continue;
+            seenFiles.add(filePath);
+
+            const fileName = parts[parts.length - 1];
+            const fileNode: ProjectFile = {
+                id: filePath,
+                name: fileName,
+                path: filePath,
+                type: 'file',
+                size: 0,
+                language: getLanguageFromExtension(fileName),
+                content: '// File content preview is unavailable for GitHub uploads in this prototype.',
+            };
+
+            if (parts.length > 1) {
+                const parentPath = parts.slice(0, -1).join('/');
+                const parent = nodeMap.get(parentPath);
+                if (parent) {
+                    parent.children!.push(fileNode);
+                } else {
+                    roots.push(fileNode);
+                }
+            } else {
+                roots.push(fileNode);
+            }
+        }
+
+        return roots;
+    }, []);
+
+    const hydrateProjectFilesFromGraph = useCallback(async (projectId: string): Promise<ProjectFile[]> => {
+        const graph = await graphragAPI.getGraphVisualization({
+            project_id: projectId,
+            view_mode: 'file',
+            include_external: false,
+            include_isolated: true,
+            max_nodes: 5000,
+            max_edges: 5000,
+        });
+
+        const filePaths = (graph.nodes || [])
+            .filter((node) => node.type === 'FILE')
+            .map((node) => node.file_path)
+            .filter((path): path is string => Boolean(path));
+
+        return buildProjectTreeFromPaths(filePaths);
+    }, [buildProjectTreeFromPaths]);
+
     // Poll upload status
     useEffect(() => {
         if (!sessionId || !isProcessing) return;
@@ -88,24 +176,34 @@ function ProjectUpload() {
                 if (status.status === 'completed') {
                     setIsProcessing(false);
                     clearInterval(pollInterval);
-                    
-                    // Update project context with backend data using project_id from status
-                    if (status.statistics && status.project_id) {
-                        // Set project files NOW (not earlier)
-                        setProjectFiles(pendingFiles);
-                        setProjectStats(status.statistics);
-                        
-                        // Set project context
+
+                    // Update project context with backend data using project_id from status.
+                    // For GitHub uploads, pendingFiles is empty (no local browser file handles),
+                    // but project should still be considered loaded.
+                    if (status.project_id) {
+                        let resolvedFiles = pendingFiles;
+                        if (resolvedFiles.length === 0) {
+                            try {
+                                resolvedFiles = await hydrateProjectFilesFromGraph(status.project_id);
+                            } catch (hydrateError) {
+                                console.warn('Failed to hydrate project files from graph nodes:', hydrateError);
+                            }
+                        }
+
+                        setProjectFiles(resolvedFiles);
+                        if (status.statistics) {
+                            setProjectStats(status.statistics);
+                        }
                         setProjectContext({
-                            id: status.project_id,  // Use project_id from status response
+                            id: status.project_id,
                             name: projectName,
-                            files: pendingFiles,
+                            files: resolvedFiles,
                             language: 'mixed',
                             uploadedAt: new Date(),
                         });
-                        
-                        // Clear pending files
                         setPendingFiles([]);
+                    } else {
+                        setError('Upload completed but project id was missing in status response.');
                     }
                 } else if (status.status === 'failed') {
                     setIsProcessing(false);
@@ -124,7 +222,16 @@ function ProjectUpload() {
         }, 2000);
 
         return () => clearInterval(pollInterval);
-    }, [sessionId, isProcessing, projectName, pendingFiles, setProjectContext, setProjectFiles, setProjectStats]);
+    }, [
+        sessionId,
+        isProcessing,
+        projectName,
+        pendingFiles,
+        setProjectContext,
+        setProjectFiles,
+        setProjectStats,
+        hydrateProjectFilesFromGraph,
+    ]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -313,7 +420,7 @@ function ProjectUpload() {
 
     return (
         <div ref={containerRef} className="h-full flex flex-col">
-            {projectFiles.length === 0 ? (
+            {!projectContext ? (
                 /* Upload Zone */
                 <div className="p-6">
                     {/* Upload Mode Selector */}
@@ -447,7 +554,7 @@ function ProjectUpload() {
                                     </p>
                                     {selectionSummary && (
                                         <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
-                                            Selected: {selectionSummary.selected} • Uploading: {selectionSummary.uploadable} • Ignored folders: {selectionSummary.ignored} • Unsupported: {selectionSummary.unsupported}
+                                            Selected: {selectionSummary.selected} | Uploading: {selectionSummary.uploadable} | Ignored folders: {selectionSummary.ignored} | Unsupported: {selectionSummary.unsupported}
                                         </p>
                                     )}
                                 </>
@@ -577,7 +684,7 @@ function ProjectUpload() {
                             <div>
                                 <h3 className="font-display font-semibold">{projectContext?.name}</h3>
                                 <p className="text-sm text-[color:var(--color-text-muted)]">
-                                    {countFiles(projectFiles)} files • {projectContext?.language}
+                                    {countFiles(projectFiles)} files | {projectContext?.language}
                                 </p>
                             </div>
                             <Button variant="ghost" size="sm" onClick={handleClearProject}>
@@ -609,11 +716,22 @@ function ProjectUpload() {
 
                     {/* File Explorer */}
                     <div className="flex-1 overflow-y-auto p-2">
-                        <FileExplorer
-                            files={projectFiles}
-                            selectedFile={selectedFile}
-                            onFileSelect={handleFileSelect}
-                        />
+                        {projectFiles.length > 0 ? (
+                            <FileExplorer
+                                files={projectFiles}
+                                selectedFile={selectedFile}
+                                onFileSelect={handleFileSelect}
+                            />
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-center px-6">
+                                <div className="max-w-md space-y-2">
+                                    <p className="font-medium">Project processed successfully</p>
+                                    <p className="text-sm text-[color:var(--color-text-muted)]">
+                                        File previews are unavailable for this upload type, but graph/query features are ready.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -622,7 +740,7 @@ function ProjectUpload() {
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
-                            Click a file to view • Graph tab shows dependencies
+                            Click a file to view | Graph tab shows dependencies
                         </Badge>
                     </div>
                 </>
