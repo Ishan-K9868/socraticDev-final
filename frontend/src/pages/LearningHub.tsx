@@ -53,6 +53,19 @@ const AchievementIcon = () => (
     </svg>
 );
 
+const CouncilIcon = () => (
+    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 8l10-5 10 5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 8v11" strokeLinecap="round" />
+        <path d="M8 8v11" strokeLinecap="round" />
+        <path d="M12 8v11" strokeLinecap="round" />
+        <path d="M16 8v11" strokeLinecap="round" />
+        <path d="M20 8v11" strokeLinecap="round" />
+        <path d="M2 19h20" strokeWidth="2" strokeLinecap="round" />
+        <path d="M3 8h18" strokeLinecap="round" />
+    </svg>
+);
+
 const TOOLS: Tool[] = [
     {
         id: 'dojo',
@@ -98,6 +111,15 @@ const TOOLS: Tool[] = [
         path: '/achievements',
         accentColor: '#F59E0B',
         icon: <AchievementIcon />,
+    },
+    {
+        id: 'council',
+        title: 'Council of Dead Engineers',
+        tagline: 'Architectural Wisdom',
+        description: 'Summon Dijkstra, Hopper, Kay & Liskov. They debate your architectural decision — contradictorily. You synthesize.',
+        path: '/council',
+        accentColor: '#D97706',
+        icon: <CouncilIcon />,
     },
 ];
 
@@ -261,7 +283,7 @@ function LearningHub() {
                         className="inline-block mb-6 px-4 py-2 rounded-full bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)]"
                     >
                         <span className="text-sm font-medium text-[color:var(--color-text-muted)]">
-                            5 tools to accelerate your growth
+                            6 tools to accelerate your growth
                         </span>
                     </motion.div>
 
@@ -328,6 +350,16 @@ function LearningHub() {
                         className="col-span-6 md:col-span-4"
                     >
                         <ToolCard tool={TOOLS[4]} size="small" />
+                    </motion.div>
+
+                    {/* Council of Dead Engineers */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                        className="col-span-12"
+                    >
+                        <ToolCard tool={TOOLS[5]} size="large" />
                     </motion.div>
                 </div>
 

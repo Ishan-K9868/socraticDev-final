@@ -128,7 +128,8 @@ const defaultStats: DojoStats = {
         translation: 0,
         pattern: 0,
         tdd: 0,
-        bigo: 0
+        bigo: 0,
+        council: 0
     }
 };
 
@@ -397,68 +398,69 @@ function DojoHub({ onSelectChallenge, selectedLanguage = 'python', onLanguageCha
                             : 'Not yet available for this mode in Practice source. Switch to AI Mode to get a challenge.';
 
                         return (
-                        <button
-                            key={card.id}
-                            onClick={() => isEnabled && onSelectChallenge(card.id)}
-                            disabled={!isEnabled}
-                            title={!isEnabled ? disabledReason : undefined}
-                            className={`
+                            <button
+                                key={card.id}
+                                onClick={() => isEnabled && onSelectChallenge(card.id)}
+                                disabled={!isEnabled}
+                                title={!isEnabled ? disabledReason : undefined}
+                                className={`
                                 challenge-card group relative overflow-hidden rounded-2xl p-5 text-left
                                 transition-all duration-300
                                 ${isEnabled
-                                    ? 'bg-[color:var(--color-bg-secondary)] hover:shadow-2xl hover:shadow-black/10 hover:-translate-y-1 cursor-pointer'
-                                    : 'bg-[color:var(--color-bg-muted)] opacity-50 cursor-not-allowed'
-                                }
+                                        ? 'bg-[color:var(--color-bg-secondary)] hover:shadow-2xl hover:shadow-black/10 hover:-translate-y-1 cursor-pointer'
+                                        : 'bg-[color:var(--color-bg-muted)] opacity-50 cursor-not-allowed'
+                                    }
                                 border border-[color:var(--color-border)] hover:border-transparent
                             `}
-                        >
-                            {/* Gradient accent - visible on hover */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-[0.08] transition-opacity duration-300`} />
+                            >
+                                {/* Gradient accent - visible on hover */}
+                                <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-[0.08] transition-opacity duration-300`} />
 
-                            {/* Top accent line */}
-                            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                                {/* Top accent line */}
+                                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
 
-                            {/* Icon */}
-                            {(() => {
-                                const IconComponent = ChallengeIcons[card.id];
-                                return IconComponent ? (
-                                    <div className={`mb-4 ${card.iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                                        <IconComponent size={36} />
-                                    </div>
-                                ) : null;
-                            })()}
+                                {/* Icon */}
+                                {(() => {
+                                    const IconComponent = ChallengeIcons[card.id];
+                                    return IconComponent ? (
+                                        <div className={`mb-4 ${card.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                                            <IconComponent size={36} />
+                                        </div>
+                                    ) : null;
+                                })()}
 
-                            {/* Content */}
-                            <h3 className="font-bold text-lg mb-1 text-[color:var(--color-text-primary)]">{card.name}</h3>
-                            <p className="text-sm text-[color:var(--color-text-muted)] mb-4 leading-relaxed">
-                                {card.description}
-                            </p>
+                                {/* Content */}
+                                <h3 className="font-bold text-lg mb-1 text-[color:var(--color-text-primary)]">{card.name}</h3>
+                                <p className="text-sm text-[color:var(--color-text-muted)] mb-4 leading-relaxed">
+                                    {card.description}
+                                </p>
 
-                            {/* Footer */}
-                            <div className="flex items-center justify-between">
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-lg border ${getDifficultyColor(card.difficulty)}`}>
-                                    {card.difficulty}
-                                </span>
-                                {!isEnabled && (
-                                    <span className="text-xs bg-[color:var(--color-bg-muted)] px-2 py-1 rounded-lg">
-                                        {disabledReason}
+                                {/* Footer */}
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg border ${getDifficultyColor(card.difficulty)}`}>
+                                        {card.difficulty}
                                     </span>
-                                )}
-                                {isEnabled && stats.categoryProgress[card.id] > 0 && (
-                                    <span className="text-xs text-[color:var(--color-text-muted)]">
-                                        {stats.categoryProgress[card.id]}x
-                                    </span>
-                                )}
-                            </div>
+                                    {!isEnabled && (
+                                        <span className="text-xs bg-[color:var(--color-bg-muted)] px-2 py-1 rounded-lg">
+                                            {disabledReason}
+                                        </span>
+                                    )}
+                                    {isEnabled && stats.categoryProgress[card.id] > 0 && (
+                                        <span className="text-xs text-[color:var(--color-text-muted)]">
+                                            {stats.categoryProgress[card.id]}x
+                                        </span>
+                                    )}
+                                </div>
 
-                            {/* Arrow on hover */}
-                            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                <svg className="w-5 h-5 text-[color:var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                </svg>
-                            </div>
-                        </button>
-                    );})}
+                                {/* Arrow on hover */}
+                                <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                    <svg className="w-5 h-5 text-[color:var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                    </svg>
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Quick Start Section */}

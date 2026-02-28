@@ -9,7 +9,8 @@ export type ChallengeType =
     | 'translation'  // Code translation
     | 'pattern'      // Pattern detection
     | 'tdd'          // Test-driven challenge
-    | 'bigo';        // Big O complexity
+    | 'bigo'         // Big O complexity
+    | 'council';     // Council of Dead Engineers
 
 export type ChallengeSource = 'practice' | 'ai';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -119,4 +120,24 @@ export interface DojoStats {
     longestStreak: number;
     badges: string[];
     categoryProgress: Record<ChallengeType, number>;
+}
+
+// Council of Dead Engineers
+export interface CouncilMemberOpinion {
+    engineer: string;
+    era: string;
+    role: string;
+    accentColor: string;
+    opinion: string;
+    catchphrase: string;
+}
+
+export interface CouncilChallenge extends Challenge {
+    type: 'council';
+    dilemma: string;                   // The architectural decision
+    context: string;                   // Background scenario
+    engineers: string[];               // Names of the council
+    opinions?: CouncilMemberOpinion[]; // Generated dynamically by AI
+    userSynthesis?: string;            // What the user decided
+    evaluationFeedback?: string;       // AI evaluation of synthesis
 }

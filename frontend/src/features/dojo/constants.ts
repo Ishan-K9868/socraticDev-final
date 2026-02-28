@@ -28,6 +28,7 @@ export const PRACTICE_MODE_LANGUAGE_SUPPORT: ModeLanguageSupport = {
     pattern: ['python', 'javascript', 'typescript', 'java', 'cpp', 'go', 'rust'],
     tdd: ['python'],
     bigo: ['python', 'javascript', 'typescript', 'java', 'cpp', 'go', 'rust'],
+    council: ['python', 'javascript', 'typescript', 'java', 'cpp', 'go', 'rust'],
 };
 
 export function isLanguageSupportedInPractice(mode: ChallengeType, language: string): boolean {

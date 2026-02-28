@@ -10,12 +10,15 @@ import CodeTranslation from './CodeTranslation';
 import PatternDetective from './PatternDetective';
 import BigOBattle from './BigOBattle';
 import TDDChallenge from './TDDChallenge';
+import CouncilChallenge from './CouncilChallenge';
 import { ChallengeType, DojoStats } from './types';
 import { useSRS } from '../srs/useSRS';
 import { generateFlashcardsWithGemini } from '../../services/gemini';
 import { GeneratedCardCandidate } from '../srs/types';
 import GeneratedCardReviewModal from '../srs/GeneratedCardReviewModal';
 import { useAnalytics } from '../analytics/useAnalytics';
+import { DebateTerminalButton, SocraticDebatePanel, useSocraticDebate } from './debate';
+import type { DebateContext } from './debate';
 
 // Re-export for convenience
 export { SUPPORTED_LANGUAGES } from './constants';
@@ -30,7 +33,8 @@ const TOPIC_SUGGESTIONS: Record<ChallengeType, string[]> = {
     translation: ['python to javascript', 'callbacks to promises', 'OOP to functional'],
     pattern: ['singleton', 'factory', 'observer', 'strategy'],
     tdd: ['calculator', 'todo list', 'validation'],
-    bigo: ['sorting algorithms', 'search algorithms', 'nested loops', 'recursive functions']
+    bigo: ['sorting algorithms', 'search algorithms', 'nested loops', 'recursive functions'],
+    council: ['monolith vs microservices', 'REST vs GraphQL', 'SQL vs NoSQL', 'synchronous vs async', 'testing strategy'],
 };
 
 const DOJO_REVISION_FOCUS: Record<ChallengeType, string> = {
@@ -44,6 +48,7 @@ const DOJO_REVISION_FOCUS: Record<ChallengeType, string> = {
     pattern: 'design pattern recognition and code smell detection',
     tdd: 'test-driven workflow, edge cases, and incremental implementation',
     bigo: 'time/space complexity identification and tradeoff reasoning',
+    council: 'architectural tradeoff analysis, synthesis of contradictory expert opinions, and defensible decision-making',
 };
 
 const DOJO_DEFAULT_TOPIC_LABEL: Record<ChallengeType, string> = {
@@ -57,6 +62,7 @@ const DOJO_DEFAULT_TOPIC_LABEL: Record<ChallengeType, string> = {
     pattern: 'pattern detection',
     tdd: 'test-driven development',
     bigo: 'complexity analysis',
+    council: 'architectural decision',
 };
 
 function buildDojoFlashcardPrompt(params: {
@@ -115,6 +121,79 @@ function getVisibleDojoContext(): { title?: string; description?: string } {
     };
 }
 
+/** Extract visible code and user answer from the DOM for debate context.
+ *  Uses multiple strategies to cover ALL challenge DOM structures:
+ *  - CodeSurgery: each line is a separate `<pre class="font-mono">` element
+ *  - Parsons: code is in `<code>` elements inside sortable items
+ *  - BigO/TDD/Faded: code in `<pre>` blocks (sometimes with code children)
+ *  - Monaco editor: `.view-lines` elements
+ */
+function extractDebateContext(
+    challengeType: ChallengeType,
+    topic: string,
+    language: string,
+    score?: number,
+): DebateContext {
+    if (typeof document === 'undefined') {
+        return { challengeType, topic, language, score };
+    }
+
+    let code: string | undefined;
+
+    // Strategy 1: Collect all per-line `<pre>` elements with font-mono class
+    // CodeSurgery renders each code line as an individual <pre class="font-mono ...">
+    const monoPreEls = document.querySelectorAll('pre.font-mono');
+    if (monoPreEls.length > 1) {
+        // Multiple pre.font-mono elements = per-line rendering (CodeSurgery pattern)
+        const lines = Array.from(monoPreEls)
+            .map(el => el.textContent?.trimEnd() ?? '')
+            .filter((_, i, arr) => {
+                // Skip if this is inside a "correct code" solution section
+                const parent = arr.length > 0 ? monoPreEls[i]?.closest('.bg-green-500\\/10') : null;
+                return !parent;
+            });
+        if (lines.length > 0) code = lines.join('\n');
+    }
+
+    // Strategy 2: Collect all <code> elements (Parsons sortable blocks)
+    if (!code) {
+        const codeEls = document.querySelectorAll('.challenge-container code, [class*="sortable"] code, code.whitespace-pre');
+        if (codeEls.length > 0) {
+            const lines = Array.from(codeEls)
+                .map(el => el.textContent?.trim())
+                .filter(Boolean);
+            if (lines.length > 0) code = lines.join('\n');
+        }
+    }
+
+    // Strategy 3: Single large <pre> block (BigO, TDD, Faded examples)
+    if (!code) {
+        const preBlock = document.querySelector('pre code') || document.querySelector('pre');
+        if (preBlock?.textContent?.trim()) {
+            const text = preBlock.textContent.trim();
+            if (text.length > 5) code = text; // Avoid grabbing tiny UI fragments
+        }
+    }
+
+    // Strategy 4: Monaco editor content
+    if (!code) {
+        const monacoEl = document.querySelector('.monaco-editor .view-lines');
+        if (monacoEl?.textContent?.trim()) code = monacoEl.textContent.trim();
+    }
+
+    // Grab user answer from textareas / contenteditable (broadened selectors)
+    const textareaEl = document.querySelector<HTMLTextAreaElement>(
+        'textarea, [contenteditable="true"]',
+    );
+    const userAnswer = textareaEl?.value?.trim() || textareaEl?.textContent?.trim() || undefined;
+
+    // Get visible title/description
+    const ui = getVisibleDojoContext();
+    const challengeState = ui.description || ui.title || undefined;
+
+    return { challengeType, topic, language, code, userAnswer, score, challengeState };
+}
+
 function getDefaultTopicForChallenge(challenge: ChallengeType): string {
     return DOJO_DEFAULT_TOPIC_LABEL[challenge];
 }
@@ -153,6 +232,24 @@ function DojoPage() {
     const challengeStartedAtRef = useRef<number | null>(null);
     const hintTextRef = useRef<HTMLSpanElement | null>(null);
     const generateButtonRef = useRef<HTMLButtonElement | null>(null);
+
+    // ── Debate system ────────────────────────────────────────────────────
+    // Use state so context is re-extracted on demand (when panel opens)
+    const [debateContext, setDebateContext] = useState<DebateContext>(() => ({
+        challengeType: 'parsons', topic: 'general', language: selectedLanguage,
+    }));
+
+    const refreshDebateContext = useCallback(() => {
+        const type = activeChallenge || completionContext?.challenge || 'parsons';
+        const top = activeTopic || completionContext?.topic || 'general';
+        const lang = selectedLanguage;
+        const sc = completionContext?.score;
+        const ctx = extractDebateContext(type, top, lang, sc);
+        setDebateContext(ctx);
+        return ctx;
+    }, [activeChallenge, activeTopic, selectedLanguage, completionContext]);
+
+    const debate = useSocraticDebate(debateContext);
 
     const [stats, setStats] = useState<DojoStats>(() => {
         const saved = localStorage.getItem('dojo-stats');
@@ -317,6 +414,7 @@ function DojoPage() {
             tdd: ['Debugging', 'Code Reading'],
             bigo: ['Big-O Analysis', 'Algorithms'],
             'rubber-duck': ['Debugging', 'Code Reading'],
+            council: ['System Design', 'Architecture'],
         };
 
         recordChallenge({
@@ -525,6 +623,17 @@ function DojoPage() {
                     />
                 );
                 break;
+            case 'council':
+                challengeView = (
+                    <CouncilChallenge
+                        topic={activeTopic}
+                        language={selectedLanguage}
+                        onComplete={handleChallengeComplete}
+                        onBack={handleBack}
+                        useAI={useAI}
+                    />
+                );
+                break;
             default:
                 challengeView = (
                     <div className="min-h-screen bg-[color:var(--color-bg-primary)] flex items-center justify-center">
@@ -602,14 +711,45 @@ function DojoPage() {
                         />
                     </svg>
                 )}
-                <button
-                    ref={generateButtonRef}
-                    onClick={handleGenerateFromActiveChallenge}
-                    disabled={isGeneratingCards}
-                    className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium shadow-lg hover:bg-primary-600 disabled:opacity-60"
-                >
-                    {isGeneratingCards ? 'Generating Cards...' : 'Generate Flashcards'}
-                </button>
+                {/* Debate panel */}
+                <SocraticDebatePanel
+                    isOpen={debate.isOpen}
+                    messages={debate.messages}
+                    phase={debate.phase}
+                    debateMode={debate.debateMode}
+                    context={debateContext}
+                    isLoading={debate.isLoading}
+                    error={debate.error}
+                    onSendMessage={debate.sendMessage}
+                    onClose={debate.closeDebate}
+                    onReset={debate.resetDebate}
+                />
+                {/* Left Center: Socratic Debate Button */}
+                <div className="fixed top-1/2 left-4 md:left-8 -translate-y-1/2 z-40">
+                    <DebateTerminalButton
+                        onClick={() => {
+                            if (debate.isOpen) {
+                                debate.closeDebate();
+                            } else {
+                                refreshDebateContext();
+                                debate.openDebate('challenge');
+                            }
+                        }}
+                        isActive={debate.isOpen}
+                    />
+                </div>
+
+                {/* Bottom Right: Generate Flashcards Button */}
+                <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+                    <button
+                        ref={generateButtonRef}
+                        onClick={handleGenerateFromActiveChallenge}
+                        disabled={isGeneratingCards}
+                        className="px-4 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-medium shadow-lg hover:bg-primary-600 disabled:opacity-60"
+                    >
+                        {isGeneratingCards ? 'Generating Cards...' : 'Generate Flashcards'}
+                    </button>
+                </div>
                 {saveSummary && (
                     <div className="fixed bottom-20 right-6 z-50 max-w-sm rounded-lg border border-success/40 bg-[color:var(--color-bg-elevated)] px-4 py-3 shadow-lg">
                         <p className="text-sm font-semibold text-success mb-1">Flashcards saved</p>
@@ -645,6 +785,17 @@ function DojoPage() {
 
                     <div className="flex flex-wrap gap-3 justify-center">
                         <button
+                            onClick={() => debate.openDebate('review')}
+                            disabled={debate.isLoading}
+                            className="px-5 py-2.5 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-60 flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 10L12 5 2 10l10 5 10-5z" />
+                                <path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5" />
+                            </svg>
+                            Review My Answer
+                        </button>
+                        <button
                             onClick={handleGenerateFromCompletion}
                             disabled={isGeneratingCards}
                             className="px-5 py-2.5 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60"
@@ -658,6 +809,19 @@ function DojoPage() {
                             Back to Dojo
                         </button>
                     </div>
+                    {/* Debate panel for completion review */}
+                    <SocraticDebatePanel
+                        isOpen={debate.isOpen}
+                        messages={debate.messages}
+                        phase={debate.phase}
+                        debateMode={debate.debateMode}
+                        context={debateContext}
+                        isLoading={debate.isLoading}
+                        error={debate.error}
+                        onSendMessage={debate.sendMessage}
+                        onClose={debate.closeDebate}
+                        onReset={debate.resetDebate}
+                    />
                     {!settings.autoCreateFromDojo && (
                         <p className="mt-3 text-xs text-[color:var(--color-text-muted)]">
                             Tip: enable auto-create in SRS settings if you want this prompt to appear automatically in more places.
