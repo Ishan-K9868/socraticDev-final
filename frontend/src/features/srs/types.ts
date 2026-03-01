@@ -97,7 +97,7 @@ export interface CardGenerationRequest {
 
 export interface CardGenerationResult {
     cards: GeneratedCardCandidate[];
-    engine: 'gemini' | 'fallback';
+    engine: 'gemini' | 'bedrock' | 'fallback';
     fallbackReason?: string;
 }
 

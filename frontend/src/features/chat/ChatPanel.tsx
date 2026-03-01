@@ -18,7 +18,7 @@ function ChatPanel() {
     const [isGeneratingCards, setIsGeneratingCards] = useState(false);
     const [generationModalOpen, setGenerationModalOpen] = useState(false);
     const [generatedCards, setGeneratedCards] = useState<GeneratedCardCandidate[]>([]);
-    const [generationEngine, setGenerationEngine] = useState<'gemini' | 'fallback'>('fallback');
+    const [generationEngine, setGenerationEngine] = useState<'gemini' | 'bedrock' | 'fallback'>('fallback');
     const [generationReason, setGenerationReason] = useState<string | undefined>(undefined);
     const [generationSeedMessage, setGenerationSeedMessage] = useState<Message | null>(null);
     const [generatingMessageId, setGeneratingMessageId] = useState<string | null>(null);

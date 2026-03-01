@@ -222,7 +222,7 @@ function DojoPage() {
     });
     const [isGeneratingCards, setIsGeneratingCards] = useState(false);
     const [generatedCards, setGeneratedCards] = useState<GeneratedCardCandidate[]>([]);
-    const [generationEngine, setGenerationEngine] = useState<'gemini' | 'fallback'>('fallback');
+    const [generationEngine, setGenerationEngine] = useState<'gemini' | 'bedrock' | 'fallback'>('fallback');
     const [generationReason, setGenerationReason] = useState<string | undefined>(undefined);
     const [generationModalOpen, setGenerationModalOpen] = useState(false);
     const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);

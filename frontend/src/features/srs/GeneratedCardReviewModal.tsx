@@ -4,7 +4,7 @@ import { GeneratedCardCandidate } from './types';
 interface GeneratedCardReviewModalProps {
     open: boolean;
     cards: GeneratedCardCandidate[];
-    engine: 'gemini' | 'fallback';
+    engine: 'gemini' | 'bedrock' | 'fallback';
     fallbackReason?: string;
     loading?: boolean;
     title?: string;

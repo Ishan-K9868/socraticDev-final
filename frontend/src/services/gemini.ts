@@ -1,5 +1,6 @@
 import { Mode } from '../store/useStore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { BedrockRuntimeClient, ConverseCommand, Message as BedrockMessage } from '@aws-sdk/client-bedrock-runtime';
 import {
     CardGenerationRequest,
     CardGenerationResult,
@@ -7,12 +8,38 @@ import {
 } from '../features/srs/types';
 import { generateFallbackFlashcards } from '../features/srs/aiCardFallback';
 
+// Config
+const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || 'gemini';
+
 // Gemini API configuration
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
 
-// Initialize the Gemini client
+// AWS Bedrock configuration
+const AWS_REGION = import.meta.env.VITE_AWS_REGION || '';
+const AWS_ACCESS_KEY_ID = import.meta.env.VITE_AWS_ACCESS_KEY_ID || '';
+const AWS_SECRET_ACCESS_KEY = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || '';
+const BEDROCK_MODEL = import.meta.env.VITE_BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
+
+// Initialize clients
 let genAI: GoogleGenerativeAI | null = null;
+let bedrockClient: BedrockRuntimeClient | null = null;
+
+function getBedrockClient(): BedrockRuntimeClient {
+    if (!bedrockClient && AWS_REGION && AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY) {
+        bedrockClient = new BedrockRuntimeClient({
+            region: AWS_REGION,
+            credentials: {
+                accessKeyId: AWS_ACCESS_KEY_ID,
+                secretAccessKey: AWS_SECRET_ACCESS_KEY,
+            }
+        });
+    }
+    if (!bedrockClient) {
+        throw new Error('AWS Bedrock credentials not fully configured');
+    }
+    return bedrockClient;
+}
 
 function getGenAI(): GoogleGenerativeAI {
     if (!genAI && GEMINI_API_KEY) {
@@ -222,12 +249,6 @@ export async function sendMessageToGemini(
     projectContext?: string,
     extraContext?: string,
 ): Promise<string> {
-    if (!GEMINI_API_KEY) {
-        throw new Error(
-            'Gemini API key not found. Please add VITE_GEMINI_API_KEY to your .env.local file.'
-        );
-    }
-
     // Build the system instruction
     let systemPrompt = SYSTEM_PROMPTS[mode];
 
@@ -238,6 +259,42 @@ export async function sendMessageToGemini(
 
     if (extraContext) {
         systemPrompt += `\n\n## User-selected Code Context:\n${extraContext}\n\nPrioritize this selected context when answering.`;
+    }
+
+    if (AI_PROVIDER === 'bedrock') {
+        const client = getBedrockClient();
+        
+        const bedrockMessages: BedrockMessage[] = messages.map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: [{ text: msg.content }]
+        }));
+
+        try {
+            const command = new ConverseCommand({
+                modelId: BEDROCK_MODEL,
+                messages: bedrockMessages,
+                system: [{ text: systemPrompt }],
+                inferenceConfig: {
+                    maxTokens: 4096,
+                    temperature: mode === 'learning' ? 0.8 : 0.7,
+                    topP: 0.95,
+                }
+            });
+            const response = await client.send(command);
+            if (response.output?.message?.content?.[0]?.text) {
+                return response.output.message.content[0].text;
+            }
+            throw new Error("Invalid response from Bedrock");
+        } catch (error) {
+            console.error('Bedrock API Error:', error);
+            throw error;
+        }
+    }
+
+    if (!GEMINI_API_KEY) {
+        throw new Error(
+            'Gemini API key not found. Please add VITE_GEMINI_API_KEY to your .env.local file.'
+        );
     }
 
     try {
@@ -306,6 +363,35 @@ Source content:
 ${request.content}
 `.trim();
 
+    if (AI_PROVIDER === 'bedrock') {
+        const client = getBedrockClient();
+        try {
+            const command = new ConverseCommand({
+                modelId: BEDROCK_MODEL,
+                messages: [{ role: 'user', content: [{ text: generationPrompt }] }],
+                inferenceConfig: {
+                    maxTokens: 2048,
+                    temperature: 0.4,
+                    topP: 0.9,
+                }
+            });
+            const response = await client.send(command);
+            const text = response.output?.message?.content?.[0]?.text || '';
+            const parsed = extractJsonPayload(text);
+            const cards = ensureCardTags(normalizeGeneratedCards(parsed, count), request);
+            if (!cards.length) {
+                return generateFallbackFlashcards({ ...request, count });
+            }
+            return {
+                cards,
+                engine: 'bedrock',
+            };
+        } catch (error) {
+            console.error('Bedrock flashcard generation error:', error);
+            return generateFallbackFlashcards({ ...request, count });
+        }
+    }
+
     try {
         const ai = getGenAI();
         const model = ai.getGenerativeModel({
@@ -340,10 +426,16 @@ ${request.content}
 
 // Check if API key is configured
 export function isGeminiConfigured(): boolean {
+    if (AI_PROVIDER === 'bedrock') {
+        return Boolean(AWS_REGION && AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
+    }
     return Boolean(GEMINI_API_KEY);
 }
 
 // Get current model name
 export function getModelName(): string {
+    if (AI_PROVIDER === 'bedrock') {
+        return BEDROCK_MODEL;
+    }
     return GEMINI_MODEL;
 }
