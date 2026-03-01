@@ -263,7 +263,7 @@ export async function sendMessageToGemini(
 
     if (AI_PROVIDER === 'bedrock') {
         const client = getBedrockClient();
-        
+
         const bedrockMessages: BedrockMessage[] = messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'assistant',
             content: [{ text: msg.content }]
@@ -277,7 +277,6 @@ export async function sendMessageToGemini(
                 inferenceConfig: {
                     maxTokens: 4096,
                     temperature: mode === 'learning' ? 0.8 : 0.7,
-                    topP: 0.95,
                 }
             });
             const response = await client.send(command);
@@ -372,7 +371,6 @@ ${request.content}
                 inferenceConfig: {
                     maxTokens: 2048,
                     temperature: 0.4,
-                    topP: 0.9,
                 }
             });
             const response = await client.send(command);
