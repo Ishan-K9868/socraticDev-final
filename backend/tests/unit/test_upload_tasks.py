@@ -1,9 +1,13 @@
 """Unit tests for upload task helper functions."""
 
 import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.models.base import CodeEntity, CodeRelationship, EntityType, Language, RelationshipType
 from src.services.code_parser import CodeParserService
+from src.tasks import upload_tasks
 from src.tasks.upload_tasks import _build_file_entities, _enrich_relationships_for_visualization
 
 
@@ -73,3 +77,89 @@ def test_enrich_relationships_resolves_ts_alias_import_to_project_file():
         and rel.target_id == file_by_path["src/utils/helper.ts"].id
         for rel in enriched
     )
+
+
+def _setup_upload_task_mocks(monkeypatch, create_project_side_effect=None):
+    upload_service = MagicMock()
+    upload_service.update_session_status = MagicMock()
+    monkeypatch.setattr(upload_tasks, "get_upload_service", lambda: upload_service)
+
+    parser_instance = MagicMock()
+    parser_instance.parse_file.return_value = SimpleNamespace(entities=[], relationships=[], errors=[])
+    parser_instance.language_detector.detect_language.return_value = None
+    monkeypatch.setattr(upload_tasks, "CodeParserService", lambda: parser_instance)
+
+    graph_service = MagicMock()
+    graph_service.create_project = AsyncMock(side_effect=create_project_side_effect)
+    graph_service.create_entities = AsyncMock()
+    graph_service.create_relationships = AsyncMock()
+    monkeypatch.setattr(upload_tasks, "GraphService", lambda manager: graph_service)
+
+    vector_service = MagicMock()
+    vector_service.store_embedding = MagicMock()
+    monkeypatch.setattr(upload_tasks, "VectorService", lambda: vector_service)
+
+    gemini_client = MagicMock()
+    gemini_client.generate_code_embedding = AsyncMock(return_value=[0.1])
+    monkeypatch.setattr(upload_tasks, "GeminiClient", lambda: gemini_client)
+
+    manager_instance = MagicMock()
+    manager_instance.close = AsyncMock()
+    manager_ctor = MagicMock(return_value=manager_instance)
+    monkeypatch.setattr("src.services.neo4j_manager.Neo4jConnectionManager", manager_ctor)
+
+    forbidden_getter = MagicMock(side_effect=AssertionError("get_neo4j_manager should not be used"))
+    monkeypatch.setattr("src.services.neo4j_manager.get_neo4j_manager", forbidden_getter)
+
+    return {
+        "upload_service": upload_service,
+        "graph_service": graph_service,
+        "manager_instance": manager_instance,
+        "manager_ctor": manager_ctor,
+    }
+
+
+@pytest.mark.asyncio
+async def test_upload_task_uses_fresh_neo4j_manager(monkeypatch):
+    mocks = _setup_upload_task_mocks(monkeypatch)
+
+    await upload_tasks._process_project_upload_async(
+        session_id="session_1",
+        project_id="proj_1",
+        project_name="Demo",
+        files=[("src/main.py", "print('ok')")],
+        user_id="user_1",
+    )
+
+    mocks["manager_ctor"].assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_upload_task_closes_neo4j_manager_on_success(monkeypatch):
+    mocks = _setup_upload_task_mocks(monkeypatch)
+
+    await upload_tasks._process_project_upload_async(
+        session_id="session_1",
+        project_id="proj_1",
+        project_name="Demo",
+        files=[("src/main.py", "print('ok')")],
+        user_id="user_1",
+    )
+
+    mocks["manager_instance"].close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_upload_task_closes_neo4j_manager_on_exception(monkeypatch):
+    mocks = _setup_upload_task_mocks(monkeypatch, create_project_side_effect=RuntimeError("boom"))
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await upload_tasks._process_project_upload_async(
+            session_id="session_1",
+            project_id="proj_1",
+            project_name="Demo",
+            files=[("src/main.py", "print('ok')")],
+            user_id="user_1",
+        )
+
+    mocks["manager_instance"].close.assert_awaited_once()

@@ -286,6 +286,7 @@ async def _process_project_upload_async(
 ):
     """Async implementation of project upload processing."""
     upload_service = get_upload_service()
+    neo4j_manager = None
     
     try:
         # Update session status to processing
@@ -336,8 +337,8 @@ async def _process_project_upload_async(
         )
         
         # Step 2: Store entities and relationships in Neo4j (40% of progress)
-        from ..services.neo4j_manager import get_neo4j_manager
-        neo4j_manager = get_neo4j_manager()
+        from ..services.neo4j_manager import Neo4jConnectionManager
+        neo4j_manager = Neo4jConnectionManager()
         graph_service = GraphService(neo4j_manager)
         
         # Create project
@@ -447,3 +448,9 @@ async def _process_project_upload_async(
         )
         
         raise
+    finally:
+        if neo4j_manager is not None:
+            try:
+                await neo4j_manager.close()
+            except Exception as e:
+                logger.warning(f"Failed to close Neo4j manager for {project_id}: {e}")
