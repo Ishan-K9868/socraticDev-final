@@ -432,8 +432,5 @@ export function isGeminiConfigured(): boolean {
 
 // Get current model name
 export function getModelName(): string {
-    if (AI_PROVIDER === 'bedrock') {
-        return BEDROCK_MODEL;
-    }
-    return GEMINI_MODEL;
+    return 'amazon-nova-lite';
 }
