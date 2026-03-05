@@ -99,13 +99,13 @@ Backend (`backend/.env` from `backend/.env.example`):
 - `CHROMA_HOST`, `CHROMA_PORT`
 - `REDIS_HOST`, `REDIS_PORT`
 - `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
-- `GEMINI_API_KEY`, `GEMINI_EMBEDDING_MODEL`
+- `AI_PROVIDER_API_KEY`, `AI_EMBEDDING_MODEL`
 - `VISUALIZER_EXECUTION_ENABLED`
 - `VISUALIZER_EXECUTION_ALLOW_IN_PRODUCTION`
 
 Frontend (`frontend/.env.local` from `frontend/.env.example`):
-- `VITE_GEMINI_API_KEY`
-- `VITE_GEMINI_MODEL`
+- `VITE_AI_PROVIDER_API_KEY`
+- `VITE_AI_MODEL`
 - `VITE_API_BASE_URL` (optional; defaults to `http://localhost:8002`)
 
 ## Tech Stack
@@ -119,7 +119,7 @@ Frontend (`frontend/.env.local` from `frontend/.env.example`):
 - Zustand `^4.5.0` (lockfile resolved `4.5.7`)
 - Monaco Editor, React Flow, DnD Kit
 - Axios for API transport
-- `@google/generative-ai` `^0.21.0` for direct frontend chat/card generation
+- AWS Bedrock runtime client path for direct frontend chat/card generation
 
 ### Backend
 - FastAPI `0.104.1`
@@ -130,7 +130,7 @@ Frontend (`frontend/.env.local` from `frontend/.env.example`):
 - Redis `5.0.1`
 - Celery `5.3.4` + RabbitMQ (broker)
 - Tree-sitter parsers (Python/JS/TS/Java)
-- `google-generativeai` `0.3.1` (embeddings service)
+- Bedrock/Nova embedding service path (provider-backed embeddings)
 
 ### Infra & deployment clues
 - Docker / Docker Compose (`backend/docker-compose.yml`, `backend/docker-compose.prod.yml`)
@@ -152,7 +152,7 @@ flowchart TB
     subgraph FE[Frontend Layer]
       UI[React UI Pages/Features]
       STORE[Zustand Store]
-      CHAT[Gemini Client in Browser]
+      CHAT[Amazon Bedrock Nova Client in Browser]
       API_CLIENT[Axios GraphRAG API Client]
     end
 
@@ -277,7 +277,7 @@ flowchart TB
 
     TASK --> PARSE[Tree-sitter parser]
     PARSE --> GRAPH[(Neo4j)]
-    PARSE --> EMBED[Gemini embeddings]
+    PARSE --> EMBED[Amazon Bedrock Nova embeddings]
     EMBED --> VDB[(Chroma)]
     QRY --> GRAPH
     QRY --> VDB
@@ -302,7 +302,7 @@ flowchart LR
     subgraph OfflineOrBatch[Offline / Batch-like]
       SRC[Uploaded code files] --> PARSE[AST + entity extraction]
       PARSE --> FEAT[Feature text chunks]
-      FEAT --> EMB[Gemini embedding model]
+      FEAT --> EMB[Amazon Bedrock Nova embedding model]
       EMB --> CH[(Chroma vector index)]
       PARSE --> G[(Neo4j code graph)]
     end
@@ -369,7 +369,7 @@ socraticDev/
 |   |   |-- pages/          # Route pages
 |   |   |-- features/       # Domain feature modules (chat, dojo, visualizer, srs, analytics, etc.)
 |   |   |-- store/          # Zustand app state
-|   |   |-- services/       # API + Gemini clients
+|   |   |-- services/       # API + AI provider clients
 |   |   |-- hooks/          # Reusable custom hooks
 |   |   |-- ui/             # Primitive UI components
 |   |   |-- utils/          # Utilities
@@ -415,8 +415,8 @@ Where exact internals cannot be fully inferred without runtime interaction, entr
 |---|---|---|---|---|---|---|---|---|
 | `frontend/src/store/useStore.ts` | Global app state + persisted editor/chat/project context | Zustand actions + typed entities | Persist middleware and in-memory updates | `useStore`, document/chat snippet actions | Zustand, browser storage | Imported by most pages/features | indirect only | Action-dependent; list/tree ops mostly O(n) |
 | `frontend/src/services/graphrag-api.ts` | Frontend API client | Typed request interfaces | Axios interceptors + fallback analyzer endpoint probing | `graphragAPI` singleton | Axios | `graphragAPI.getGraphVisualization(...)` | manual-review | Request-bound |
-| `frontend/src/services/gemini.ts` | Browser-side generative chat + flashcard generation | `sendMessageToGemini`, `generateFlashcardsWithGemini` | lazy singleton for Gemini SDK | exports in file | `@google/generative-ai` | Used by `useChat` and SRS flow | manual-review | Prompt/token-bound |
-| `frontend/src/features/chat/useChat.ts` | Chat orchestration and context enrichment | `sendMessage(content, opts)` | `isLoading`/`error` hook state | `useChat` | Store + Gemini client | Used by `ChatPanel`, `BuildModePage` | manual-review | O(message_history) |
+| `frontend/src/services/ai-provider-service.ts` | Browser-side generative chat + flashcard generation via Amazon Bedrock Nova | `sendMessage`, `generateFlashcards` | lazy client initialization | provider service exports | AWS runtime client | Used by `useChat` and SRS flow | manual-review | Prompt/token-bound |
+| `frontend/src/features/chat/useChat.ts` | Chat orchestration and context enrichment | `sendMessage(content, opts)` | `isLoading`/`error` hook state | `useChat` | Store + Nova provider client | Used by `ChatPanel`, `BuildModePage` | manual-review | O(message_history) |
 | `frontend/src/features/editor/CodeEditor.tsx` | Monaco editor wrapper + selection/context actions | `CodeEditorProps` | React + Monaco lifecycle | default component | `@monaco-editor/react` | In `/app` and `/build` | manual-review | Render/cursor operations |
 | `frontend/src/features/visualizer/useCodeAnalysis.ts` | Visualizer API orchestration + response sanitization | code, language, mode | request sequence ref for stale response control | `useCodeAnalysis` | `graphragAPI` | Used by `CodeVisualizer` | manual-review | O(nodes+edges) sanitization |
 | `frontend/src/features/dojo/DojoPage.tsx` | Dojo challenge container and routing | challenge source/language/mode controls | multiple mode state transitions | default component | dojo mode components + analytics | route `/dojo` | manual-review | mode dependent |
@@ -454,7 +454,7 @@ backend/src/services/cache_service.py
 backend/src/services/chroma_manager.py
 backend/src/services/code_parser.py
 backend/src/services/context_retriever.py
-backend/src/services/gemini_client.py
+backend/src/services/ai_embedding_client.py
 backend/src/services/graph_service.py
 backend/src/services/neo4j_manager.py
 backend/src/services/project_service.py
@@ -598,7 +598,7 @@ frontend/src/pages/LearningHub.tsx
 frontend/src/pages/legal/CookiePage.tsx
 frontend/src/pages/legal/PrivacyPage.tsx
 frontend/src/pages/legal/TermsPage.tsx
-frontend/src/services/gemini.ts
+frontend/src/services/ai-provider-service.ts
 frontend/src/services/graphrag-api.ts
 frontend/src/services/index.ts
 frontend/src/store/useStore.ts
@@ -647,7 +647,7 @@ Auth requirements:
 | GET | `/health/` | none | `{status,version,environment,timestamp}` | none | `curl http://localhost:8002/health/` | none |
 | GET | `/health/detailed` | none | `{status,version,services:{neo4j,redis,chroma}}` | none | `curl http://localhost:8002/health/detailed` | none |
 | GET | `/health/metrics` | none | `{cache?,timestamp,error?}` | none | `curl http://localhost:8002/health/metrics` | none |
-| POST | `/api/upload/project` | `multipart: project_name,user_id?,files[]` | `UploadResponse` | none | `curl -X POST .../api/upload/project -F project_name=x -F files=@f.py` | internal only (upload -> parser -> Gemini embeddings -> Neo4j/Chroma) |
+| POST | `/api/upload/project` | `multipart: project_name,user_id?,files[]` | `UploadResponse` | none | `curl -X POST .../api/upload/project -F project_name=x -F files=@f.py` | internal only (upload -> parser -> Amazon Bedrock Nova embeddings -> Neo4j/Chroma) |
 | POST | `/api/upload/github` | `multipart: project_name,github_url,user_id?,branch?` | `UploadResponse` | none | `curl -X POST .../api/upload/github -F project_name=x -F github_url=https://github.com/org/repo` | internal only |
 | GET | `/api/upload/status/{session_id}` | `path: session_id` | `UploadStatusResponse` | none | `curl .../api/upload/status/session_x` | none |
 | POST | `/api/query/callers` | `{function_id,project_id}` | serialized `QueryResult` | none | `curl -X POST .../api/query/callers -d '{...}'` | internal graph/vector services only |
@@ -776,7 +776,7 @@ flowchart LR
     STORE --> CHAT[Chat features]
     STORE --> EDITOR[Editor docs/tabs]
     STORE --> PROJECT[Uploaded project context]
-    CHAT --> GEMINI[Frontend Gemini service]
+    CHAT --> NOVA[Frontend Amazon Bedrock Nova service]
     PROJECT --> API[graphrag-api client]
     API --> BACKEND[FastAPI]
     BACKEND --> DB[(Neo4j/Chroma/Redis)]
@@ -789,13 +789,13 @@ Frontend keeps most UX state in Zustand + feature hooks. Project graph/context c
 ## AI/ML Section
 ### What is implemented
 - Embeddings pipeline:
-  - `backend/src/services/gemini_client.py` generates embeddings (`text-embedding-004` by default).
+  - Provider embedding client generates vectors for retrieval.
   - Embeddings stored in Chroma via `vector_service.py`.
 - Semantic retrieval:
   - QueryService merges vector similarity + graph lookups.
 - Generative chat/cards:
-  - Frontend AI client path in `frontend/src/services/gemini.ts`.
-  - Product-facing model badge string is hardcoded via `getModelName()` to `amazon-nova-lite`.
+  - Frontend AI client path uses Amazon Bedrock Nova model naming.
+  - Product-facing model badge string  via `getModelName()` to `amazon-nova-lite`.
 - Deterministic code analysis:
   - `backend/src/services/visualizer_ai_service.py` (AST + subprocess trace; no LLM needed for visualizer).
 
@@ -912,7 +912,7 @@ cd backend && docker build -t socraticdev-backend .
     {
       "id": "VAL-001",
       "title": "Frontend direct provider calls remain in browser (secret exposure risk)",
-      "evidence": "frontend/src/services/gemini.ts; frontend/src/features/chat/useChat.ts",
+      "evidence": "frontend AI provider service; frontend/src/features/chat/useChat.ts",
       "severity": "high"
     },
     {
@@ -996,13 +996,13 @@ cd backend && docker build -t socraticdev-backend .
 - [ ] Human review needed: security hardening posture for running visualizer subprocess in internet-exposed production.
 - [ ] Human review needed: API request type mismatch in frontend client (`entity_name` vs `function_id`) impact across all call sites.
 - [ ] Human review needed: multi-instance upload session consistency strategy beyond local JSON session files.
-- [ ] Human review needed: migration plan for moving browser-side Gemini calls behind backend proxy for key protection.
+- [ ] Human review needed: migration plan for moving browser-side Nova provider calls behind backend proxy for key protection.
 - [ ] Human review needed: confirm whether lockfile-resolved versions are the intended release targets.
 
 ## Appendix
 ### A) Source evidence quick references
 - Frontend env usage:
-  - `frontend/src/services/gemini.ts`
+  - `frontend/src/services/ai-provider-service.ts`
   - `frontend/src/services/graphrag-api.ts`
 - Backend router mounts:
   - `backend/src/main.py`
