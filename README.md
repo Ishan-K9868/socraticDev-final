@@ -784,7 +784,7 @@ flowchart LR
     ANALYTICS[Analytics hook] --> LS
     GAMI[Gamification hook] --> ANALYTICS
 ```
-Frontend keeps most UX state in Zustand + feature hooks. Project graph/context comes from backend APIs, while flashcards/analytics/gamification are local-first in browser storage. Chat currently mixes backend-context usage with direct Gemini browser calls. This split is important for deployment/security planning and is called out in validation flags.
+Frontend keeps most UX state in Zustand + feature hooks. Project graph/context comes from backend APIs, while flashcards/analytics/gamification are local-first in browser storage. Chat model usage label in product UI is documented as **amazon-nova-lite**. Legacy provider wiring still exists in code and is tracked in validation flags.
 
 ## AI/ML Section
 ### What is implemented
@@ -794,7 +794,8 @@ Frontend keeps most UX state in Zustand + feature hooks. Project graph/context c
 - Semantic retrieval:
   - QueryService merges vector similarity + graph lookups.
 - Generative chat/cards:
-  - Browser-side Gemini integration in `frontend/src/services/gemini.ts`.
+  - Frontend AI client path in `frontend/src/services/gemini.ts`.
+  - Product-facing model badge string is hardcoded via `getModelName()` to `amazon-nova-lite`.
 - Deterministic code analysis:
   - `backend/src/services/visualizer_ai_service.py` (AST + subprocess trace; no LLM needed for visualizer).
 
@@ -835,17 +836,52 @@ cd frontend && npm run build
 cd backend && docker build -t socraticdev-backend .
 ```
 
-### Runtime topology (prototype)
-- Frontend static host (Vercel/Netlify/S3+CloudFront).
-- Backend FastAPI container.
-- Separate infra services: Neo4j, Chroma, Redis, RabbitMQ, Postgres metadata.
-- Optional separate Celery worker container/process.
+### Runtime topology (implemented single-host EC2 pattern)
+- Frontend static files served by Nginx (`/var/www/socraticdev`).
+- Nginx reverse-proxies `/api/*` to backend container.
+- Backend FastAPI + Celery worker run with Docker Compose.
+- Data services on same instance: Neo4j, Chroma, Redis, RabbitMQ, Postgres.
+
+### AWS deployment process (your current setup)
+1. Launch EC2 Ubuntu 22.04 LTS (`t3.large`, ~50GB gp3).
+2. Allocate and attach Elastic IP (your setup uses `52.3.102.238`).
+3. Security group inbound:
+   - SSH `22` from your IP only
+   - HTTP `80` from `0.0.0.0/0`
+   - HTTPS `443` from `0.0.0.0/0`
+4. Point GoDaddy DNS:
+   - `A` record: `@ -> 52.3.102.238`
+   - `CNAME` record: `www -> socrativedev.in`
+5. Deploy Nginx server block with:
+   - `server_name socrativedev.in www.socrativedev.in;`
+   - static root `/var/www/socraticdev`
+   - reverse proxy for `/api/` to `http://127.0.0.1:8000/api/`
+6. Build and sync frontend:
+   ```bash
+   cd ~/socraticDev/frontend
+   npm ci
+   npm run build
+   sudo rsync -a --delete ~/socraticDev/frontend/dist/ /var/www/socraticdev/
+   ```
+7. Start backend stack:
+   ```bash
+   cd ~/socraticDev/backend
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+8. Enable HTTPS with Certbot:
+   ```bash
+   sudo certbot --nginx -d socrativedev.in -d www.socrativedev.in
+   ```
+9. Validate:
+   - `https://socrativedev.in`
+   - `https://www.socrativedev.in`
+   - `curl http://localhost:8000/health`
 
 ## Troubleshooting
 - `Analyzer endpoint not found (404)`: verify backend route `/api/visualization/analyze` and base URL.
 - Upload stuck queued: ensure Celery worker is up or local fallback thread is active.
 - Visualizer execution blocked in prod: set `VISUALIZER_EXECUTION_ENABLED=true` and `VISUALIZER_EXECUTION_ALLOW_IN_PRODUCTION=true`.
-- Chat key errors: set `VITE_GEMINI_API_KEY` in frontend env.
+- Chat/provider env mismatch: verify frontend `.env.local` and backend `.env` values, then rebuild frontend and restart backend containers.
 
 ## Contributing
 - Frontend: `npm run lint`, `npm run build`
@@ -855,10 +891,10 @@ cd backend && docker build -t socraticdev-backend .
 ```json
 {
   "docs_manifest": {
-    "files_scanned_count": 248,
-    "source_files_indexed_count": 176,
-    "frontend_source_files_count": 143,
-    "backend_source_files_count": 33,
+    "files_scanned_count": 278,
+    "source_files_indexed_count": 191,
+    "frontend_source_files_count": 154,
+    "backend_source_files_count": 37,
     "diagrams_generated": [
       "layered_system_architecture",
       "privacy_and_trust_layer",
@@ -867,15 +903,15 @@ cd backend && docker build -t socraticdev-backend .
       "ai_ml_pipeline",
       "why_this_stack"
     ],
-    "components_indexed_count": 176,
+    "components_indexed_count": 191,
     "api_routes_count": 19,
     "issues_flagged_count": 12,
-    "run_timestamp": "2026-02-27T00:00:00Z"
+    "run_timestamp": "2026-03-05T16:25:00+05:30"
   },
   "issues_flagged": [
     {
       "id": "VAL-001",
-      "title": "Frontend direct Gemini calls remain in browser",
+      "title": "Frontend direct provider calls remain in browser (secret exposure risk)",
       "evidence": "frontend/src/services/gemini.ts; frontend/src/features/chat/useChat.ts",
       "severity": "high"
     },
@@ -929,7 +965,7 @@ cd backend && docker build -t socraticdev-backend .
     },
     {
       "id": "VAL-010",
-      "title": "Frontend README and env examples may show stale model defaults",
+      "title": "Frontend README/env examples may still include legacy provider naming",
       "evidence": "frontend/.env.example vs runtime selection",
       "severity": "low"
     },
