@@ -22,7 +22,7 @@ This roadmap captures implementation-ready planning for focused improvements to 
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md - Define the landing dojo preview contracts, sample content, and reusable validation helpers.
+- [x] 01-01-PLAN.md - Define the landing dojo preview contracts, sample content, and reusable validation helpers.
 - [ ] 01-02-PLAN.md - Replace the current dojo rotator with clickable cards, shared preview UI, and `/dojo` handoff actions.
 
 ## Progress
@@ -32,4 +32,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. landing-page-dojo-interaction | 0/2 | Planned | - |
+| 1. landing-page-dojo-interaction | 1/2 | In Progress | - |
