@@ -10,8 +10,8 @@
 - [x] **LDP-01**: Visitors can switch between exactly five landing-page dojo previews using clickable selector cards.
 - [x] **LDP-02**: Each landing-page preview lets the visitor complete one compact real interaction with mode-specific validation.
 - [x] **LDP-03**: After submission, the landing-page preview shows an immediate correct/incorrect verdict plus a short explanation.
-- [ ] **LDP-04**: After finishing a preview, visitors can either retry, continue to another preview, or enter the full `/dojo` route.
-- [ ] **LDP-05**: The landing preview stays aligned with existing landing-page responsiveness, accessibility, and reduced-motion behavior.
+- [x] **LDP-04**: After finishing a preview, visitors can either retry, continue to another preview, or enter the full `/dojo` route.
+- [x] **LDP-05**: The landing preview stays aligned with existing landing-page responsiveness, accessibility, and reduced-motion behavior.
 
 ## v2 Requirements
 
@@ -35,8 +35,8 @@
 | LDP-01 | Phase 1 | Complete |
 | LDP-02 | Phase 1 | Complete |
 | LDP-03 | Phase 1 | Complete |
-| LDP-04 | Phase 1 | Pending |
-| LDP-05 | Phase 1 | Pending |
+| LDP-04 | Phase 1 | Complete |
+| LDP-05 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 5 total

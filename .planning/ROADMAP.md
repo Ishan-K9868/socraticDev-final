@@ -6,7 +6,7 @@ This roadmap captures implementation-ready planning for focused improvements to 
 
 ## Phases
 
-- [ ] **Phase 1: landing-page-dojo-interaction** - Turn the landing page dojo section into a real interactive preview that funnels visitors into the full dojo.
+- [x] **Phase 1: landing-page-dojo-interaction** - Turn the landing page dojo section into a real interactive preview that funnels visitors into the full dojo. (completed 2026-03-27)
 
 ## Phase Details
 
@@ -23,7 +23,7 @@ This roadmap captures implementation-ready planning for focused improvements to 
 
 Plans:
 - [x] 01-01-PLAN.md - Define the landing dojo preview contracts, sample content, and reusable validation helpers.
-- [ ] 01-02-PLAN.md - Replace the current dojo rotator with clickable cards, shared preview UI, and `/dojo` handoff actions.
+- [x] 01-02-PLAN.md - Replace the current dojo rotator with clickable cards, shared preview UI, and `/dojo` handoff actions.
 
 ## Progress
 
@@ -32,4 +32,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. landing-page-dojo-interaction | 1/2 | In Progress | - |
+| 1. landing-page-dojo-interaction | 2/2 | Complete   | 2026-03-27 |
