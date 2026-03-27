@@ -19,6 +19,14 @@ SocraticDev is an AI-powered coding learning platform that combines Socratic tea
 
 Current planning is for landing-page work that must preserve the existing premium landing direction while reusing established dojo challenge patterns rather than inventing a new subsystem.
 
+## Current State
+
+Phase 01 is complete. The landing-page dojo section now supports five interactive preview modes with inline verification, retry/next-preview actions, and a direct `/dojo` handoff while staying inside the existing landing-page design language.
+
+## Validated Requirements
+
+- LDP-01 through LDP-05 validated in Phase 01: landing-page-dojo-interaction.
+
 ---
 
-*Project snapshot prepared for phase planning on 2026-03-27.*
+*Project snapshot refreshed after Phase 01 completion on 2026-03-27.*
