@@ -5,23 +5,13 @@ import { useChallengeAI } from './useChallengeAI';
 import Button from '../../ui/Button';
 import { getRandomELI5Example } from './examples/eli5Examples';
 import ChallengeSourceBadge from './ChallengeSourceBadge';
-
-// Common programming jargon to detect
-const JARGON_WORDS = [
-    'algorithm', 'recursion', 'recursive', 'iterate', 'iteration', 'loop',
-    'function', 'method', 'parameter', 'argument', 'variable', 'constant',
-    'array', 'list', 'dictionary', 'hash', 'object', 'class', 'instance',
-    'pointer', 'reference', 'memory', 'heap', 'stack', 'allocation',
-    'async', 'asynchronous', 'synchronous', 'callback', 'promise', 'await',
-    'boolean', 'integer', 'float', 'string', 'type', 'interface',
-    'compile', 'runtime', 'syntax', 'semantic', 'lexical', 'scope',
-    'encapsulation', 'inheritance', 'polymorphism', 'abstraction',
-    'API', 'endpoint', 'request', 'response', 'protocol', 'HTTP',
-    'database', 'query', 'schema', 'table', 'index', 'key',
-    'binary', 'decimal', 'hexadecimal', 'bitwise', 'operator',
-    'exception', 'error', 'throw', 'catch', 'try', 'finally',
-    'thread', 'process', 'concurrent', 'parallel', 'mutex', 'lock'
-];
+import {
+    calculateELI5ReadabilityScore,
+    detectJargonWords,
+    evaluateELI5Explanation,
+    getELI5SimplicityLabel,
+    Eli5EvaluationResult,
+} from './eli5Evaluation';
 
 interface ELI5Props {
     topic?: string;
@@ -43,6 +33,8 @@ function ELI5Challenge({
     const [submitted, setSubmitted] = useState(false);
     const [aiResponse, setAiResponse] = useState<string | null>(null);
     const [score, setScore] = useState<number | null>(null);
+    const [isEvaluating, setIsEvaluating] = useState(false);
+    const [evaluation, setEvaluation] = useState<Eli5EvaluationResult | null>(null);
     const selectedLanguage = language;
 
     const { generateELI5Challenge, isGenerating, error } = useChallengeAI();
@@ -69,6 +61,8 @@ function ELI5Challenge({
         setSubmitted(false);
         setAiResponse(null);
         setScore(null);
+        setIsEvaluating(false);
+        setEvaluation(null);
     }, [selectedLanguage, useAI]);
 
     // Generate challenge on mount
@@ -82,6 +76,8 @@ function ELI5Challenge({
                     setSubmitted(false);
                     setAiResponse(null);
                     setScore(null);
+                    setIsEvaluating(false);
+                    setEvaluation(null);
                 } else {
                     loadHardcodedChallenge();
                 }
@@ -96,92 +92,37 @@ function ELI5Challenge({
     const detectedJargon = useMemo(() => {
         if (!challenge) return [];
 
-        const allJargon = [...JARGON_WORDS, ...challenge.forbiddenWords.map(w => w.toLowerCase())];
-
-        return allJargon.filter((jargon) => {
-            const escaped = jargon.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-            return regex.test(explanation);
-        });
+        return detectJargonWords(explanation, challenge.forbiddenWords);
     }, [explanation, challenge]);
 
     // Calculate readability score (simplified Flesch-Kincaid)
     const readabilityScore = useMemo(() => {
-        if (explanation.length < 10) return 0;
-
-        const sentences = explanation.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        const words = explanation.split(/\s+/).filter(w => w.length > 0);
-        const syllables = words.reduce((count, word) => {
-            // Simple syllable count estimation
-            const vowelGroups = word.toLowerCase().match(/[aeiouy]+/g) || [];
-            return count + Math.max(1, vowelGroups.length);
-        }, 0);
-
-        if (sentences.length === 0 || words.length === 0) return 0;
-
-        const avgWordsPerSentence = words.length / sentences.length;
-        const avgSyllablesPerWord = syllables / words.length;
-
-        // Flesch Reading Ease (inverted and normalized to 0-100)
-        const fleschScore = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
-
-        // Clamp and invert (higher = simpler)
-        return Math.min(100, Math.max(0, fleschScore));
+        return calculateELI5ReadabilityScore(explanation);
     }, [explanation]);
-
-    const getReadabilityLabel = (score: number) => {
-        if (score >= 80) return { label: 'Perfect for a 5-year-old! 👶', color: 'text-green-400' };
-        if (score >= 60) return { label: 'Simple enough! 😊', color: 'text-yellow-400' };
-        if (score >= 40) return { label: 'Getting complex... 🤔', color: 'text-orange-400' };
-        return { label: 'Too complicated! 😵', color: 'text-red-400' };
-    };
 
     const handleSubmit = useCallback(async () => {
         if (!challenge || explanation.trim().length < 20) return;
 
+        setIsEvaluating(true);
         setSubmitted(true);
+        const result = await evaluateELI5Explanation(challenge, explanation);
 
-        // Calculate score
-        const jargonPenalty = detectedJargon.length * 15;
-        const readabilityBonus = Math.floor(readabilityScore / 2);
-        const lengthBonus = Math.min(20, Math.floor(explanation.length / 50));
+        setEvaluation(result);
+        setScore(result.finalScore);
+        setAiResponse(result.feedback);
+        setIsEvaluating(false);
 
-        // Check if key points are covered (simple keyword matching)
-        const coveredPoints = challenge.keyPoints.filter(point =>
-            point.toLowerCase().split(' ').some(word =>
-                explanation.toLowerCase().includes(word)
-            )
-        );
-        const coverageBonus = Math.floor((coveredPoints.length / challenge.keyPoints.length) * 30);
-
-        const finalScore = Math.max(
-            10,
-            challenge.points - jargonPenalty + readabilityBonus + lengthBonus + coverageBonus
-        );
-
-        setScore(finalScore);
-
-        // Generate AI feedback
-        const feedbackResponse = detectedJargon.length === 0 && readabilityScore >= 60
-            ? "🎉 Excellent! Your explanation is clear and jargon-free. A 5-year-old would understand this!"
-            : detectedJargon.length > 0
-                ? `🤔 Good effort, but you used some technical words: ${detectedJargon.join(', ')}. Try using simpler alternatives!`
-                : "📝 Your explanation could be simpler. Try using shorter sentences and everyday analogies.";
-
-        setAiResponse(feedbackResponse);
-
-        // Animate score
         gsap.fromTo('.score-display',
             { scale: 0.5, opacity: 0 },
             { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }
         );
 
-        if (finalScore >= 50) {
+        if (result.finalScore >= 50 && !result.isOffTopic) {
             setTimeout(() => {
-                onComplete?.(finalScore);
+                onComplete?.(result.finalScore);
             }, 3000);
         }
-    }, [challenge, explanation, detectedJargon, readabilityScore, onComplete]);
+    }, [challenge, explanation, onComplete]);
 
     if (isGenerating) {
         return (
@@ -221,7 +162,7 @@ function ELI5Challenge({
         );
     }
 
-    const readability = getReadabilityLabel(readabilityScore);
+    const readability = getELI5SimplicityLabel(readabilityScore);
 
     return (
         <div className="min-h-screen bg-[color:var(--color-bg-primary)] p-6">
@@ -317,13 +258,17 @@ function ELI5Challenge({
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
-                            Live Analysis
+                            Live Simplicity Check
                         </h4>
+
+                        <p className="text-xs text-[color:var(--color-text-muted)] mb-3">
+                            This checks wording and jargon while you type. Final scoring also checks whether you actually explained the code.
+                        </p>
 
                         {/* Readability Meter */}
                         <div className="mb-4">
                             <div className="flex justify-between text-sm mb-1">
-                                <span>Simplicity Score</span>
+                                <span>Wording Simplicity</span>
                                 <span className={readability.color}>{readability.label}</span>
                             </div>
                             <div className="h-2 bg-[color:var(--color-bg-muted)] rounded-full overflow-hidden">
@@ -357,24 +302,100 @@ function ELI5Challenge({
 
                         {detectedJargon.length === 0 && (
                             <div className="text-green-400 text-sm">
-                                ✅ No jargon detected - great job keeping it simple!
+                                ✅ No jargon detected so far.
                             </div>
                         )}
                     </div>
                 )}
 
                 {/* Result */}
-                {submitted && score !== null && (
+                {submitted && (
                     <div className="bg-[color:var(--color-bg-secondary)] rounded-xl p-6 mb-6 border border-[color:var(--color-border)]">
                         <div className="text-center">
-                            <div className="score-display text-5xl font-bold text-primary-400 mb-2">
-                                {score} pts
-                            </div>
-                            <div className="text-lg mb-4">{aiResponse}</div>
+                            {score !== null && (
+                                <div className="score-display text-5xl font-bold text-primary-400 mb-2">
+                                    {score} pts
+                                </div>
+                            )}
 
-                            {detectedJargon.length > 0 && (
+                            {aiResponse && <div className="text-lg mb-4">{aiResponse}</div>}
+
+                            {isEvaluating && (
+                                <div className="text-sm text-[color:var(--color-text-muted)] mb-4">
+                                    AI is grading your explanation with the full challenge context...
+                                </div>
+                            )}
+
+                            {evaluation && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left mb-4">
+                                    <div className="rounded-lg border border-[color:var(--color-border)] p-3">
+                                        <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-1">Relevance</div>
+                                        <div className="font-semibold">{evaluation.relevanceScore}/40</div>
+                                    </div>
+                                    <div className="rounded-lg border border-[color:var(--color-border)] p-3">
+                                        <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-1">Key Points</div>
+                                        <div className="font-semibold">{evaluation.keyPointCoverageScore}/30</div>
+                                    </div>
+                                    <div className="rounded-lg border border-[color:var(--color-border)] p-3">
+                                        <div className="text-xs uppercase tracking-wide text-[color:var(--color-text-muted)] mb-1">Simplicity</div>
+                                        <div className="font-semibold">{evaluation.simplicityScore}/20</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {evaluation?.isOffTopic && (
+                                <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-[color:var(--color-text-primary)]">
+                                    This answer stayed simple, but it did not meaningfully explain the code, so the score was capped.
+                                </div>
+                            )}
+
+                            {evaluation && evaluation.coveredKeyPoints.length > 0 && (
+                                <div className="text-sm text-left mb-3">
+                                    <div className="mb-2 flex items-center gap-2 font-semibold text-[color:var(--color-text-primary)]">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                                        Covered well
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {evaluation.coveredKeyPoints.map((point) => (
+                                            <span
+                                                key={point}
+                                                className="rounded-full border border-green-500/35 bg-green-500/12 px-2 py-1 text-[color:var(--color-text-primary)]"
+                                            >
+                                                {point}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {evaluation && evaluation.missingKeyPoints.length > 0 && (
+                                <div className="text-sm text-left mb-3">
+                                    <div className="mb-2 flex items-center gap-2 font-semibold text-[color:var(--color-text-primary)]">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                                        Still missing
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {evaluation.missingKeyPoints.map((point) => (
+                                            <span
+                                                key={point}
+                                                className="rounded-full border border-amber-500/40 bg-amber-500/14 px-2 py-1 text-[color:var(--color-text-primary)]"
+                                            >
+                                                {point}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {evaluation && evaluation.detectedJargon.length > 0 && (
                                 <div className="text-sm text-[color:var(--color-text-muted)]">
-                                    Jargon used: {detectedJargon.join(', ')} (-{detectedJargon.length * 15} pts)
+                                    Jargon used: {evaluation.detectedJargon.join(', ')} (-{evaluation.jargonPenalty} pts)
+                                </div>
+                            )}
+
+                            {evaluation?.usedFallback && (
+                                <div className="text-xs text-[color:var(--color-text-muted)] mt-3">
+                                    AI grading was unavailable, so a stricter local fallback evaluator was used.
                                 </div>
                             )}
                         </div>
@@ -385,9 +406,9 @@ function ELI5Challenge({
                 <div className="flex items-center gap-4">
                     <Button
                         onClick={handleSubmit}
-                        disabled={submitted || explanation.trim().length < 20}
+                        disabled={submitted || explanation.trim().length < 20 || isEvaluating}
                     >
-                        Submit Explanation
+                        {isEvaluating ? 'Evaluating...' : 'Submit Explanation'}
                     </Button>
                     <span className="text-sm text-[color:var(--color-text-muted)]">
                         {explanation.length} characters
