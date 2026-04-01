@@ -7,6 +7,8 @@ import {
     useSensor,
     useSensors,
     DragEndEvent,
+    DragStartEvent,
+    DragOverlay,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -28,6 +30,29 @@ interface SortableLineProps {
     isCorrect?: boolean | null;
 }
 
+interface DragOverlayLineProps {
+    line: CodeLine;
+}
+
+// Separate component for the drag overlay - always has solid background for visibility
+function DragOverlayLine({ line }: DragOverlayLineProps) {
+    return (
+        <div
+            className="
+                px-4 py-3 rounded-lg border-2 font-mono text-sm cursor-grabbing
+                shadow-2xl scale-105 z-50 
+                bg-neutral-800 border-primary-500 text-neutral-100
+                ring-2 ring-primary-400/50
+            "
+            style={{
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.3)',
+            }}
+        >
+            <code className="whitespace-pre">{line.content}</code>
+        </div>
+    );
+}
+
 function SortableLine({ line, isCorrect }: SortableLineProps) {
     const {
         attributes,
@@ -40,7 +65,7 @@ function SortableLine({ line, isCorrect }: SortableLineProps) {
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
     };
 
     return (
@@ -51,17 +76,19 @@ function SortableLine({ line, isCorrect }: SortableLineProps) {
             {...listeners}
             className={`
                 px-4 py-3 rounded-lg border-2 font-mono text-sm cursor-grab active:cursor-grabbing
-                transition-all duration-200
+                transition-all duration-200 select-none touch-none
                 ${isDragging
-                    ? 'shadow-xl scale-105 z-50 bg-primary-500/20 border-primary-500 text-neutral-50'
+                    ? 'opacity-40 bg-neutral-700/50 border-dashed border-primary-400'
                     : 'bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]'
                 }
-                ${isCorrect !== null && isCorrect !== undefined ? 'text-neutral-100' : 'text-[color:var(--color-text-primary)]'}
+                ${!isDragging && isCorrect !== null && isCorrect !== undefined ? 'text-neutral-100' : ''}
+                ${!isDragging && (isCorrect === null || isCorrect === undefined) ? 'text-[color:var(--color-text-primary)]' : ''}
                 ${isCorrect === true && 'border-green-500 bg-green-500/10'}
                 ${isCorrect === false && 'border-red-500 bg-red-500/10'}
                 ${line.isDistractor && isCorrect === false && 'line-through opacity-90 text-neutral-300'}
                 hover:border-primary-400
-                ${isCorrect !== null && isCorrect !== undefined ? 'hover:bg-neutral-800/80' : 'hover:bg-[color:var(--color-bg-muted)]'}
+                ${!isDragging && isCorrect !== null && isCorrect !== undefined ? 'hover:bg-neutral-800/80' : ''}
+                ${!isDragging && (isCorrect === null || isCorrect === undefined) ? 'hover:bg-[color:var(--color-bg-muted)]' : ''}
             `}
         >
             <code className="whitespace-pre">{line.content}</code>
@@ -86,6 +113,7 @@ function ParsonsChallenge({
 }: ParsonsChallengeProps) {
     const [challenge, setChallenge] = useState<ParsonsChallengeType | null>(null);
     const [userOrder, setUserOrder] = useState<CodeLine[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
     const [result, setResult] = useState<'correct' | 'incorrect' | null>(null);
     const [lineResults, setLineResults] = useState<Record<string, boolean>>({});
     const [hintsUsed, setHintsUsed] = useState(0);
@@ -95,12 +123,45 @@ function ParsonsChallenge({
 
     const { generateParsonsChallenge, isGenerating, error } = useChallengeAI();
 
+    // Configure sensors with activation constraints for smoother dragging
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                // Small distance threshold prevents accidental drags
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    }, []);
+
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveId(null);
+
+        if (over && active.id !== over.id) {
+            setUserOrder((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+            // Reset result when order changes
+            setResult(null);
+            setLineResults({});
+        }
+    }, []);
+
+    const handleDragCancel = useCallback(() => {
+        setActiveId(null);
+    }, []);
+
+    // Get the currently dragged line for the overlay
+    const activeLine = activeId ? userOrder.find(line => line.id === activeId) : null;
 
     const loadHardcodedChallenge = useCallback(() => {
         const example = getRandomParsonsExample(selectedLanguage);
@@ -165,21 +226,6 @@ function ParsonsChallenge({
             loadHardcodedChallenge();
         }
     }, [useAI, topic, selectedLanguage, generateParsonsChallenge, loadHardcodedChallenge]);
-
-    const handleDragEnd = useCallback((event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (over && active.id !== over.id) {
-            setUserOrder((items) => {
-                const oldIndex = items.findIndex(item => item.id === active.id);
-                const newIndex = items.findIndex(item => item.id === over.id);
-                return arrayMove(items, oldIndex, newIndex);
-            });
-            // Reset result when order changes
-            setResult(null);
-            setLineResults({});
-        }
-    }, []);
 
     const checkSolution = useCallback(() => {
         if (!challenge) return;
@@ -350,7 +396,9 @@ function ParsonsChallenge({
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
+                        onDragCancel={handleDragCancel}
                     >
                         <SortableContext
                             items={userOrder.map(l => l.id)}
@@ -366,6 +414,14 @@ function ParsonsChallenge({
                                 ))}
                             </div>
                         </SortableContext>
+                        <DragOverlay dropAnimation={{
+                            duration: 250,
+                            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                        }}>
+                            {activeLine ? (
+                                <DragOverlayLine line={activeLine} />
+                            ) : null}
+                        </DragOverlay>
                     </DndContext>
                 </div>
 

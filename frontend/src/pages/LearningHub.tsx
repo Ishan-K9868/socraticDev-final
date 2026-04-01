@@ -66,6 +66,13 @@ const CouncilIcon = () => (
     </svg>
 );
 
+const ColiseumIcon = () => (
+    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M12 2L2 7v4c0 5.55 3.84 10.74 10 12 6.16-1.26 10-6.45 10-12V7l-10-5z" />
+        <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 const TOOLS: Tool[] = [
     {
         id: 'dojo',
@@ -120,6 +127,15 @@ const TOOLS: Tool[] = [
         path: '/council',
         accentColor: '#D97706',
         icon: <CouncilIcon />,
+    },
+    {
+        id: 'coliseum',
+        title: 'Speed Coding Coliseum',
+        tagline: 'Battle Royale',
+        description: '4 players. 3 rounds. Bug hunt, optimize, explain — last coder standing wins. A multiplayer coding arena.',
+        path: '/coliseum',
+        accentColor: '#EF4444',
+        icon: <ColiseumIcon />,
     },
 ];
 
@@ -283,7 +299,7 @@ function LearningHub() {
                         className="inline-block mb-6 px-4 py-2 rounded-full bg-[color:var(--color-bg-secondary)] border border-[color:var(--color-border)]"
                     >
                         <span className="text-sm font-medium text-[color:var(--color-text-muted)]">
-                            6 tools to accelerate your growth
+                            7 tools to accelerate your growth
                         </span>
                     </motion.div>
 
@@ -357,9 +373,19 @@ function LearningHub() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
-                        className="col-span-12"
+                        className="col-span-12 md:col-span-6"
                     >
-                        <ToolCard tool={TOOLS[5]} size="large" />
+                        <ToolCard tool={TOOLS[5]} size="medium" />
+                    </motion.div>
+
+                    {/* Speed Coding Coliseum */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        className="col-span-12 md:col-span-6"
+                    >
+                        <ToolCard tool={TOOLS[6]} size="medium" />
                     </motion.div>
                 </div>
 
