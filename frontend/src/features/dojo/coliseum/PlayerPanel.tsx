@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { ColiseumPlayer, RoundType } from './coliseumTypes';
+import { ICON_GEM } from './coliseumIcons';
 
 interface PlayerPanelProps {
     player: ColiseumPlayer;
@@ -10,11 +11,11 @@ interface PlayerPanelProps {
     position: number; // 0-3 grid position
 }
 
-const RANK_BADGES: Record<string, string> = {
-    Bronze: '🥉',
-    Silver: '🥈',
-    Gold: '🥇',
-    Diamond: '💎',
+const RANK_COLORS: Record<string, string> = {
+    Bronze: '#CD7F32',
+    Silver: '#9CA3AF',
+    Gold: '#F59E0B',
+    Diamond: '#8B5CF6',
 };
 
 export default function PlayerPanel({ player, roundType, typingLines, isActive }: PlayerPanelProps) {
@@ -68,8 +69,11 @@ export default function PlayerPanel({ player, roundType, typingLines, isActive }
                         <h4 className="text-sm font-bold" style={{ color: player.isEliminated ? '#6B7280' : 'var(--color-text-primary)' }}>
                             {player.name}
                         </h4>
-                        <span className="text-[10px] uppercase tracking-wider" style={{ color: player.hexColor }}>
-                            {RANK_BADGES[player.rank]} {player.rank}
+                        <span className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: player.hexColor }}>
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill={RANK_COLORS[player.rank] || player.hexColor}>
+                                <path d={ICON_GEM} />
+                            </svg>
+                            {player.rank}
                         </span>
                     </div>
                 </div>
@@ -140,8 +144,7 @@ export default function PlayerPanel({ player, roundType, typingLines, isActive }
                         initial={{ scale: 3, rotate: -15, opacity: 0 }}
                         animate={{ scale: 1, rotate: -6, opacity: 1 }}
                         transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                        className="text-2xl font-bold uppercase tracking-widest px-6 py-2 rounded border-2 border-red-500 text-red-500"
-                        style={{ fontFamily: "'Syne', sans-serif" }}
+                        className="text-2xl font-display font-bold uppercase tracking-widest px-6 py-2 rounded-xl border-2 border-red-500 text-red-500"
                     >
                         ELIMINATED
                     </motion.span>

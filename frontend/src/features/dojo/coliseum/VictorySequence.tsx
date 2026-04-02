@@ -1,6 +1,9 @@
 import { useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { ColiseumPlayer, RoundResult } from './coliseumTypes';
+import { ICON_CROWN, ICON_TROPHY, ICON_STAR, ICON_GEM, ICON_SWORDS } from './coliseumIcons';
+
+const ease = [0.25, 0.1, 0.25, 1] as const;
 
 interface VictorySequenceProps {
     winner: ColiseumPlayer | null;
@@ -47,13 +50,19 @@ export default function VictorySequence({ winner, isVisible, onPlayAgain, onBack
             delay: Math.random() * 2,
             duration: 2 + Math.random() * 3,
             size: 4 + Math.random() * 8,
-            color: ['#2DD4BF', '#F59E0B', '#F43F5E', '#8B5CF6', '#3B82F6', '#10B981'][i % 6],
+            color: ['#f97316', '#8b5cf6', '#14b8a6', '#f43f5e', '#3b82f6', '#eab308'][i % 6],
             rotate: Math.random() * 720,
         })),
         [],
     );
 
     if (!winner || !isVisible) return null;
+
+    const STAT_ICONS = [
+        { label: 'Rounds Won', value: '3/3', icon: ICON_TROPHY },
+        { label: 'Final Score', value: `${winner.score}`, icon: ICON_STAR },
+        { label: 'Rank', value: winner.rank, icon: ICON_GEM },
+    ];
 
     return (
         <motion.div
@@ -88,26 +97,29 @@ export default function VictorySequence({ winner, isVisible, onPlayAgain, onBack
                 />
             ))}
 
-            {/* Crown */}
+            {/* Crown SVG icon */}
             <motion.div
-                initial={{ y: -100, opacity: 0, scale: 0 }}
+                initial={{ y: -80, opacity: 0, scale: 0 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.3 }}
-                className="text-6xl mb-4"
+                transition={{ duration: 0.6, ease, delay: 0.3 }}
+                className="mb-4"
             >
-                👑
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                    <svg className="w-9 h-9 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d={ICON_CROWN} />
+                    </svg>
+                </div>
             </motion.div>
 
             {/* Champion text */}
             <motion.h1
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-5xl md:text-7xl font-bold tracking-[0.3em] mb-6"
+                transition={{ delay: 0.5, duration: 0.4, ease }}
+                className="text-5xl md:text-7xl font-display font-bold tracking-[0.3em] mb-6"
                 style={{
-                    fontFamily: "'Syne', sans-serif",
                     color: winner.hexColor,
-                    textShadow: `0 0 60px ${winner.hexColor}80, 0 0 120px ${winner.hexColor}40`,
+                    textShadow: `0 0 40px ${winner.hexColor}50, 0 0 80px ${winner.hexColor}25`,
                     fontVariantNumeric: 'tabular-nums',
                 }}
             >
@@ -116,87 +128,91 @@ export default function VictorySequence({ winner, isVisible, onPlayAgain, onBack
 
             {/* Winner identity */}
             <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
+                initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.8, type: 'spring' }}
+                transition={{ delay: 0.8, duration: 0.4, ease }}
                 className="flex items-center gap-4 mb-8"
             >
-                <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                     style={{
-                        background: `${winner.hexColor}20`,
-                        boxShadow: `0 0 40px ${winner.hexColor}40`,
+                        background: `${winner.hexColor}15`,
+                        boxShadow: `0 0 30px ${winner.hexColor}20`,
                     }}>
-                    <svg className="w-10 h-10" viewBox="0 0 24 24" fill={winner.hexColor}>
+                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill={winner.hexColor}>
                         <path d={winner.avatar} />
                     </svg>
                 </div>
                 <div>
-                    <h2 className="text-3xl font-bold" style={{ color: winner.hexColor }}>
+                    <h2 className="text-2xl font-display font-bold" style={{ color: winner.hexColor }}>
                         {winner.name}
                     </h2>
-                    <span className="text-sm uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                        💎 {winner.rank} Rank
+                    <span className="text-sm uppercase tracking-widest text-[color:var(--color-text-muted)] flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                            <path d={ICON_GEM} />
+                        </svg>
+                        {winner.rank} Rank
                     </span>
                 </div>
             </motion.div>
 
             {/* Performance stats */}
             <motion.div
-                initial={{ y: 20, opacity: 0 }}
+                initial={{ y: 16, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 1.2 }}
-                className="grid grid-cols-3 gap-6 mb-10"
+                transition={{ delay: 1.2, duration: 0.4, ease }}
+                className="grid grid-cols-3 gap-4 mb-10"
             >
-                {[
-                    { label: 'Rounds Won', value: '3/3', icon: '🏆' },
-                    { label: 'Final Score', value: `${winner.score}`, icon: '⭐' },
-                    { label: 'Rank', value: winner.rank, icon: '💎' },
-                ].map((stat, i) => (
+                {STAT_ICONS.map((stat, i) => (
                     <motion.div
                         key={stat.label}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 1.4 + i * 0.1, type: 'spring' }}
-                        className="text-center px-6 py-4 rounded-xl border"
-                        style={{
-                            background: 'var(--color-bg-secondary)',
-                            borderColor: `${winner.hexColor}30`,
-                        }}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 1.4 + i * 0.08, duration: 0.4, ease }}
+                        className="text-center px-6 py-4 rounded-2xl border bg-[color:var(--color-bg-secondary)]"
+                        style={{ borderColor: `${winner.hexColor}20` }}
                     >
-                        <div className="text-2xl mb-1">{stat.icon}</div>
-                        <div className="text-xl font-bold" style={{ color: winner.hexColor }}>{stat.value}</div>
-                        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{stat.label}</div>
+                        <div className="flex justify-center mb-2">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                style={{ background: `${winner.hexColor}10` }}>
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill={winner.hexColor}>
+                                    <path d={stat.icon} />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="text-xl font-display font-bold" style={{ color: winner.hexColor }}>{stat.value}</div>
+                        <div className="text-xs text-[color:var(--color-text-muted)]">{stat.label}</div>
                     </motion.div>
                 ))}
             </motion.div>
 
             {/* Action buttons */}
             <motion.div
-                initial={{ y: 20, opacity: 0 }}
+                initial={{ y: 16, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 1.8 }}
+                transition={{ delay: 1.8, duration: 0.4, ease }}
                 className="flex gap-4"
             >
                 <button
                     onClick={onPlayAgain}
-                    className="px-8 py-3 rounded-xl font-bold text-white transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl font-display font-bold text-white transition-all hover:scale-[1.03]"
                     style={{
                         background: `linear-gradient(135deg, ${winner.hexColor}, ${winner.hexColor}cc)`,
-                        boxShadow: `0 0 30px ${winner.hexColor}40`,
+                        boxShadow: `0 8px 30px ${winner.hexColor}30`,
                     }}
                 >
-                    ⚔️ Play Again
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d={ICON_SWORDS} />
+                    </svg>
+                    Play Again
                 </button>
                 <button
                     onClick={onBackToHub}
-                    className="px-8 py-3 rounded-xl font-bold transition-all hover:scale-105 border"
-                    style={{
-                        color: 'var(--color-text-primary)',
-                        borderColor: 'var(--color-border)',
-                        background: 'var(--color-bg-secondary)',
-                    }}
+                    className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl font-display font-bold transition-all hover:scale-[1.03] border text-[color:var(--color-text-primary)] border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)]"
                 >
-                    ← Back to Hub
+                    <svg className="w-4 h-4 text-[color:var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back to Hub
                 </button>
             </motion.div>
         </motion.div>

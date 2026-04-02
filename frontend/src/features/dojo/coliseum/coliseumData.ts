@@ -77,7 +77,7 @@ export const ROUNDS: ColiseumRound[] = [
         type: 'bug-hunt',
         title: 'ROUND 1: BUG HUNT',
         subtitle: 'Find all hidden bugs. Slowest player eliminated.',
-        icon: '🐛',
+        icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-2h2v2zm0-4h-2V7h2v5z',
         duration: 30,
         code: `def binary_search(arr, target):
     left = 0
@@ -100,7 +100,7 @@ export const ROUNDS: ColiseumRound[] = [
         type: 'optimize',
         title: 'ROUND 2: OPTIMIZE',
         subtitle: 'Reduce time complexity. Highest complexity eliminated.',
-        icon: '⚡',
+        icon: 'M13 10V3L4 14h7v7l9-11h-7z',
         duration: 25,
         code: `function findDuplicates(arr) {
   const duplicates = [];
@@ -122,7 +122,7 @@ export const ROUNDS: ColiseumRound[] = [
         type: 'eli5-duel',
         title: 'FINAL ROUND: ELI5 DUEL',
         subtitle: 'Explain this code to a 5-year-old. AI judges clarity.',
-        icon: '🎤',
+        icon: 'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z',
         duration: 20,
         code: `async function retryWithBackoff(fn, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {

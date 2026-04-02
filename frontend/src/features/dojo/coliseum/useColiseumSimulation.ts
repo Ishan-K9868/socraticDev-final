@@ -7,12 +7,12 @@ import {
 
 export type PlaybackSpeed = 0.5 | 1 | 1.5 | 2 | 3;
 
-export const PLAYBACK_OPTIONS: { label: string; value: PlaybackSpeed; icon: string }[] = [
-    { label: '0.5×', value: 0.5, icon: '🐢' },
-    { label: '1×',   value: 1,   icon: '▶️' },
-    { label: '1.5×', value: 1.5, icon: '⏩' },
-    { label: '2×',   value: 2,   icon: '🚀' },
-    { label: '3×',   value: 3,   icon: '⚡' },
+export const PLAYBACK_OPTIONS: { label: string; value: PlaybackSpeed }[] = [
+    { label: '0.5×', value: 0.5 },
+    { label: '1×',   value: 1 },
+    { label: '1.5×', value: 1.5 },
+    { label: '2×',   value: 2 },
+    { label: '3×',   value: 3 },
 ];
 
 function deepClonePlayers(): ColiseumPlayer[] {

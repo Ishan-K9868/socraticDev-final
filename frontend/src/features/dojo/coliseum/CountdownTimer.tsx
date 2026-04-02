@@ -25,11 +25,10 @@ export default function CountdownTimer({ value, maxValue, phase }: CountdownTime
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.5, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                        className="text-[140px] leading-none font-bold tabular-nums"
+                        className="text-[140px] leading-none font-display font-bold tabular-nums"
                         style={{
-                            fontFamily: "'Syne', sans-serif",
                             color,
-                            textShadow: `0 0 60px ${color}80, 0 0 120px ${color}40`,
+                            textShadow: `0 0 40px ${color}60, 0 0 80px ${color}30`,
                         }}
                     >
                         {value === 0 ? 'GO!' : value}
@@ -48,9 +47,8 @@ export default function CountdownTimer({ value, maxValue, phase }: CountdownTime
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 10, opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="text-[80px] leading-none font-bold tabular-nums"
+                    className="text-[80px] leading-none font-display font-bold tabular-nums"
                     style={{
-                        fontFamily: "'Syne', sans-serif",
                         color,
                         textShadow: `0 0 40px ${color}${Math.round(glowIntensity * 255).toString(16).padStart(2, '0')}`,
                     }}

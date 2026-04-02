@@ -26,7 +26,7 @@ export interface ColiseumRound {
     subtitle: string;
     code: string;
     duration: number;      // seconds
-    icon: string;          // emoji
+    icon: string;          // SVG path data
 }
 
 export type SimulationPhase =
