@@ -7,6 +7,8 @@ import BuildModePage from './pages/BuildModePage';
 import LearningHub from './pages/LearningHub';
 import CouncilPage from './pages/CouncilPage';
 import ColiseumPage from './pages/ColiseumPage';
+import CodeReviewPage from './pages/CodeReviewPage';
+import LearningPathPage from './pages/LearningPathPage';
 import { DojoPage } from './features/dojo';
 import { CodeVisualizer } from './features/visualizer';
 import { SRSDashboard, ReviewSession } from './features/srs';
@@ -110,6 +112,8 @@ function App() {
                     <Route path="/achievements" element={<GamificationHub />} />
                     <Route path="/council" element={<CouncilPage />} />
                     <Route path="/coliseum" element={<ColiseumPage />} />
+                    <Route path="/code-reviews" element={<CodeReviewPage />} />
+                    <Route path="/learning-paths" element={<LearningPathPage />} />
 
                     {/* Resources pages */}
                     <Route path="/docs" element={<DocsPage />} />
