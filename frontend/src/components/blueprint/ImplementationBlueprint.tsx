@@ -13,10 +13,10 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
     const [activeTab, setActiveTab] = useState<'architecture' | 'phases' | 'insights'>('architecture');
 
     // SVG coordinate helpers
-    const svgW = 700;
-    const svgH = 300;
-    const nx = (pct: number) => (pct / 100) * svgW * 0.85 + svgW * 0.075;
-    const ny = (pct: number) => (pct / 100) * svgH * 0.7 + svgH * 0.15;
+    const svgW = 1000;
+    const svgH = 500;
+    const nx = (pct: number) => (pct / 100) * svgW * 0.82 + svgW * 0.09;
+    const ny = (pct: number) => (pct / 100) * svgH * 0.60 + svgH * 0.20;
     const getNodePos = (id: string) => {
         const node = data.archNodes.find(n => n.id === id);
         return node ? { x: nx(node.x), y: ny(node.y) } : { x: 0, y: 0 };
@@ -75,7 +75,7 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             transition={{ duration: 0.4, ease }}
                             onClick={e => e.stopPropagation()}
-                            className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[color:var(--color-bg-primary)] border border-[color:var(--color-border)] shadow-2xl"
+                            className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[color:var(--color-bg-primary)] border border-[color:var(--color-border)] shadow-2xl"
                         >
                             {/* Gradient border top */}
                             <div className={`h-1 w-full bg-gradient-to-r ${data.gradient} rounded-t-3xl`} />
@@ -169,7 +169,7 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                                             transition={{ duration: 0.25, ease }}
                                         >
                                             <div className="rounded-2xl border bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)] overflow-hidden">
-                                                <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full" style={{ minHeight: 280 }}>
+                                                <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full" style={{ minHeight: 420 }}>
                                                     {/* Edges */}
                                                     {data.archEdges.map((edge, i) => {
                                                         const from = getNodePos(edge.from);
@@ -182,20 +182,21 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                                                                     d={`M${from.x} ${from.y} Q${midX} ${midY} ${to.x} ${to.y}`}
                                                                     fill="none"
                                                                     className="stroke-[color:var(--color-border)]"
-                                                                    strokeWidth={1.5}
-                                                                    strokeDasharray="6 4"
+                                                                    strokeWidth={2}
+                                                                    strokeDasharray="8 5"
                                                                     initial={{ pathLength: 0, opacity: 0 }}
                                                                     animate={{ pathLength: 1, opacity: 0.6 }}
                                                                     transition={{ duration: 0.6, delay: 0.5 + i * 0.1, ease }}
                                                                 />
                                                                 {edge.label && (
                                                                     <motion.text
-                                                                        x={midX} y={midY - 4}
+                                                                        x={midX} y={midY - 8}
                                                                         textAnchor="middle"
-                                                                        fontSize={8}
+                                                                        fontSize={11}
+                                                                        fontWeight={600}
                                                                         className="fill-[color:var(--color-text-muted)]"
                                                                         initial={{ opacity: 0 }}
-                                                                        animate={{ opacity: 0.6 }}
+                                                                        animate={{ opacity: 0.7 }}
                                                                         transition={{ delay: 0.8 + i * 0.1 }}
                                                                     >
                                                                         {edge.label}
@@ -218,22 +219,22 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                                                                 style={{ transformOrigin: `${x}px ${y}px` }}
                                                             >
                                                                 {/* Glow */}
-                                                                <circle cx={x} cy={y} r={30} fill={`${node.color}10`} />
+                                                                <circle cx={x} cy={y} r={44} fill={`${node.color}10`} />
                                                                 {/* Circle */}
-                                                                <circle cx={x} cy={y} r={22} fill="var(--color-bg-secondary)" stroke={node.color} strokeWidth={2} />
+                                                                <circle cx={x} cy={y} r={32} fill="var(--color-bg-secondary)" stroke={node.color} strokeWidth={2.5} />
                                                                 {/* Icon */}
-                                                                <g transform={`translate(${x - 8}, ${y - 8})`}>
-                                                                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={node.color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                                                <g transform={`translate(${x - 11}, ${y - 11})`}>
+                                                                    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={node.color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
                                                                         <path d={node.icon} />
                                                                     </svg>
                                                                 </g>
                                                                 {/* Label */}
-                                                                <text x={x} y={y + 36} textAnchor="middle" fontSize={9} fontWeight={700} fill={node.color}>
+                                                                <text x={x} y={y + 50} textAnchor="middle" fontSize={14} fontWeight={700} fill={node.color}>
                                                                     {node.label}
                                                                 </text>
                                                                 {/* Description */}
-                                                                <text x={x} y={y + 47} textAnchor="middle" fontSize={7} fill="var(--color-text-muted)" opacity={0.7}>
-                                                                    {node.description.length > 45 ? node.description.slice(0, 45) + '...' : node.description}
+                                                                <text x={x} y={y + 65} textAnchor="middle" fontSize={10} fill="var(--color-text-muted)" opacity={0.8}>
+                                                                    {node.description}
                                                                 </text>
                                                             </motion.g>
                                                         );
@@ -275,8 +276,8 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                                                     </div>
                                                     {/* Content */}
                                                     <div className="flex-1 rounded-2xl border p-4 bg-[color:var(--color-bg-secondary)] border-[color:var(--color-border)]">
-                                                        <h4 className="font-display font-bold text-sm text-[color:var(--color-text-primary)] mb-1">{phase.title}</h4>
-                                                        <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed">{phase.description}</p>
+                                                        <h4 className="font-display font-bold text-base text-[color:var(--color-text-primary)] mb-1.5">{phase.title}</h4>
+                                                        <p className="text-sm text-[color:var(--color-text-muted)] leading-relaxed">{phase.description}</p>
                                                     </div>
                                                 </motion.div>
                                             ))}
@@ -303,12 +304,12 @@ export default function ImplementationBlueprint({ data }: ImplementationBlueprin
                                                 >
                                                     <div className="flex items-start gap-3">
                                                         <div
-                                                            className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center font-display font-bold text-xs text-white"
+                                                            className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center font-display font-bold text-sm text-white"
                                                             style={{ background: data.accentColor }}
                                                         >
                                                             {i + 1}
                                                         </div>
-                                                        <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed pt-1.5">
+                                                        <p className="text-sm text-[color:var(--color-text-muted)] leading-relaxed pt-1">
                                                             {insight}
                                                         </p>
                                                     </div>
