@@ -30,9 +30,12 @@ import {
     CareersPage,
     ContactPage,
     PressPage,
+    PricingPage,
+    AWSPage,
     PrivacyPage,
     TermsPage,
-    CookiePage
+    CookiePage,
+    SecurityPage
 } from './pages';
 
 function App() {
@@ -126,11 +129,14 @@ function App() {
                     <Route path="/careers" element={<CareersPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/press" element={<PressPage />} />
+                    <Route path="/pricing" element={<PricingPage />} />
+                    <Route path="/infrastructure" element={<AWSPage />} />
 
                     {/* Legal pages */}
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/cookies" element={<CookiePage />} />
+                    <Route path="/security" element={<SecurityPage />} />
                 </Routes>
             </Router>
         </AppErrorBoundary>

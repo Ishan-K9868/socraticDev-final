@@ -10,8 +10,11 @@ export { default as AboutPage } from './info/AboutPage';
 export { default as CareersPage } from './info/CareersPage';
 export { default as ContactPage } from './info/ContactPage';
 export { default as PressPage } from './info/PressPage';
+export { default as PricingPage } from './info/PricingPage';
+export { default as AWSPage } from './info/AWSPage';
 
 // Legal pages
 export { default as PrivacyPage } from './legal/PrivacyPage';
 export { default as TermsPage } from './legal/TermsPage';
 export { default as CookiePage } from './legal/CookiePage';
+export { default as SecurityPage } from './legal/SecurityPage';

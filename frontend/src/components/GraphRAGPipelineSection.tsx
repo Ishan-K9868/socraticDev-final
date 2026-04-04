@@ -102,11 +102,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
     const dur = prefersReducedMotion ? 0.3 : 0.6;
 
     return (
-        <svg viewBox="0 0 520 400" className="w-full h-auto" fill="none">
+        <svg viewBox="0 0 560 420" className="w-full h-auto" fill="none">
             <defs>
                 <linearGradient id="graphrag-flow" x1="0" y1="0.5" x2="1" y2="0.5">
-                    <stop offset="0%" stopColor="rgb(var(--color-secondary-rgb, 61 90 128))" stopOpacity="0.5" />
-                    <stop offset="100%" stopColor="rgb(var(--color-accent-rgb, 129 147 106))" stopOpacity="0.5" />
+                    <stop offset="0%" stopColor="rgb(var(--color-secondary-rgb, 61 90 128))" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="rgb(var(--color-accent-rgb, 129 147 106))" stopOpacity="0.6" />
                 </linearGradient>
             </defs>
 
@@ -117,25 +117,25 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 transition={{ duration: dur, delay: 0 }}
             >
                 {/* Folder body */}
-                <rect x="30" y="160" width="100" height="80" rx="8"
-                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="1.5" />
+                <rect x="20" y="140" width="120" height="100" rx="10"
+                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="2" />
                 {/* Tab */}
-                <path d="M30 168 L30 158 Q30 152, 36 152 L60 152 Q64 152, 66 156 L72 164 L130 164"
-                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="1.5" />
+                <path d="M20 148 L20 136 Q20 128, 28 128 L56 128 Q62 128, 64 134 L72 146 L140 146"
+                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="2" />
                 {/* Files inside */}
-                <rect x="45" y="176" width="30" height="6" rx="2" className="fill-secondary-500/30" />
-                <rect x="45" y="188" width="45" height="6" rx="2" className="fill-secondary-500/20" />
-                <rect x="45" y="200" width="35" height="6" rx="2" className="fill-secondary-500/15" />
-                <rect x="45" y="212" width="50" height="6" rx="2" className="fill-secondary-500/10" />
+                <rect x="38" y="162" width="40" height="7" rx="3" className="fill-secondary-500/35" />
+                <rect x="38" y="176" width="58" height="7" rx="3" className="fill-secondary-500/25" />
+                <rect x="38" y="190" width="48" height="7" rx="3" className="fill-secondary-500/20" />
+                <rect x="38" y="204" width="64" height="7" rx="3" className="fill-secondary-500/15" />
                 {/* Label */}
-                <text x="80" y="255" textAnchor="middle" className="fill-[color:var(--color-text-muted)]" fontSize="10">Project Folder</text>
+                <text x="80" y="260" textAnchor="middle" className="fill-[color:var(--color-text-muted)]" fontSize="12" fontWeight="600">Project Folder</text>
             </motion.g>
 
             {/* ── Stage 1→2 Arrow ── */}
             <motion.path
-                d="M140 200 Q170 200, 190 190"
+                d="M148 195 Q175 195, 195 180"
                 stroke="url(#graphrag-flow)"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeDasharray="60"
                 initial={{ strokeDashoffset: 60 }}
@@ -143,10 +143,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 transition={{ duration: dur * 1.5, delay: dur * 0.8 }}
             />
             <motion.text
-                x="165" y="220"
+                x="172" y="218"
                 textAnchor="middle"
                 className="fill-[color:var(--color-text-muted)]"
-                fontSize="8"
+                fontSize="10"
+                fontWeight="500"
                 initial={{ opacity: 0 }}
                 animate={isInView ? { opacity: 1 } : {}}
                 transition={{ duration: dur, delay: dur }}
@@ -160,11 +161,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 initial={{ opacity: 0, scale: 0 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 200, damping: 18, delay: dur * 1.2 }}
-                style={{ transformOrigin: '280px 110px' }}
+                style={{ transformOrigin: '290px 100px' }}
             >
-                <circle cx="280" cy="110" r="22" className="fill-blue-500/12" />
-                <circle cx="280" cy="110" r="14" className="fill-blue-500/25 stroke-blue-500" strokeWidth="1.5" />
-                <text x="280" y="114" textAnchor="middle" className="fill-blue-400" fontSize="8" fontWeight="bold">module</text>
+                <circle cx="290" cy="100" r="30" className="fill-blue-500/10" />
+                <circle cx="290" cy="100" r="22" className="fill-blue-500/20 stroke-blue-500" strokeWidth="2" />
+                <text x="290" y="105" textAnchor="middle" className="fill-blue-400" fontSize="11" fontWeight="bold">module</text>
             </motion.g>
 
             {/* Function node 1 */}
@@ -172,11 +173,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 initial={{ opacity: 0, scale: 0 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 200, damping: 18, delay: dur * 1.5 }}
-                style={{ transformOrigin: '240px 190px' }}
+                style={{ transformOrigin: '240px 195px' }}
             >
-                <circle cx="240" cy="190" r="16" className="fill-amber-500/12" />
-                <circle cx="240" cy="190" r="11" className="fill-amber-500/25 stroke-amber-500" strokeWidth="1.5" />
-                <text x="240" y="194" textAnchor="middle" className="fill-amber-400" fontSize="7" fontWeight="bold">fn</text>
+                <circle cx="240" cy="195" r="24" className="fill-amber-500/10" />
+                <circle cx="240" cy="195" r="17" className="fill-amber-500/20 stroke-amber-500" strokeWidth="2" />
+                <text x="240" y="200" textAnchor="middle" className="fill-amber-400" fontSize="11" fontWeight="bold">fn</text>
             </motion.g>
 
             {/* Class node */}
@@ -184,11 +185,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 initial={{ opacity: 0, scale: 0 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 200, damping: 18, delay: dur * 1.8 }}
-                style={{ transformOrigin: '320px 200px' }}
+                style={{ transformOrigin: '340px 200px' }}
             >
-                <circle cx="320" cy="200" r="18" className="fill-violet-500/12" />
-                <circle cx="320" cy="200" r="12" className="fill-violet-500/25 stroke-violet-500" strokeWidth="1.5" />
-                <text x="320" y="204" textAnchor="middle" className="fill-violet-400" fontSize="7" fontWeight="bold">cls</text>
+                <circle cx="340" cy="200" r="26" className="fill-violet-500/10" />
+                <circle cx="340" cy="200" r="18" className="fill-violet-500/20 stroke-violet-500" strokeWidth="2" />
+                <text x="340" y="205" textAnchor="middle" className="fill-violet-400" fontSize="11" fontWeight="bold">class</text>
             </motion.g>
 
             {/* Function node 2 */}
@@ -196,11 +197,11 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 initial={{ opacity: 0, scale: 0 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 200, damping: 18, delay: dur * 2.1 }}
-                style={{ transformOrigin: '270px 275px' }}
+                style={{ transformOrigin: '275px 290px' }}
             >
-                <circle cx="270" cy="275" r="13" className="fill-amber-500/12" />
-                <circle cx="270" cy="275" r="9" className="fill-amber-500/20 stroke-amber-400" strokeWidth="1.5" />
-                <text x="270" y="279" textAnchor="middle" className="fill-amber-400" fontSize="7" fontWeight="bold">fn</text>
+                <circle cx="275" cy="290" r="20" className="fill-amber-500/10" />
+                <circle cx="275" cy="290" r="14" className="fill-amber-500/20 stroke-amber-400" strokeWidth="2" />
+                <text x="275" y="295" textAnchor="middle" className="fill-amber-400" fontSize="10" fontWeight="bold">fn</text>
             </motion.g>
 
             {/* Variable node */}
@@ -208,26 +209,26 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 initial={{ opacity: 0, scale: 0 }}
                 animate={isInView ? { opacity: 1, scale: 1 } : {}}
                 transition={{ type: 'spring', stiffness: 200, damping: 18, delay: dur * 2.3 }}
-                style={{ transformOrigin: '350px 280px' }}
+                style={{ transformOrigin: '370px 295px' }}
             >
-                <circle cx="350" cy="280" r="10" className="fill-green-500/12" />
-                <circle cx="350" cy="280" r="7" className="fill-green-500/20 stroke-green-500" strokeWidth="1.5" />
-                <text x="350" y="284" textAnchor="middle" className="fill-green-400" fontSize="6" fontWeight="bold">var</text>
+                <circle cx="370" cy="295" r="16" className="fill-green-500/10" />
+                <circle cx="370" cy="295" r="11" className="fill-green-500/20 stroke-green-500" strokeWidth="2" />
+                <text x="370" y="300" textAnchor="middle" className="fill-green-400" fontSize="10" fontWeight="bold">var</text>
             </motion.g>
 
             {/* ── Edges ── */}
             {[
-                { d: 'M275 125 Q260 155, 246 179', delay: 2.5, color: 'stroke-amber-500/40' },
-                { d: 'M290 125 Q305 155, 315 187', delay: 2.7, color: 'stroke-violet-500/40' },
-                { d: 'M248 202 Q258 235, 265 264', delay: 2.9, color: 'stroke-amber-400/40' },
-                { d: 'M330 212 Q340 245, 348 270', delay: 3.1, color: 'stroke-green-500/40' },
-                { d: 'M252 197 Q285 205, 308 200', delay: 3.0, color: 'stroke-secondary-500/30' },
+                { d: 'M282 122 Q262 155, 248 180', delay: 2.5, color: 'stroke-amber-500/45' },
+                { d: 'M300 122 Q320 155, 334 182', delay: 2.7, color: 'stroke-violet-500/45' },
+                { d: 'M248 214 Q262 248, 270 276', delay: 2.9, color: 'stroke-amber-400/45' },
+                { d: 'M352 218 Q362 255, 368 280', delay: 3.1, color: 'stroke-green-500/45' },
+                { d: 'M258 200 Q295 210, 320 204', delay: 3.0, color: 'stroke-secondary-500/35' },
             ].map(({ d, delay, color }, i) => (
                 <motion.path
                     key={i}
                     d={d}
                     className={color}
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeDasharray="80"
                     initial={{ strokeDashoffset: 80 }}
@@ -238,9 +239,9 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
 
             {/* ── Stage 2→3 Arrow ── */}
             <motion.path
-                d="M365 200 Q400 200, 420 195"
+                d="M380 200 Q415 200, 435 192"
                 stroke="url(#graphrag-flow)"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeDasharray="60"
                 initial={{ strokeDashoffset: 60 }}
@@ -255,20 +256,20 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 transition={{ duration: dur, delay: dur * 3.5 }}
             >
                 {/* Chat bubble */}
-                <rect x="420" y="140" width="85" height="110" rx="12"
-                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="1.5" />
+                <rect x="435" y="120" width="105" height="140" rx="14"
+                    className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="2" />
                 {/* Chat lines */}
-                <rect x="432" y="155" width="50" height="5" rx="2.5" className="fill-primary-500/25" />
-                <rect x="432" y="166" width="60" height="5" rx="2.5" className="fill-primary-500/15" />
-                <rect x="432" y="177" width="40" height="5" rx="2.5" className="fill-primary-500/10" />
+                <rect x="450" y="140" width="65" height="7" rx="3" className="fill-primary-500/25" />
+                <rect x="450" y="154" width="78" height="7" rx="3" className="fill-primary-500/15" />
+                <rect x="450" y="168" width="55" height="7" rx="3" className="fill-primary-500/10" />
                 {/* "Context ready" indicator */}
-                <rect x="432" y="195" width="60" height="16" rx="8" className="fill-accent-500/10 stroke-accent-500/30" strokeWidth="1" />
-                <circle cx="442" cy="203" r="3" className="fill-accent-500" />
-                <text x="466" y="207" textAnchor="middle" className="fill-accent-500" fontSize="7" fontWeight="600">Context ✓</text>
+                <rect x="450" y="190" width="75" height="22" rx="10" className="fill-accent-500/12 stroke-accent-500/35" strokeWidth="1.5" />
+                <circle cx="463" cy="201" r="4" className="fill-accent-500" />
+                <text x="502" y="206" textAnchor="middle" className="fill-accent-500" fontSize="10" fontWeight="700">Context ✓</text>
                 {/* Tail */}
-                <path d="M420 238 L412 248 L435 238" className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="1.5" />
+                <path d="M435 248 L424 260 L455 248" className="fill-[color:var(--color-bg-secondary)] stroke-[color:var(--color-border)]" strokeWidth="2" />
                 {/* Label */}
-                <text x="462" y="270" textAnchor="middle" className="fill-[color:var(--color-text-muted)]" fontSize="10">Smart Chat</text>
+                <text x="487" y="285" textAnchor="middle" className="fill-[color:var(--color-text-muted)]" fontSize="12" fontWeight="600">Smart Chat</text>
             </motion.g>
 
             {/* ── Legend ── */}
@@ -278,14 +279,14 @@ function PipelineSVG({ isInView, prefersReducedMotion }: { isInView: boolean; pr
                 transition={{ duration: dur, delay: dur * 3.8 }}
             >
                 {[
-                    { cx: 40, label: 'module', fill: 'fill-blue-500/40' },
-                    { cx: 115, label: 'function', fill: 'fill-amber-500/40' },
-                    { cx: 195, label: 'class', fill: 'fill-violet-500/40' },
-                    { cx: 260, label: 'variable', fill: 'fill-green-500/40' },
+                    { cx: 40, label: 'module', fill: 'fill-blue-500/50' },
+                    { cx: 130, label: 'function', fill: 'fill-amber-500/50' },
+                    { cx: 230, label: 'class', fill: 'fill-violet-500/50' },
+                    { cx: 310, label: 'variable', fill: 'fill-green-500/50' },
                 ].map(({ cx, label, fill }) => (
                     <g key={label}>
-                        <circle cx={cx} cy="360" r="5" className={fill} />
-                        <text x={cx + 10} y="364" className="fill-[color:var(--color-text-muted)]" fontSize="8">{label}</text>
+                        <circle cx={cx} cy="380" r="7" className={fill} />
+                        <text x={cx + 12} y="384" className="fill-[color:var(--color-text-muted)]" fontSize="11" fontWeight="500">{label}</text>
                     </g>
                 ))}
             </motion.g>

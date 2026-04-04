@@ -21,7 +21,7 @@ const footerSections: FooterSection[] = [
         links: [
             { label: 'Features', href: '#features' },
             { label: 'How It Works', href: '#how-it-works' },
-            { label: 'Pricing', href: '#pricing' },
+            { label: 'Pricing', href: '/pricing', isRoute: true },
             { label: 'Demo', href: '#demo' },
         ],
     },
@@ -32,6 +32,7 @@ const footerSections: FooterSection[] = [
             { label: 'API Reference', href: '/api', isRoute: true },
             { label: 'Blog', href: '/blog', isRoute: true },
             { label: 'Changelog', href: '/changelog', isRoute: true },
+            { label: 'AWS Infrastructure', href: '/infrastructure', isRoute: true },
         ],
     },
     {
