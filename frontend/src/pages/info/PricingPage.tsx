@@ -191,6 +191,172 @@ const GraduationIcon = () => (
 );
 
 /* ═══════════════════════════════════════════════════════════════
+   PITCH SVG ILLUSTRATIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+const ImpactSVG = () => (
+    <svg viewBox="0 0 400 280" fill="none" className="w-full h-auto">
+        <path d="M180 30 C210 28,240 35,255 50 C270 65,275 85,280 105 C285 125,290 145,285 165 C280 185,270 200,255 215 C240 230,225 245,210 255 C200 260,190 258,185 250 C175 235,165 225,155 215 C145 205,135 195,128 180 C120 165,115 145,118 125 C120 105,130 85,140 70 C150 55,165 35,180 30Z"
+            stroke="currentColor" strokeWidth="1.5" opacity="0.15" className="fill-primary-500/5" />
+        {[
+            { cx: 170, cy: 85, r: 8, label: 'Delhi NCR', color: '#3B82F6' },
+            { cx: 235, cy: 120, r: 5, label: 'Kolkata', color: '#8B5CF6' },
+            { cx: 155, cy: 155, r: 6, label: 'Mumbai', color: '#F59E0B' },
+            { cx: 190, cy: 180, r: 5, label: 'Pune', color: '#10B981' },
+            { cx: 185, cy: 210, r: 9, label: 'Bengaluru', color: '#EC4899' },
+            { cx: 210, cy: 200, r: 6, label: 'Hyderabad', color: '#3B82F6' },
+            { cx: 220, cy: 225, r: 5, label: 'Chennai', color: '#F59E0B' },
+        ].map(({ cx, cy, r, label, color }) => (
+            <g key={label}>
+                <circle cx={cx} cy={cy} r={r + 6} fill={color} opacity="0.08" />
+                <circle cx={cx} cy={cy} r={r} fill={color} opacity="0.35" />
+                <circle cx={cx} cy={cy} r={r * 0.4} fill={color} opacity="0.7" />
+                <text x={cx + r + 6} y={cy + 3} fontSize="8" fill="currentColor" opacity="0.45" fontWeight="500">{label}</text>
+            </g>
+        ))}
+        <text x="320" y="75" textAnchor="middle" fontSize="36" fontWeight="800" className="fill-primary-500" opacity="0.9">1.5M</text>
+        <text x="320" y="95" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.45" fontWeight="500">graduates / year</text>
+        <line x1="295" y1="115" x2="345" y2="115" stroke="currentColor" strokeWidth="1" opacity="0.1" />
+        <text x="320" y="165" textAnchor="middle" fontSize="36" fontWeight="800" className="fill-amber-500" opacity="0.9">83%</text>
+        <text x="320" y="185" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.45" fontWeight="500">unemployed or</text>
+        <text x="320" y="197" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.45" fontWeight="500">without internships</text>
+    </svg>
+);
+
+const MarketSVG = () => (
+    <svg viewBox="0 0 480 200" fill="none" className="w-full h-auto">
+        <defs>
+            <linearGradient id="marketGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+            </linearGradient>
+        </defs>
+        {[160, 130, 100, 70, 40].map((y, i) => (
+            <line key={i} x1="60" y1={y} x2="420" y2={y} stroke="currentColor" strokeWidth="0.5" opacity="0.06" />
+        ))}
+        <text x="50" y="163" textAnchor="end" fontSize="8" fill="currentColor" opacity="0.3">$0B</text>
+        <text x="50" y="103" textAnchor="end" fontSize="8" fill="currentColor" opacity="0.3">$15B</text>
+        <text x="50" y="43" textAnchor="end" fontSize="8" fill="currentColor" opacity="0.3">$30B</text>
+        <path d="M80 155 C120 150,160 145,200 138 C240 130,280 115,320 90 C360 65,400 42,420 35 L420 160 L80 160Z"
+            fill="url(#marketGrad)" opacity="0.15" />
+        <path d="M80 155 C120 150,160 145,200 138 C240 130,280 115,320 90 C360 65,400 42,420 35"
+            stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="80" cy="155" r="5" fill="#10B981" opacity="0.3" />
+        <circle cx="80" cy="155" r="3" fill="#10B981" />
+        <text x="80" y="175" textAnchor="middle" fontSize="11" fill="#10B981" fontWeight="700">$7.5B</text>
+        <text x="80" y="187" textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.35">2024</text>
+        <circle cx="420" cy="35" r="6" fill="#10B981" opacity="0.3" />
+        <circle cx="420" cy="35" r="3.5" fill="#10B981" />
+        <text x="420" y="25" textAnchor="middle" fontSize="14" fill="#10B981" fontWeight="800">$29B</text>
+        <text x="420" y="55" textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.35">2030</text>
+        <rect x="220" y="70" width="60" height="22" rx="11" fill="#10B981" opacity="0.12" stroke="#10B981" strokeWidth="0.8" />
+        <text x="250" y="84" textAnchor="middle" fontSize="9" fill="#10B981" fontWeight="700">25% CAGR</text>
+    </svg>
+);
+
+const PlatformEdgeSVG = () => (
+    <svg viewBox="0 0 420 240" fill="none" className="w-full h-auto">
+        {/* Phone body - landscape */}
+        <rect x="20" y="20" width="380" height="200" rx="20" stroke="currentColor" strokeWidth="2" opacity="0.2" />
+        <rect x="30" y="35" width="360" height="170" rx="4" className="fill-[color:var(--color-bg-primary)]" stroke="currentColor" strokeWidth="0.5" opacity="0.1" />
+        {/* Notch (side) */}
+        <rect x="24" y="95" width="6" height="50" rx="3" fill="currentColor" opacity="0.08" />
+        {/* Status bar */}
+        <text x="45" y="48" fontSize="9" fill="currentColor" opacity="0.35" fontWeight="600">4G</text>
+        {/* Signal bars - weak */}
+        <rect x="370" y="42" width="3.5" height="5" rx="0.5" fill="#F59E0B" opacity="0.7" />
+        <rect x="375.5" y="40" width="3.5" height="7" rx="0.5" fill="currentColor" opacity="0.1" />
+        <rect x="381" y="38" width="3.5" height="9" rx="0.5" fill="currentColor" opacity="0.1" />
+        {/* App header */}
+        <rect x="45" y="55" width="150" height="22" rx="5" className="fill-primary-500/8" />
+        <text x="120" y="70" textAnchor="middle" fontSize="10" className="fill-primary-500" fontWeight="700" opacity="0.8">SocraticDev</text>
+        {/* Dojo challenge card */}
+        <rect x="45" y="85" width="165" height="55" rx="6" fill="currentColor" opacity="0.04" stroke="currentColor" strokeWidth="0.5" />
+        <text x="55" y="100" fontSize="8" fill="currentColor" opacity="0.45" fontWeight="600">Dojo Challenge</text>
+        <rect x="55" y="107" width="90" height="3.5" rx="1.5" fill="#8B5CF6" opacity="0.35" />
+        <rect x="55" y="114" width="130" height="3.5" rx="1.5" fill="currentColor" opacity="0.08" />
+        <rect x="55" y="121" width="70" height="3.5" rx="1.5" fill="currentColor" opacity="0.06" />
+        <rect x="55" y="128" width="110" height="3.5" rx="1.5" fill="#10B981" opacity="0.3" />
+        {/* Flashcard card */}
+        <rect x="45" y="148" width="165" height="45" rx="6" fill="currentColor" opacity="0.04" stroke="currentColor" strokeWidth="0.5" />
+        <text x="55" y="165" fontSize="8" fill="currentColor" opacity="0.45" fontWeight="600">Flashcard (Offline)</text>
+        <rect x="55" y="172" width="120" height="3.5" rx="1.5" fill="#F59E0B" opacity="0.35" />
+        <rect x="55" y="179" width="80" height="3.5" rx="1.5" fill="currentColor" opacity="0.08" />
+        {/* Offline badge */}
+        <rect x="150" y="155" width="50" height="14" rx="7" fill="#10B981" opacity="0.12" stroke="#10B981" strokeWidth="0.7" />
+        <text x="175" y="165" textAnchor="middle" fontSize="7" fill="#10B981" fontWeight="600">OFFLINE</text>
+        {/* Right panel - stats */}
+        <rect x="225" y="55" width="155" height="140" rx="8" fill="currentColor" opacity="0.03" stroke="currentColor" strokeWidth="0.5" />
+        <text x="302" y="78" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.35" fontWeight="600">Performance</text>
+        {/* Size badge */}
+        <rect x="255" y="90" width="95" height="32" rx="16" className="fill-primary-500/10" stroke="currentColor" strokeWidth="0.5" />
+        <text x="302" y="111" textAnchor="middle" fontSize="13" className="fill-primary-500" fontWeight="800">&lt;400 KB</text>
+        {/* Mini stats */}
+        <text x="258" y="140" fontSize="8" fill="currentColor" opacity="0.3" fontWeight="500">Load time</text>
+        <rect x="258" y="145" width="80" height="5" rx="2.5" fill="currentColor" opacity="0.06" />
+        <rect x="258" y="145" width="60" height="5" rx="2.5" fill="#10B981" opacity="0.3" />
+        <text x="342" y="150" fontSize="7" fill="#10B981" fontWeight="600">1.2s</text>
+        <text x="258" y="165" fontSize="8" fill="currentColor" opacity="0.3" fontWeight="500">Memory</text>
+        <rect x="258" y="170" width="80" height="5" rx="2.5" fill="currentColor" opacity="0.06" />
+        <rect x="258" y="170" width="35" height="5" rx="2.5" fill="#3B82F6" opacity="0.3" />
+        <text x="342" y="175" fontSize="7" fill="#3B82F6" fontWeight="600">12MB</text>
+        {/* Bottom label */}
+        <text x="210" y="210" textAnchor="middle" fontSize="8" fill="currentColor" opacity="0.2" fontWeight="500">Runs on ₹8,000 Android phones over patchy 4G</text>
+    </svg>
+);
+
+const FunnelSVG = () => (
+    <svg viewBox="0 0 520 180" fill="none" className="w-full h-auto">
+        {[
+            { x: 10, w: 100, h: 100, y: 40, label: 'Free Dojo', sub: 'No signup', count: '100K+', color: '#64748B' },
+            { x: 120, w: 90, h: 85, y: 48, label: 'First Challenge', sub: 'Activated', count: '60K', color: '#3B82F6' },
+            { x: 220, w: 80, h: 70, y: 55, label: 'Save Cards', sub: 'Engaged', count: '25K', color: '#8B5CF6' },
+            { x: 310, w: 70, h: 55, y: 63, label: 'Student Plan', sub: '₹299/mo', count: '5K', color: '#F59E0B' },
+            { x: 390, w: 60, h: 40, y: 70, label: 'Pro / Instit.', sub: '₹599+/mo', count: '1.5K', color: '#10B981' },
+        ].map(({ x, w, h, y, label, sub, count, color }) => (
+            <g key={label}>
+                <rect x={x} y={y} width={w} height={h} rx="8" fill={color} opacity="0.08" stroke={color} strokeWidth="1" />
+                <text x={x + w / 2} y={y + 20} textAnchor="middle" fontSize="9" fill={color} fontWeight="700">{count}</text>
+                <text x={x + w / 2} y={y + 34} textAnchor="middle" fontSize="8" fill="currentColor" opacity="0.5" fontWeight="600">{label}</text>
+                <text x={x + w / 2} y={y + 46} textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.3">{sub}</text>
+            </g>
+        ))}
+        {[112, 212, 302, 382].map((x, i) => (
+            <g key={i}>
+                <path d={`M${x} 85 L${x + 6} 85`} stroke="currentColor" strokeWidth="1.5" opacity="0.15" />
+                <polygon points={`${x + 6},82 ${x + 10},85 ${x + 6},88`} fill="currentColor" opacity="0.15" />
+            </g>
+        ))}
+        <text x="260" y="168" textAnchor="middle" fontSize="9" fill="currentColor" opacity="0.3" fontWeight="500">Conversion triggers: save flashcards → upload project → unlock full Dojo</text>
+    </svg>
+);
+
+const GTMTimelineSVG = () => (
+    <svg viewBox="0 0 520 140" fill="none" className="w-full h-auto">
+        <line x1="30" y1="60" x2="490" y2="60" stroke="currentColor" strokeWidth="1.5" opacity="0.1" />
+        <rect x="20" y="5" width="290" height="120" rx="12" stroke="#3B82F6" strokeWidth="1" opacity="0.12" strokeDasharray="4 3" />
+        <text x="165" y="22" textAnchor="middle" fontSize="8" fill="#3B82F6" fontWeight="700" opacity="0.6">PHASE 1 — First 1,000 Users (Zero Paid Ads)</text>
+        <rect x="320" y="5" width="190" height="120" rx="12" stroke="#10B981" strokeWidth="1" opacity="0.12" strokeDasharray="4 3" />
+        <text x="415" y="22" textAnchor="middle" fontSize="8" fill="#10B981" fontWeight="700" opacity="0.6">PHASE 2 — Scale</text>
+        {[
+            { cx: 70, label: 'WhatsApp &', sub: 'Discord', color: '#25D366' },
+            { cx: 155, label: 'Coding', sub: 'Clubs', color: '#8B5CF6' },
+            { cx: 240, label: '50 Colleges', sub: 'in 90 Days', color: '#F59E0B' },
+            { cx: 340, label: 'YouTube &', sub: 'LinkedIn', color: '#EF4444' },
+            { cx: 450, label: 'Institutional', sub: 'Sales Pipeline', color: '#10B981' },
+        ].map(({ cx, label, sub, color }) => (
+            <g key={label}>
+                <circle cx={cx} cy={60} r={16} fill={color} opacity="0.1" />
+                <circle cx={cx} cy={60} r={10} fill={color} opacity="0.25" />
+                <circle cx={cx} cy={60} r={4} fill={color} opacity="0.7" />
+                <text x={cx} y={95} textAnchor="middle" fontSize="8" fill="currentColor" opacity="0.5" fontWeight="600">{label}</text>
+                <text x={cx} y={106} textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.35">{sub}</text>
+            </g>
+        ))}
+    </svg>
+);
+
+/* ═══════════════════════════════════════════════════════════════
    ANIMATION CONFIG
    ═══════════════════════════════════════════════════════════════ */
 
@@ -614,6 +780,123 @@ function PricingPage() {
                         </p>
                     </motion.div>
 
+                    {/* ── Impact & The Problem ────────────── */}
+                    <div className="mb-16">
+                        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] overflow-hidden">
+                            <div className="h-1 bg-gradient-to-r from-primary-500 via-amber-500 to-primary-500 opacity-40" />
+                            <div className="p-8 md:p-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                                    <div>
+                                        <h2 className="font-display text-2xl md:text-3xl font-bold mb-4 text-[color:var(--color-text-primary)]">
+                                            The Gap We Solve
+                                        </h2>
+                                        <p className="text-base text-[color:var(--color-text-secondary)] leading-relaxed mb-4">
+                                            India produces <span className="font-bold text-[color:var(--color-text-primary)]">1.5 million engineering graduates</span> a year, yet <span className="font-bold text-amber-500">83% remain unemployed</span> or without internships — not because they cannot code, but because they cannot <em>explain or reason through it under pressure</em>.
+                                        </p>
+                                        <div className="p-4 rounded-xl border border-primary-500/20 bg-primary-500/5">
+                                            <p className="text-base font-semibold text-[color:var(--color-text-primary)]">
+                                                That is the gap SocraticDev solves: <span className="text-primary-500">not faster coding — deeper developers.</span>
+                                            </p>
+                                        </div>
+                                        <p className="mt-4 text-sm text-[color:var(--color-text-muted)] leading-relaxed">
+                                            We save students <span className="font-semibold text-[color:var(--color-text-secondary)]">8–10 hours a week</span> through structured practice, with offline flashcards, async Dojo challenges, and future Hindi and regional-language support via AWS Bedrock.
+                                        </p>
+                                    </div>
+                                    <div className="text-[color:var(--color-text-secondary)]">
+                                        <ImpactSVG />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Market Size ─────────────────────── */}
+                    <div className="mb-16">
+                        <div className="text-center mb-6">
+                            <h2 className="font-display text-2xl font-bold text-[color:var(--color-text-primary)] mb-2">The Market Is Already Here</h2>
+                            <p className="text-sm text-[color:var(--color-text-muted)]">EdTech for developers is a massive and rapidly growing opportunity in India</p>
+                        </div>
+                        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] p-6 md:p-8 text-[color:var(--color-text-secondary)] mb-6">
+                            <MarketSVG />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {[
+                                { value: '6M', label: 'Engineering Students', sub: 'Active in Indian universities', color: '#3B82F6' },
+                                { value: '4M', label: 'Early-Career Developers', sub: '0-5 years experience', color: '#8B5CF6' },
+                                { value: '$29B', label: 'Market by 2030', sub: '25% CAGR from $7.5B today', color: '#10B981' },
+                            ].map(({ value, label, sub, color }) => (
+                                <div key={label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] p-5 text-center">
+                                    <div className="font-display text-3xl font-bold mb-1" style={{ color }}>{value}</div>
+                                    <div className="text-sm font-semibold text-[color:var(--color-text-primary)] mb-1">{label}</div>
+                                    <div className="text-xs text-[color:var(--color-text-muted)]">{sub}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Platform Edge ───────────────────── */}
+                    <div className="mb-16">
+                        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] overflow-hidden">
+                            <div className="h-1 bg-gradient-to-r from-emerald-500 via-blue-500 to-violet-500 opacity-30" />
+                            <div className="p-8 md:p-10">
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-8 items-center">
+                                    <div className="order-2 md:order-1 text-[color:var(--color-text-secondary)]">
+                                        <PlatformEdgeSVG />
+                                    </div>
+                                    <div className="order-1 md:order-2">
+                                        <h2 className="font-display text-2xl font-bold mb-2 text-[color:var(--color-text-primary)]">Built for Bharat</h2>
+                                        <p className="text-sm text-[color:var(--color-text-muted)] mb-6">Engineered for the reality of Indian infrastructure</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {[
+                                        { title: 'Sub-400KB Runtime', desc: 'Entire app loads in under 400KB — no bloated bundles', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                                ), color: '#F59E0B' },
+                                                { title: '₹8,000 Phone Ready', desc: 'Runs smoothly on entry-level Android devices', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                                                ), color: '#3B82F6' },
+                                                { title: 'Patchy 4G Friendly', desc: 'Works on unstable connections with progressive loading', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
+                                                ), color: '#EF4444' },
+                                                { title: 'Offline Flashcards', desc: 'Study anywhere — SRS works without internet', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                                ), color: '#10B981' },
+                                                { title: 'Async Dojo', desc: 'Complete challenges without a live connection', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                                                ), color: '#8B5CF6' },
+                                                { title: 'Hindi & Regional (Soon)', desc: 'Future multi-language support via AWS Bedrock', icon: (
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                                                ), color: '#EC4899' },
+                                            ].map(({ title, desc, icon, color }) => (
+                                                <div key={title} className="flex items-start gap-3 p-3 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-primary)]">
+                                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}12`, color }}>
+                                                        {icon}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-[color:var(--color-text-primary)]">{title}</div>
+                                                        <div className="text-xs text-[color:var(--color-text-muted)] leading-relaxed">{desc}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Freemium Funnel ─────────────────── */}
+                    <div className="mb-16">
+                        <div className="text-center mb-6">
+                            <h2 className="font-display text-2xl font-bold text-[color:var(--color-text-primary)] mb-2">Freemium Funnel</h2>
+                            <p className="text-sm text-[color:var(--color-text-muted)] max-w-xl mx-auto">
+                                The no-signup Dojo acquires users. Conversion happens when they save flashcards, upload projects, or unlock the full Dojo.
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] p-6 md:p-8 text-[color:var(--color-text-secondary)]">
+                            <FunnelSVG />
+                        </div>
+                    </div>
+
                     {/* ── Billing Toggle ────────────────────── */}
                     <BillingToggle annual={annual} onToggle={() => setAnnual(!annual)} />
 
@@ -762,6 +1045,36 @@ function PricingPage() {
                             </motion.div>
                         ))}
                     </motion.div>
+
+                    {/* ── Go-to-Market ────────────────────── */}
+                    <div className="mb-16">
+                        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-secondary)] overflow-hidden">
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500 opacity-30" />
+                            <div className="p-8 md:p-10">
+                                <h2 className="font-display text-2xl font-bold mb-2 text-[color:var(--color-text-primary)]">Go-to-Market Strategy</h2>
+                                <p className="text-sm text-[color:var(--color-text-muted)] mb-6 max-w-2xl">
+                                    Acquiring our first 1,000 users through organic channels — WhatsApp and Discord placement communities, coding clubs, outreach to 50 colleges in 90 days, and live YouTube and LinkedIn demos. <span className="font-semibold text-emerald-400">Zero paid ads in Phase 1.</span>
+                                </p>
+                                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-primary)] p-6 text-[color:var(--color-text-secondary)]">
+                                    <GTMTimelineSVG />
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+                                    {[
+                                        { stat: '1,000', label: 'Target Users', sub: 'Phase 1 goal' },
+                                        { stat: '50', label: 'Colleges', sub: 'In 90 days' },
+                                        { stat: '$0', label: 'Ad Spend', sub: 'Phase 1' },
+                                        { stat: '100%', label: 'Organic', sub: 'Community-driven' },
+                                    ].map(({ stat, label, sub }) => (
+                                        <div key={label} className="text-center p-3 rounded-lg border border-[color:var(--color-border)]">
+                                            <div className="font-display text-xl font-bold text-[color:var(--color-text-primary)]">{stat}</div>
+                                            <div className="text-xs font-semibold text-[color:var(--color-text-secondary)]">{label}</div>
+                                            <div className="text-[10px] text-[color:var(--color-text-muted)]">{sub}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* ── CTA ───────────────────────────────── */}
                     <motion.div
